@@ -1180,7 +1180,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                   <span className="material-symbols-outlined text-xs">
                                     {isGen ? 'check_circle' : 'receipt_long'}
                                   </span>
-                                  <span>Facture {typeConfig.name}</span>
+                                  <span>{typeConfig.name}</span>
                                 </button>
                               );
                             })}
