@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Escale, BL, Invoice, UserRole, Container, RubriqueConfig, FretCategory } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Escale, BL, Invoice, UserRole, Container, RubriqueConfig, FretCategory, InvoiceTypeConfig } from '../types';
 import { generateProformaPdf } from '../utils/pdfGenerator';
 import { calculateTotalDmdt } from '../utils/dmdtCalculator';
 import { parseGuceXml } from '../utils/xmlGuceParser';
@@ -14,6 +14,8 @@ interface ImportModuleProps {
   onLogAudit: (action: string, entite: string, details: string) => void;
   userRole: UserRole;
   rubriqueConfigs?: RubriqueConfig[];
+  invoiceTypeConfigs?: InvoiceTypeConfig[];
+  invoices?: Invoice[];
 }
 
 export const ImportModule: React.FC<ImportModuleProps> = ({
@@ -25,7 +27,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   onGenerateInvoice,
   onLogAudit,
   userRole,
-  rubriqueConfigs = []
+  rubriqueConfigs = [],
+  invoiceTypeConfigs = [],
+  invoices = []
 }) => {
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,7 +39,27 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   const [isProcessingXml, setIsProcessingXml] = useState(false);
   const [selectedBlDetails, setSelectedBlDetails] = useState<BL | null>(null);
   const [escaleToDelete, setEscaleToDelete] = useState<Escale | null>(null);
-  const [blToInvoice, setBlToInvoice] = useState<BL | null>(null);
+  
+  // Modal de sélection des types de factures à émettre
+  const [blForInvoiceSelection, setBlForInvoiceSelection] = useState<BL | null>(null);
+  const [selectedTypeIdsForBl, setSelectedTypeIdsForBl] = useState<string[]>([]);
+  const [plannedInvoicesByBl, setPlannedInvoicesByBl] = useState<Record<number, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('bocs_bl_planned_invoices');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bocs_bl_planned_invoices', JSON.stringify(plannedInvoicesByBl));
+    } catch (e) {
+      console.error('Erreur sauvegarde planned invoices', e);
+    }
+  }, [plannedInvoicesByBl]);
+
   const [lastXmlFileName, setLastXmlFileName] = useState<string>(() => {
     return localStorage.getItem('bocs_last_xml_filename') || '';
   });
@@ -711,18 +735,72 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
     setNumeroVoyage('');
   };
 
-  const handleGenerateProformaFromBl = (bl: BL) => {
+  const getBlCategory = (bl: BL): FretCategory => {
+    if (bl.conteneurs && bl.conteneurs.length > 0) return 'CONTENEUR';
+    const emballage = (bl.typeEmballage || '').toUpperCase();
+    const marques = (bl.marquesEtNumeros || '').toUpperCase();
+    if (emballage.includes('VEHICULE') || emballage.includes('RO-RO') || emballage.includes('RORO') || marques.includes('CHASSIS') || marques.includes('RO-RO')) {
+      return 'RORO';
+    }
+    if (emballage.includes('CONV') || emballage.includes('COLIS') || emballage.includes('PALETTE')) {
+      return 'CONVENTIONNEL';
+    }
+    return 'VRAC';
+  };
+
+  const handleOpenInvoiceSelection = (bl: BL) => {
+    const existing = plannedInvoicesByBl[bl.id] || bl.selectedInvoiceTypeIds || [];
+    if (existing.length > 0) {
+      setSelectedTypeIdsForBl(existing);
+    } else {
+      const blCat = getBlCategory(bl);
+      const activeTypeIds = invoiceTypeConfigs
+        .filter(t => rubriqueConfigs.some(r => r.invoiceTypeId === t.id && r.category === blCat && r.isActive))
+        .map(t => t.id);
+      setSelectedTypeIdsForBl(activeTypeIds.length > 0 ? activeTypeIds : (invoiceTypeConfigs.length > 0 ? [invoiceTypeConfigs[0].id] : ['2']));
+    }
+    setBlForInvoiceSelection(bl);
+  };
+
+  const handleConfirmInvoiceSelection = () => {
+    if (!blForInvoiceSelection) return;
+    if (selectedTypeIdsForBl.length === 0) {
+      alert('Veuillez sélectionner au moins un type de facture pour ce connaissement.');
+      return;
+    }
+
+    setPlannedInvoicesByBl(prev => ({
+      ...prev,
+      [blForInvoiceSelection.id]: selectedTypeIdsForBl
+    }));
+
+    const chosenNames = invoiceTypeConfigs
+      .filter(t => selectedTypeIdsForBl.includes(t.id))
+      .map(t => t.name)
+      .join(', ');
+
+    onLogAudit(
+      'PLANIFICATION_FACTURES_BL',
+      'BL',
+      `Planification de ${selectedTypeIdsForBl.length} facture(s) (${chosenNames}) pour le BL ${blForInvoiceSelection.numeroBL}`
+    );
+
+    setBlForInvoiceSelection(null);
+  };
+
+  const handleGenerateProformaForType = (bl: BL, typeConfig: InvoiceTypeConfig, existingInvoice?: Invoice) => {
+    if (existingInvoice) {
+      generateProformaPdf(existingInvoice, bl, 'Agence BOCS Abidjan');
+      return;
+    }
+
     const today = new Date().toISOString().split('T')[0];
-    const { totalSurestarieFcfa, conteneursCalculated } = calculateTotalDmdt(bl.conteneurs, today);
+    const { totalSurestarieFcfa } = calculateTotalDmdt(bl.conteneurs, today);
+    const blCategory = getBlCategory(bl);
 
-    // Déterminer la catégorie de fret du BL
-    const blCategory: FretCategory = bl.conteneurs && bl.conteneurs.length > 0 
-      ? 'CONTENEUR' 
-      : (bl.typeEmballage?.toUpperCase().includes('VEHICULE') || bl.typeEmballage?.toUpperCase().includes('RO-RO') ? 'RORO' : 'VRAC');
-
-    // Récupérer les rubriques configurées actives pour les échanges (typeFacture ou invoiceTypeId === '2' pour Echange)
+    // Get active rubriques for this category & this specific invoice type
     const activeConfigs = rubriqueConfigs.filter(r => 
-      r.invoiceTypeId === '2' && 
+      r.invoiceTypeId === typeConfig.id && 
       r.category === blCategory && 
       r.isActive
     );
@@ -746,7 +824,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       };
     });
 
-    if (totalSurestarieFcfa > 0) {
+    // Include surestaries if Caution or if configured
+    if ((typeConfig.id === '1' || typeConfig.name.toLowerCase().includes('caution')) && totalSurestarieFcfa > 0) {
       lines.push({
         designation: 'Frais de surestaries DMDT conteneurs',
         typeFrais: 'DMDT_SURESTARIE',
@@ -757,36 +836,34 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       });
     }
 
-    // Si aucune rubrique n'est configurée, utiliser les frais standards par défaut
+    // Fallback if no rubriques are configured
     if (lines.length === 0) {
       lines = [
-        { designation: 'Frais d\'échange documentaire LTA / BL', typeFrais: 'ECHANGE', quantite: 1, prixUnitaireFcfa: 150000, montantHtFcfa: 150000, tauxTva: 18 },
-        { designation: 'Frais de manutention et passage portuaire', typeFrais: 'AUTRE', quantite: 1, prixUnitaireFcfa: 200000, montantHtFcfa: 200000, tauxTva: 18 }
+        { 
+          designation: `Frais administratifs - Facture ${typeConfig.name}`, 
+          typeFrais: 'AUTRE', 
+          quantite: 1, 
+          prixUnitaireFcfa: 100000, 
+          montantHtFcfa: 100000, 
+          tauxTva: 18 
+        }
       ];
-      if (totalSurestarieFcfa > 0) {
-        lines.push({
-          designation: 'Frais de surestaries DMDT conteneurs',
-          typeFrais: 'DMDT_SURESTARIE',
-          quantite: 1,
-          prixUnitaireFcfa: totalSurestarieFcfa,
-          montantHtFcfa: totalSurestarieFcfa,
-          tauxTva: 18
-        });
-      }
     }
 
     const calculatedHt = lines.reduce((sum, l) => sum + l.montantHtFcfa, 0);
     const calculatedTva = Math.round(calculatedHt * 0.18);
     const calculatedTtc = calculatedHt + calculatedTva;
 
+    const prefix = typeConfig.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'FAC');
     const invoice: Invoice = {
       id: Date.now(),
       blId: bl.id,
       numeroBL: bl.numeroBL,
+      clientId: bl.clientId,
       clientNom: bl.consigneeNom,
       escaleInfo: `Escale BL #${bl.numeroBL}`,
       typeFacture: 'PROFORMA_IMPORT',
-      numeroFacture: `PROF-IMP-${Math.floor(1000 + Math.random() * 9000)}`,
+      numeroFacture: `PROF-${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
       dateFacture: today,
       dateEcheance: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
       devise: 'FCFA',
@@ -796,11 +873,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       montantTtcFcfa: calculatedTtc,
       soldeDuFcfa: calculatedTtc,
       statutPaiement: 'NON_PAYE',
+      invoiceTypeId: typeConfig.id,
       lignes: lines
     };
 
     onGenerateInvoice(invoice);
-    onLogAudit('GENERATION_PROFORMA_IMPORT', 'Facture', `Génération proforma import ${invoice.numeroFacture} pour BL ${bl.numeroBL}`);
+    onLogAudit(
+      'GENERATION_PROFORMA_IMPORT', 
+      'Facture', 
+      `Génération de la facture proforma ${typeConfig.name} (${invoice.numeroFacture}) pour BL ${bl.numeroBL}`
+    );
     generateProformaPdf(invoice, bl, 'Agence BOCS Abidjan');
   };
 
@@ -962,91 +1044,91 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50 text-xs">
-              {filteredBls.map(bl => (
-                <tr key={bl.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="p-3">
-                    <span className="font-mono font-bold text-primary text-sm block">{bl.numeroBL}</span>
-                    <span className="text-[10px] text-outline uppercase">{bl.typeOperation}</span>
-                  </td>
-                  <td className="p-3 font-medium text-on-surface">{bl.shipperNom}</td>
-                  <td className="p-3 font-semibold text-primary">{bl.consigneeNom}</td>
-                  <td className="p-3 font-mono">
-                    <div>{bl.poidsBrutKg.toLocaleString()} kg</div>
-                    <div className="text-[10px] text-outline">{bl.volumeM3} m³ | {bl.nombreColis} colis</div>
-                  </td>
-                  <td className="p-3">
-                    {bl.conteneurs && bl.conteneurs.length > 0 ? (
-                      (() => {
-                        const count20 = bl.conteneurs.filter(c => c.typeConteneur && c.typeConteneur.startsWith('20')).length;
-                        const count40 = bl.conteneurs.filter(c => c.typeConteneur && c.typeConteneur.startsWith('40')).length;
-                        const otherCount = bl.conteneurs.length - count20 - count40;
-                        return (
-                          <div className="flex flex-wrap items-center gap-1.5 font-mono">
-                            {count20 > 0 && (
-                              <span className="px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[#005daa] text-xs font-black shadow-2xs" title={`${count20} conteneur(s) de 20 pieds`}>
-                                {count20} x 20'
-                              </span>
-                            )}
-                            {count40 > 0 && (
-                              <span className="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black shadow-2xs" title={`${count40} conteneur(s) de 40 pieds`}>
-                                {count40} x 40'
-                              </span>
-                            )}
-                            {otherCount > 0 && (
-                              <span className="px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black shadow-2xs">
-                                {otherCount} x Divers
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })()
-                    ) : bl.marquesEtNumeros ? (
-                      <div className="flex flex-col gap-1 font-mono">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                            bl.marquesEtNumeros.includes('CDE')
-                              ? 'bg-amber-50 border border-amber-200 text-amber-700'
-                              : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                          }`}>
-                            {bl.marquesEtNumeros.includes('CDE') ? 'VRAC' : 'RORO'}
+                      {/* Statut Column */}
+                      <td className="p-3">
+                        {plannedConfigs.length === 0 ? (
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                            EN ATTENTE
                           </span>
-                          <span className="text-slate-700 font-bold text-xs">{bl.marquesEtNumeros}</span>
+                        ) : allGenerated ? (
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-600 text-white shadow-xs inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                            <span>FACTURÉ</span>
+                          </span>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs text-amber-700">pending_actions</span>
+                              <span>EN ATTENTE ({pendingConfigs.map(t => t.name).join(', ')})</span>
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-mono font-bold">
+                              {generatedConfigs.length}/{plannedConfigs.length} éditée(s)
+                            </span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Actions Column */}
+                      <td className="p-3 text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedBlDetails(bl)}
+                            className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold rounded-lg text-xs transition-all cursor-pointer"
+                          >
+                            Détails
+                          </button>
+
+                          {plannedConfigs.length === 0 ? (
+                            <button
+                              onClick={() => handleOpenInvoiceSelection(bl)}
+                              className="px-3 py-1.5 bg-[#005daa] text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            >
+                              <span className="material-symbols-outlined text-sm">receipt_long</span>
+                              <span>Proforma PDF</span>
+                            </button>
+                          ) : (
+                            <>
+                              {plannedConfigs.map(typeConfig => {
+                                const isGen = generatedConfigs.some(g => g.id === typeConfig.id);
+                                const generatedInv = blInvoices.find(inv => 
+                                  inv.invoiceTypeId === typeConfig.id || 
+                                  inv.numeroFacture.startsWith(`PROF-${typeConfig.name.substring(0, 3).toUpperCase()}`)
+                                );
+
+                                return (
+                                  <button
+                                    key={typeConfig.id}
+                                    onClick={() => handleGenerateProformaForType(bl, typeConfig, generatedInv)}
+                                    className={`px-2.5 py-1 font-bold rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs ${
+                                      isGen
+                                        ? 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                                        : 'bg-[#005daa] hover:bg-blue-700 text-white shadow-xs'
+                                    }`}
+                                    title={isGen ? `Facture ${typeConfig.name} déjà éditée (Cliquer pour revoir/télécharger)` : `Éditer la Facture Proforma ${typeConfig.name}`}
+                                  >
+                                    <span className="material-symbols-outlined text-xs">
+                                      {isGen ? 'check_circle' : 'receipt_long'}
+                                    </span>
+                                    <span>Facture {typeConfig.name}</span>
+                                  </button>
+                                );
+                              })}
+
+                              {/* Bouton pour réajuster ou modifier les types de factures */}
+                              <button
+                                onClick={() => handleOpenInvoiceSelection(bl)}
+                                className="p-1 text-slate-400 hover:text-[#005daa] hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                                title="Modifier la sélection des factures pour ce BL"
+                              >
+                                <span className="material-symbols-outlined text-base">settings</span>
+                              </button>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 italic">Sans repères</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {bl.statutImport === 'FACTURE' ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-status-validated text-white">FACTURÉ</span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">EN ATTENTE</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-right space-x-2">
-                    <button
-                      onClick={() => setSelectedBlDetails(bl)}
-                      className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold rounded text-xs transition-all"
-                    >
-                      Détails
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (bl.statutImport === 'FACTURE') {
-                          handleGenerateProformaFromBl(bl);
-                        } else {
-                          setBlToInvoice(bl);
-                        }
-                      }}
-                      className="px-3 py-1 bg-[#005daa] text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-all shadow-xs inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">receipt_long</span>
-                      <span>Proforma PDF</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -1161,12 +1243,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </button>
               <button
                 onClick={() => {
-                  handleGenerateProformaFromBl(selectedBlDetails);
+                  const target = selectedBlDetails;
                   setSelectedBlDetails(null);
+                  if (target) {
+                    handleOpenInvoiceSelection(target);
+                  }
                 }}
-                className="px-5 py-2 bg-primary text-on-primary font-bold text-xs rounded hover:bg-secondary transition-all"
+                className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                Générer Proforma PDF
+                <span className="material-symbols-outlined text-sm">fact_check</span>
+                <span>Choisir Factures Proforma</span>
               </button>
             </div>
           </div>
@@ -1337,52 +1423,137 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           </div>
         </div>
       )}
-      {/* Modal: Confirmation de Facturation */}
-      {blToInvoice && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-blue-100 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center gap-3 text-[#005daa] border-b border-slate-100 pb-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#005daa]">
-                <span className="material-symbols-outlined text-2xl">info</span>
+      {/* Modal: Sélection des Types de Factures à Émettre pour le BL */}
+      {blForInvoiceSelection && (() => {
+        const blCat = getBlCategory(blForInvoiceSelection);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4">
+              
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#005daa] flex items-center justify-center font-bold">
+                    <span className="material-symbols-outlined text-xl">fact_check</span>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider font-heading">
+                      Types de Factures à Émettre
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      BL <strong className="font-mono text-[#005daa]">{blForInvoiceSelection.numeroBL}</strong> • Marchandise : <span className="px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">{blCat}</span>
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setBlForInvoiceSelection(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
               </div>
-              <div>
-                <h3 className="font-black text-base text-slate-900 font-heading">Confirmation de Facturation</h3>
-                <p className="text-[11px] text-[#005daa] font-semibold uppercase tracking-wider">Mise à jour du Statut Import</p>
+
+              <div className="space-y-2">
+                <p className="text-xs text-slate-600 font-medium">
+                  Cochez les factures que vous souhaitez émettre pour ce BL. Chaque type coché apparaîtra sous forme de bouton sur la ligne du BL :
+                </p>
+
+                <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                  {invoiceTypeConfigs.map(typeConfig => {
+                    const isChecked = selectedTypeIdsForBl.includes(typeConfig.id);
+                    const matchingRubriques = rubriqueConfigs.filter(r => 
+                      r.invoiceTypeId === typeConfig.id && 
+                      r.category === blCat && 
+                      r.isActive
+                    );
+
+                    const estimatedHt = matchingRubriques.reduce((sum, r) => {
+                      let q = 1;
+                      if (r.baseCalcul === 'CONTENEUR') q = blForInvoiceSelection.conteneurs?.length || 1;
+                      else if (r.baseCalcul === 'POIDS_TONNE') q = blForInvoiceSelection.poidsBrutKg ? Math.round((blForInvoiceSelection.poidsBrutKg / 1000) * 100) / 100 : 1;
+                      return sum + Math.round(q * r.montantUnitaire);
+                    }, 0);
+
+                    return (
+                      <label
+                        key={typeConfig.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (isChecked) {
+                            setSelectedTypeIdsForBl(prev => prev.filter(id => id !== typeConfig.id));
+                          } else {
+                            setSelectedTypeIdsForBl(prev => [...prev, typeConfig.id]);
+                          }
+                        }}
+                        className={`flex items-start gap-3.5 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                          isChecked
+                            ? 'bg-blue-50/60 border-[#005daa] shadow-xs'
+                            : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-4 h-4 mt-0.5 text-[#005daa] rounded focus:ring-[#005daa] cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-slate-900 text-xs font-heading">
+                              Facture {typeConfig.name}
+                            </span>
+                            {estimatedHt > 0 && (
+                              <span className="text-xs font-mono font-black text-[#005daa]">
+                                ~{estimatedHt.toLocaleString('fr-FR')} FCFA
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {typeConfig.description || 'Frais et rubriques applicables'}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {matchingRubriques.length > 0 ? (
+                              matchingRubriques.map(r => (
+                                <span key={r.id} className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-mono text-slate-700 font-semibold">
+                                  {r.name} ({r.montantUnitaire.toLocaleString('fr-FR')} FCFA/{r.baseCalcul})
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-slate-400 italic">
+                                Frais standard par défaut pour {blCat}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs space-y-2">
-              <p className="font-semibold text-slate-800">
-                La génération du document Proforma PDF pour le connaissement <strong className="font-mono text-[#005daa]">{blToInvoice.numeroBL}</strong> va modifier son statut de <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">EN ATTENTE</span> à <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-bold">FACTURÉ</span>.
-              </p>
-              <p className="text-slate-500">
-                Voulez-vous valider cette action ?
-              </p>
-            </div>
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <span className="text-xs font-bold text-slate-600">
+                  {selectedTypeIdsForBl.length} type(s) de facture sélectionné(s)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBlForInvoiceSelection(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmInvoiceSelection}
+                    className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-base">check</span>
+                    <span>Valider la Sélection</span>
+                  </button>
+                </div>
+              </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setBlToInvoice(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleGenerateProformaFromBl(blToInvoice);
-                  setBlToInvoice(null);
-                }}
-                className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-              >
-                <span className="material-symbols-outlined text-base">check_circle</span>
-                <span>Valider</span>
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

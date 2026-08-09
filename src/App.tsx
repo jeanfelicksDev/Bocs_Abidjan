@@ -429,6 +429,8 @@ export function App() {
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
               rubriqueConfigs={rubriqueConfigs}
+              invoiceTypeConfigs={invoiceTypeConfigs}
+              invoices={invoices}
             />
           )}
 

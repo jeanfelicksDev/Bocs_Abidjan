@@ -83,6 +83,7 @@ export interface BL {
   poidsBrutKg: number;
   volumeM3: number;
   statutImport?: 'EN_ATTENTE' | 'EN_COURS' | 'FACTURE';
+  selectedInvoiceTypeIds?: string[];
   clientId?: number;
   codeNature?: string;
   uniqueCarrierRef?: string;
@@ -108,21 +109,26 @@ export interface FranchiseSurestarie {
 }
 
 export type DraftStatus = 
-  | 'BROUILLON'
-  | 'SOUMIS'
-  | 'VALIDE'
-  | 'DEMANDE_MODIF'
+  | 'BROUILLON' 
+  | 'SOUMIS' 
+  | 'EN_REVUE' 
+  | 'DEMANDE_MODIF' 
+  | 'VALIDE' 
   | 'REJETE'
   | 'BL_GENERE'
   | 'FACTURE';
 
 export interface DraftExport {
   id: number;
-  clientId: number;
-  clientNom: string;
-  clientSociete: string;
-  escaleId?: number;
   numeroDraft: string;
+  bookingRef: string;
+  navireNom: string;
+  numeroVoyage: string;
+  portChargementCode: string;
+  portDechargementCode: string;
+  portDechargementNom: string;
+  clientNom: string;
+  clientEmail: string;
   shipperInfo: {
     nom: string;
     adresse: string;
@@ -178,6 +184,7 @@ export interface Invoice {
   id: number;
   blId?: number;
   numeroBL?: string;
+  invoiceTypeId?: string;
   clientId?: number;
   clientNom: string;
   escaleInfo?: string;
