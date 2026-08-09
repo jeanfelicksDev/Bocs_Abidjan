@@ -102,9 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {
           id: 'import',
           label: 'Importation & Manifestes',
-          icon: 'input',
-          glassBadge: 'GUCE XML',
-          badge: counts.blsCount > 0 ? counts.blsCount : null
+          icon: 'input'
         },
         {
           id: 'export',
@@ -144,6 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'admin',
           label: 'Console Administrateur',
           icon: 'settings_suggest',
+          colorClass: 'text-rose-500 hover:text-rose-400',
           subItems: [
             { id: 'admin_users', label: 'Comptes Utilisateurs', icon: 'manage_accounts' },
             { id: 'admin_fne', label: 'Params FNE & Devise', icon: 'tune' },
