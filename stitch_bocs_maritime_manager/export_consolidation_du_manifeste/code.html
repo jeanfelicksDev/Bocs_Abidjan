@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BOCS Maritime - Manifeste Export</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed": "#001c3a",
+                      "surface-container-highest": "#e2e2e2",
+                      "vessel-dark": "#212529",
+                      "status-validated": "#005DAA",
+                      "primary-container": "#002d50",
+                      "on-tertiary": "#ffffff",
+                      "on-surface-variant": "#43474e",
+                      "secondary-fixed": "#d4e3ff",
+                      "status-pending": "#9F7B87",
+                      "surface-container": "#eeeeee",
+                      "on-secondary-container": "#004078",
+                      "error": "#ba1a1a",
+                      "secondary-container": "#70adff",
+                      "on-primary-fixed": "#001d36",
+                      "tertiary": "#2a1000",
+                      "inverse-surface": "#2f3131",
+                      "primary-fixed-dim": "#a7c9f4",
+                      "surface-container-low": "#f3f3f3",
+                      "tertiary-fixed": "#ffdcc7",
+                      "surface-container-high": "#e8e8e8",
+                      "tertiary-fixed-dim": "#feb789",
+                      "on-primary-container": "#7495be",
+                      "outline": "#73777f",
+                      "outline-variant": "#c3c6cf",
+                      "tertiary-container": "#492000",
+                      "inverse-on-surface": "#f1f1f1",
+                      "surface": "#f9f9f9",
+                      "on-background": "#1a1c1c",
+                      "inverse-primary": "#a7c9f4",
+                      "primary": "#00182f",
+                      "surface-dim": "#dadada",
+                      "on-primary": "#ffffff",
+                      "background": "#f9f9f9",
+                      "surface-bright": "#f9f9f9",
+                      "on-tertiary-fixed": "#311300",
+                      "secondary-fixed-dim": "#a5c8ff",
+                      "error-container": "#ffdad6",
+                      "primary-fixed": "#d1e4ff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-surface": "#1a1c1c",
+                      "on-error-container": "#93000a",
+                      "status-invoiced": "#212529",
+                      "on-error": "#ffffff",
+                      "on-tertiary-fixed-variant": "#6b3a16",
+                      "on-tertiary-container": "#c3845a",
+                      "surface-variant": "#e2e2e2",
+                      "secondary": "#075fac",
+                      "surface-tint": "#3f6186",
+                      "on-secondary-fixed-variant": "#004785",
+                      "on-primary-fixed-variant": "#25496d",
+                      "on-secondary": "#ffffff",
+                      "cargo-accent": "#D79375"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "cell-padding-v": "12px",
+                      "gutter": "24px",
+                      "cell-padding-h": "16px",
+                      "container-max": "1440px",
+                      "sidebar-width": "260px"
+              },
+              "fontFamily": {
+                      "headline-lg-mobile": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "title-md": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "data-mono": ["JetBrains Mono"],
+                      "display-lg": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        /* Custom scrollbar for data tables */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c3c6cf; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #73777f; 
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #E0E0E0;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-full py-6 space-y-2 bg-vessel-dark text-on-primary fixed left-0 top-0 w-sidebar-width shadow-md z-40">
+<div class="px-gutter mb-8">
+<h1 class="font-headline-md text-headline-md text-on-primary uppercase tracking-widest flex items-center gap-3">
+<span class="material-symbols-outlined fill-icon text-3xl">sailing</span>
+                BOCS Logistics
+            </h1>
+<p class="font-label-caps text-label-caps text-surface-variant opacity-70 mt-1">Maritime Management</p>
+</div>
+<nav class="flex-1 flex flex-col space-y-1 w-full">
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4">glass</span>
+<span class="font-label-caps text-label-caps">Import</span>
+</a>
+<!-- Active State: Export -->
+<a class="flex items-center px-gutter py-3 bg-secondary text-white border-l-4 border-secondary-container" href="#">
+<span class="material-symbols-outlined mr-4">anchor</span>
+<span class="font-label-caps text-label-caps">Export</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4">payments</span>
+<span class="font-label-caps text-label-caps">Billing</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4">settings</span>
+<span class="font-label-caps text-label-caps">Admin</span>
+</a>
+</nav>
+<div class="mt-auto flex flex-col space-y-1 w-full">
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4">contact_support</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4">logout</span>
+<span class="font-label-caps text-label-caps">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col md:ml-sidebar-width h-screen overflow-hidden">
+<!-- TopAppBar (Mobile) / Header (Web) -->
+<header class="flex justify-between items-center h-16 px-gutter w-full sticky top-0 z-30 bg-surface-container-lowest text-primary border-b border-outline-variant md:hidden">
+<h1 class="text-title-md font-headline-lg-mobile text-primary tracking-tight">BOCS Maritime</h1>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</header>
+<!-- Page Content -->
+<main class="flex-1 overflow-y-auto custom-scrollbar p-gutter bg-surface-container-low">
+<div class="max-w-container-max mx-auto space-y-6">
+<!-- Header Section -->
+<div class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 mb-8">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-background mb-2">Manifeste Export</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Consolidation des connaissements originaux pour l'escale sélectionnée.</p>
+</div>
+<div class="flex items-center gap-3 w-full lg:w-auto">
+<div class="relative flex-1 lg:w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<select class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded focus:border-secondary focus:ring-2 focus:ring-secondary/20 font-body-md text-body-md appearance-none">
+<option disabled="" selected="" value="">Sélectionner Navire/Voyage</option>
+<option value="BOCS_BREMEN_042V">BOCS BREMEN - Voy 042V (Dakar)</option>
+<option value="BOCS_AFRICA_018V">BOCS AFRICA - Voy 018V (Abidjan)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none">arrow_drop_down</span>
+</div>
+<button class="bg-primary text-on-primary px-6 py-2 rounded font-title-md text-title-md flex items-center gap-2 hover:bg-secondary transition-colors whitespace-nowrap">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+                            Générer Manifeste
+                        </button>
+</div>
+</div>
+<!-- Stats Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="glass-card p-6 rounded-lg flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<h3 class="font-title-md text-title-md text-on-surface-variant">Total BL Validés</h3>
+<span class="material-symbols-outlined text-status-validated bg-status-validated/10 p-2 rounded-full">task</span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-display-lg text-display-lg text-on-background">42</span>
+<span class="font-body-md text-body-md text-on-surface-variant mb-2">/ 45 BL Prévus</span>
+</div>
+</div>
+<div class="glass-card p-6 rounded-lg flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<h3 class="font-title-md text-title-md text-on-surface-variant">Conteneurs (TEU)</h3>
+<span class="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-full">view_in_ar</span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-display-lg text-display-lg text-on-background">128</span>
+<span class="font-body-md text-body-md text-on-surface-variant mb-2">Unités</span>
+</div>
+</div>
+<div class="glass-card p-6 rounded-lg flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<h3 class="font-title-md text-title-md text-on-surface-variant">Poids Brut Total</h3>
+<span class="material-symbols-outlined text-cargo-accent bg-cargo-accent/10 p-2 rounded-full">weight</span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-display-lg text-display-lg text-on-background">2,450</span>
+<span class="font-body-md text-body-md text-on-surface-variant mb-2">Tonnes</span>
+</div>
+</div>
+</div>
+<!-- BL List Table -->
+<div class="glass-card rounded-lg overflow-hidden flex flex-col h-[500px]">
+<div class="px-6 py-4 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+<h3 class="font-title-md text-title-md text-on-background">Liste des Connaissements (BL)</h3>
+<div class="flex gap-2">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded transition-colors" title="Filtrer">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded transition-colors" title="Exporter Excel">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-auto custom-scrollbar bg-surface-container-lowest">
+<table class="w-full text-left border-collapse min-w-[800px]">
+<thead class="sticky top-0 bg-surface-container-lowest border-b-2 border-outline-variant z-10">
+<tr>
+<th class="py-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant">N° BL</th>
+<th class="py-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant">Chargeur</th>
+<th class="py-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant">Consignataire</th>
+<th class="py-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant text-right">Conteneurs</th>
+<th class="py-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant text-right">Poids (T)</th>
+<th class="py-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant text-center">Statut</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-background">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono">BOCS-DKR-001</td>
+<td class="py-cell-padding-v px-cell-padding-h font-medium">Agro Export SA</td>
+<td class="py-cell-padding-v px-cell-padding-h text-on-surface-variant">Bremen Logistics Group</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">12</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">240.5</td>
+<td class="py-cell-padding-v px-cell-padding-h text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-validated/10 text-status-validated border border-status-validated/20">
+<span class="w-1.5 h-1.5 rounded-full bg-status-validated"></span> Validé
+                                        </span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors bg-vessel-dark/2">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono">BOCS-DKR-002</td>
+<td class="py-cell-padding-v px-cell-padding-h font-medium">Senegal Timber Co</td>
+<td class="py-cell-padding-v px-cell-padding-h text-on-surface-variant">Nordic Wood Imports</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">5</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">95.0</td>
+<td class="py-cell-padding-v px-cell-padding-h text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-validated/10 text-status-validated border border-status-validated/20">
+<span class="w-1.5 h-1.5 rounded-full bg-status-validated"></span> Validé
+                                        </span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono">BOCS-DKR-003</td>
+<td class="py-cell-padding-v px-cell-padding-h font-medium">Global Minerals</td>
+<td class="py-cell-padding-v px-cell-padding-h text-on-surface-variant">Ruhr Industrie</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">24</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">620.0</td>
+<td class="py-cell-padding-v px-cell-padding-h text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-validated/10 text-status-validated border border-status-validated/20">
+<span class="w-1.5 h-1.5 rounded-full bg-status-validated"></span> Validé
+                                        </span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors bg-vessel-dark/2">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono">BOCS-DKR-004</td>
+<td class="py-cell-padding-v px-cell-padding-h font-medium">West Africa Cotton</td>
+<td class="py-cell-padding-v px-cell-padding-h text-on-surface-variant">EuroTex Mills</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">8</td>
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-right">112.4</td>
+<td class="py-cell-padding-v px-cell-padding-h text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-pending/10 text-status-pending border border-status-pending/20">
+<span class="w-1.5 h-1.5 rounded-full bg-status-pending"></span> En attente
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

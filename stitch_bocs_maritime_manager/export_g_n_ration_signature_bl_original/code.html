@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BOCS Maritime - Génération BL Original</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#311300",
+                    "tertiary-fixed": "#ffdcc7",
+                    "on-primary-fixed-variant": "#25496d",
+                    "on-tertiary-container": "#c3845a",
+                    "tertiary-fixed-dim": "#feb789",
+                    "surface": "#f9f9f9",
+                    "on-surface": "#1a1c1c",
+                    "on-primary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#7495be",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#70adff",
+                    "primary-fixed-dim": "#a7c9f4",
+                    "surface-dim": "#dadada",
+                    "tertiary-container": "#492000",
+                    "outline-variant": "#c3c6cf",
+                    "on-secondary-fixed-variant": "#004785",
+                    "status-validated": "#005DAA",
+                    "secondary-fixed-dim": "#a5c8ff",
+                    "surface-variant": "#e2e2e2",
+                    "inverse-surface": "#2f3131",
+                    "tertiary": "#2a1000",
+                    "surface-container-highest": "#e2e2e2",
+                    "background": "#f9f9f9",
+                    "error-container": "#ffdad6",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-background": "#1a1c1c",
+                    "secondary-fixed": "#d4e3ff",
+                    "status-pending": "#9F7B87",
+                    "outline": "#73777f",
+                    "inverse-primary": "#a7c9f4",
+                    "surface-tint": "#3f6186",
+                    "primary-container": "#002d50",
+                    "cargo-accent": "#D79375",
+                    "status-invoiced": "#212529",
+                    "surface-container-high": "#e8e8e8",
+                    "on-tertiary-fixed-variant": "#6b3a16",
+                    "surface-bright": "#f9f9f9",
+                    "primary-fixed": "#d1e4ff",
+                    "on-secondary-container": "#004078",
+                    "vessel-dark": "#212529",
+                    "on-surface-variant": "#43474e",
+                    "on-primary-fixed": "#001d36",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-secondary-fixed": "#001c3a",
+                    "secondary": "#075fac",
+                    "surface-container-low": "#f3f3f3",
+                    "primary": "#00182f",
+                    "surface-container": "#eeeeee"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "cell-padding-v": "12px",
+                    "container-max": "1440px",
+                    "cell-padding-h": "16px",
+                    "gutter": "24px",
+                    "sidebar-width": "260px"
+            },
+            "fontFamily": {
+                    "data-mono": [
+                            "JetBrains Mono"
+                    ],
+                    "title-md": [
+                            "Inter"
+                    ],
+                    "headline-lg-mobile": [
+                            "Inter"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "headline-md": [
+                            "Inter"
+                    ],
+                    "label-caps": [
+                            "Inter"
+                    ],
+                    "display-lg": [
+                            "Inter"
+                    ],
+                    "body-md": [
+                            "Inter"
+                    ],
+                    "headline-lg": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "data-mono": [
+                            "13px",
+                            {
+                                    "lineHeight": "18px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "title-md": [
+                            "18px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-lg": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "display-lg": [
+                            "48px",
+                            {
+                                    "lineHeight": "56px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-md": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-lg": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "fontWeight": "600"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md h-screen overflow-hidden flex selection:bg-secondary-container selection:text-on-surface">
+<!-- SideNavBar -->
+<aside class="flex flex-col h-screen w-sidebar-width fixed left-0 top-0 z-50 bg-vessel-dark shadow-sm">
+<div class="flex items-center px-6 py-8">
+<span class="material-symbols-outlined text-on-primary text-3xl mr-3" style="font-variation-settings: 'FILL' 1;">directions_boat</span>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-on-primary">BOCS Maritime</h1>
+<p class="font-body-md text-body-md text-surface-variant opacity-80">Logistique Portuaire</p>
+</div>
+</div>
+<div class="px-4 mb-6">
+<button class="w-full py-3 bg-secondary text-on-secondary font-label-caps text-label-caps rounded flex items-center justify-center gap-2 hover:bg-secondary-container hover:text-on-primary-fixed-variant transition-colors duration-200">
+<span class="material-symbols-outlined">add</span>
+                Nouvelle Opération
+            </button>
+</div>
+<nav class="flex-1 px-4 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Tableau de Bord</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">glass</span>
+<span class="font-label-caps text-label-caps">Importations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded border-l-4 border-secondary-container bg-primary-container text-on-primary-fixed-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">sailing</span>
+<span class="font-label-caps text-label-caps">Exportations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-label-caps text-label-caps">Facturation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps">Paramètres</span>
+</a>
+</nav>
+<div class="p-4 flex flex-col gap-1 border-t border-surface-tint">
+<a class="flex items-center gap-3 px-4 py-3 rounded text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="font-label-caps text-label-caps">Profil</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-sidebar-width flex flex-col h-screen overflow-hidden">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-gutter w-full h-16 bg-surface-container-lowest border-b border-outline-variant z-40 relative">
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="pl-10 pr-4 py-2 border border-outline-variant rounded bg-surface-container-lowest focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all font-body-md text-body-md w-64" placeholder="Rechercher BL, conteneur..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<div class="h-8 w-px bg-outline-variant mx-2"></div>
+<button class="flex items-center gap-2 p-1 pr-3 rounded-full hover:bg-surface-container-low transition-colors cursor-pointer border border-transparent hover:border-outline-variant">
+<span class="material-symbols-outlined text-3xl text-primary">account_circle</span>
+<span class="font-label-caps text-label-caps text-on-surface">Admin Ops</span>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<div class="flex-1 overflow-auto bg-surface-container-lowest p-gutter flex justify-center">
+<div class="w-full max-w-container-max flex gap-gutter items-start">
+<!-- PDF Preview Column -->
+<div class="flex-1 bg-surface rounded border border-outline-variant flex flex-col shadow-[0_4px_12px_rgba(0,24,47,0.03)] h-[calc(100vh-120px)] relative overflow-hidden">
+<div class="p-4 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+<div>
+<h2 class="font-title-md text-title-md text-on-surface">Aperçu Bill of Lading (BL)</h2>
+<p class="font-data-mono text-data-mono text-outline mt-1">Ref: BOCS-EXP-2023-8942</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-status-validated/10 text-status-validated font-label-caps text-label-caps border border-status-validated/20">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                Draft Validé par Client
+                            </span>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-variant rounded transition-colors" title="Zoom In"><span class="material-symbols-outlined">zoom_in</span></button>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-variant rounded transition-colors" title="Zoom Out"><span class="material-symbols-outlined">zoom_out</span></button>
+</div>
+</div>
+<div class="flex-1 bg-surface-variant overflow-y-auto p-8 flex justify-center custom-scrollbar">
+<!-- Simulated PDF A4 Page -->
+<div class="w-[794px] h-[1123px] bg-surface-container-lowest shadow-sm p-12 flex flex-col relative shrink-0">
+<div class="flex justify-between items-start border-b-2 border-primary pb-6 mb-6">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary text-5xl" style="font-variation-settings: 'FILL' 1;">directions_boat</span>
+<div>
+<h1 class="font-headline-lg text-headline-lg font-bold text-primary tracking-tight">BOCS Maritime</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1">Bill of Lading for Ocean Transport</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-label-caps text-label-caps text-outline">B/L No.</p>
+<p class="font-data-mono text-data-mono font-bold text-on-surface text-lg">BOCS-8942</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-0 border border-outline-variant mb-6 text-sm">
+<div class="border-r border-b border-outline-variant p-3">
+<p class="font-label-caps text-label-caps text-outline mb-1">Shipper</p>
+<p class="font-body-md text-body-md text-on-surface">Agro-Export SA<br/>Zone Industrielle de Vridi<br/>Abidjan, Côte d'Ivoire</p>
+</div>
+<div class="border-b border-outline-variant p-3">
+<p class="font-label-caps text-label-caps text-outline mb-1">Consignee</p>
+<p class="font-body-md text-body-md text-on-surface">EuroFood Importers Ltd.<br/>Port of Antwerp<br/>Belgium</p>
+</div>
+<div class="border-r border-b border-outline-variant p-3">
+<p class="font-label-caps text-label-caps text-outline mb-1">Vessel / Voyage</p>
+<p class="font-data-mono text-data-mono text-on-surface">MV ATLANTIC / V. 23W</p>
+</div>
+<div class="border-b border-outline-variant p-3">
+<p class="font-label-caps text-label-caps text-outline mb-1">Port of Loading</p>
+<p class="font-body-md text-body-md text-on-surface">Abidjan (CIABJ)</p>
+</div>
+</div>
+<table class="w-full border-collapse mb-8">
+<thead>
+<tr class="bg-surface-container-low border-y border-outline-variant">
+<th class="py-2 px-3 text-left font-label-caps text-label-caps text-outline w-1/4">Marks &amp; Nos</th>
+<th class="py-2 px-3 text-left font-label-caps text-label-caps text-outline w-1/2">Description of Goods</th>
+<th class="py-2 px-3 text-right font-label-caps text-label-caps text-outline w-1/4">Gross Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-outline-variant/30">
+<td class="py-4 px-3 font-data-mono text-data-mono text-on-surface align-top">
+                                            MSCU 1234567<br/>Seal: 890123
+                                        </td>
+<td class="py-4 px-3 font-body-md text-body-md text-on-surface align-top">
+                                            1 x 40' HC FCL/FCL<br/>
+                                            COCOA BEANS IN BAGS<br/>
+                                            FREIGHT PREPAID
+                                        </td>
+<td class="py-4 px-3 font-data-mono text-data-mono text-on-surface align-top text-right">
+                                            24,500 KGS
+                                        </td>
+</tr>
+</tbody>
+</table>
+<div class="mt-auto grid grid-cols-2 gap-8 border-t border-outline-variant pt-6">
+<div>
+<p class="text-xs text-outline leading-tight">Received by the Carrier for shipment in apparent good order and condition unless otherwise stated herein. This B/L is issued subject to the Carrier's Terms and Conditions.</p>
+</div>
+<div class="relative h-48 border border-dashed border-outline-variant/50 rounded flex items-center justify-center bg-surface flex-col gap-2 opacity-50" id="signature-placeholder-pdf">
+<span class="material-symbols-outlined text-outline text-3xl">draw</span>
+<p class="font-label-caps text-label-caps text-outline">Signature &amp; Stamp Area</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Column -->
+<div class="w-[400px] flex flex-col gap-6">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-6 shadow-[0_4px_12px_rgba(0,24,47,0.03)]">
+<div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4">
+<span class="material-symbols-outlined text-primary text-2xl">verified</span>
+<h3 class="font-title-md text-title-md text-on-surface">Validation Finale</h3>
+</div>
+<div class="space-y-6">
+<!-- Digital Stamp Area -->
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface flex items-center justify-between">
+                                    Cachet Numérique
+                                    <span class="text-[10px] text-outline font-normal">Requis</span>
+</label>
+<div class="border border-outline-variant rounded p-4 flex flex-col items-center justify-center gap-4 bg-surface h-32 relative cursor-pointer hover:border-secondary transition-colors group">
+<div class="absolute inset-0 bg-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="font-label-caps text-label-caps text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">touch_app</span> Appliquer le cachet BOCS
+                                        </span>
+</div>
+<!-- Placeholder for injected stamp image later -->
+<div class="w-20 h-20 rounded-full border-2 border-primary border-dashed flex items-center justify-center text-primary/30 group-hover:hidden">
+<span class="material-symbols-outlined text-3xl">approval</span>
+</div>
+</div>
+</div>
+<!-- Electronic Signature Area -->
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface flex items-center justify-between">
+                                    Signature Électronique
+                                    <span class="text-[10px] text-outline font-normal">Requis</span>
+</label>
+<div class="border border-outline-variant rounded bg-surface overflow-hidden">
+<div class="h-32 w-full flex items-center justify-center text-outline relative" style="background-image: radial-gradient(#c3c6cf 1px, transparent 1px); background-size: 16px 16px;">
+<span class="font-body-md text-body-md opacity-50 absolute pointer-events-none">Signez ici</span>
+<!-- Simulate canvas for drawing signature -->
+<div class="w-full h-full cursor-crosshair"></div>
+</div>
+<div class="bg-surface-container-low border-t border-outline-variant p-2 flex justify-end">
+<button class="text-xs font-label-caps text-outline hover:text-primary transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">clear</span> Effacer
+                                        </button>
+</div>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant space-y-3">
+<label class="flex items-start gap-3 cursor-pointer group">
+<div class="relative flex items-start mt-0.5">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary focus:ring-offset-0 bg-surface-container-lowest cursor-pointer peer transition-all" type="checkbox"/>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant group-hover:text-on-surface transition-colors">Je certifie que les informations sont exactes et correspondent au draft validé par le client le 12/10/2023.</span>
+</label>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3">
+<button class="w-full py-3.5 bg-primary text-on-primary font-title-md text-title-md rounded flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors opacity-50 cursor-not-allowed" id="btn-sign">
+<span class="material-symbols-outlined">edit_document</span>
+                            Signer et Générer le PDF
+                        </button>
+<button class="w-full py-3.5 bg-surface-container-lowest border border-primary text-primary font-title-md text-title-md rounded flex items-center justify-center gap-2 hover:bg-primary-fixed hover:border-transparent transition-colors opacity-50 cursor-not-allowed" id="btn-send">
+<span class="material-symbols-outlined">send</span>
+                            Envoyer au Client
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: theme('colors.surface-variant');
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: theme('colors.outline-variant');
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.outline');
+        }
+    </style>
+</body></html>

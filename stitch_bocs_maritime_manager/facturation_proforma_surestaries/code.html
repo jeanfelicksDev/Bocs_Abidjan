@@ -1,0 +1,538 @@
+<!DOCTYPE html><html class="light" lang="fr"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Interface de Facturation Proforma - BOCS Maritime</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed": "#311300",
+                      "tertiary-fixed": "#ffdcc7",
+                      "on-primary-fixed-variant": "#25496d",
+                      "on-tertiary-container": "#c3845a",
+                      "tertiary-fixed-dim": "#feb789",
+                      "surface": "#f9f9f9",
+                      "on-surface": "#1a1c1c",
+                      "on-primary": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "on-primary-container": "#7495be",
+                      "error": "#ba1a1a",
+                      "secondary-container": "#70adff",
+                      "primary-fixed-dim": "#a7c9f4",
+                      "surface-dim": "#dadada",
+                      "tertiary-container": "#492000",
+                      "outline-variant": "#c3c6cf",
+                      "on-secondary-fixed-variant": "#004785",
+                      "status-validated": "#005DAA",
+                      "secondary-fixed-dim": "#a5c8ff",
+                      "surface-variant": "#e2e2e2",
+                      "inverse-surface": "#2f3131",
+                      "tertiary": "#2a1000",
+                      "surface-container-highest": "#e2e2e2",
+                      "background": "#f9f9f9",
+                      "error-container": "#ffdad6",
+                      "on-tertiary": "#ffffff",
+                      "on-error": "#ffffff",
+                      "on-background": "#1a1c1c",
+                      "secondary-fixed": "#d4e3ff",
+                      "status-pending": "#9F7B87",
+                      "outline": "#73777f",
+                      "inverse-primary": "#a7c9f4",
+                      "surface-tint": "#3f6186",
+                      "primary-container": "#002d50",
+                      "cargo-accent": "#D79375",
+                      "status-invoiced": "#212529",
+                      "surface-container-high": "#e8e8e8",
+                      "on-tertiary-fixed-variant": "#6b3a16",
+                      "surface-bright": "#f9f9f9",
+                      "primary-fixed": "#d1e4ff",
+                      "on-secondary-container": "#004078",
+                      "vessel-dark": "#212529",
+                      "on-surface-variant": "#43474e",
+                      "on-primary-fixed": "#001d36",
+                      "on-error-container": "#93000a",
+                      "inverse-on-surface": "#f1f1f1",
+                      "on-secondary-fixed": "#001c3a",
+                      "secondary": "#075fac",
+                      "surface-container-low": "#f3f3f3",
+                      "primary": "#00182f",
+                      "surface-container": "#eeeeee"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "cell-padding-v": "12px",
+                      "container-max": "1440px",
+                      "cell-padding-h": "16px",
+                      "gutter": "24px",
+                      "sidebar-width": "260px"
+              },
+              "fontFamily": {
+                      "data-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "title-md": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "data-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "title-md": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+        /* Custom scrollbar for data tables */
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: theme('colors.surface-container-low');
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: theme('colors.outline-variant');
+            border-radius: theme('borderRadius.full');
+        }
+    </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased overflow-x-hidden min-h-screen">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen w-sidebar-width fixed left-0 top-0 z-50 bg-vessel-dark shadow-sm">
+<div class="flex items-center px-gutter py-6 border-b border-surface/10">
+<span class="material-symbols-outlined text-secondary-fixed text-[32px] mr-3" style="font-variation-settings: 'FILL' 1;">directions_boat</span>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-on-primary">BOCS Maritime</h1>
+<p class="font-label-caps text-label-caps text-secondary-fixed opacity-80 mt-1">Logistique Portuaire</p>
+</div>
+</div>
+<div class="px-gutter py-4">
+<button class="w-full bg-secondary text-on-secondary font-label-caps text-label-caps py-3 rounded-DEFAULT hover:bg-secondary-container hover:text-on-primary-fixed-variant transition-colors duration-200 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Nouvelle Opération
+            </button>
+</div>
+<div class="flex-1 overflow-y-auto py-2">
+<ul class="flex flex-col gap-1">
+<!-- Tableau de Bord -->
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_32}}">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Tableau de Bord</span>
+</a>
+</li>
+<!-- Importations -->
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_31}}">
+<span class="material-symbols-outlined">glass</span>
+<span class="font-body-md text-body-md">Importations</span>
+</a>
+</li>
+<!-- Exportations -->
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_30}}">
+<span class="material-symbols-outlined">sailing</span>
+<span class="font-body-md text-body-md">Exportations</span>
+</a>
+</li>
+<!-- Facturation (ACTIVE) -->
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT border-l-4 border-secondary-container bg-primary-container text-on-primary-fixed-variant transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_27}}">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-body-md text-body-md font-bold">Facturation</span>
+</a>
+</li>
+<!-- Paramètres -->
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_4}}">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Paramètres</span>
+</a>
+</li>
+</ul>
+</div>
+<div class="border-t border-surface/10 py-4">
+<ul class="flex flex-col gap-1 px-3">
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_32}}">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-body-md text-body-md">Support</span>
+</a>
+</li>
+<li class="px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-surface-variant hover:text-on-primary-fixed hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:scale-95" href="{{DATA:SCREEN:SCREEN_31}}">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="font-body-md text-body-md">Profil</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="md:ml-[260px] min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-gutter w-full h-16 fixed top-0 right-0 md:w-[calc(100%-260px)] z-40 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-primary">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<!-- Breadcrumb/Title -->
+<div class="flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="cursor-pointer hover:text-primary transition-colors">Facturation</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="font-title-md text-title-md text-primary">Proforma INV-2023-1042</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<!-- Search -->
+<div class="hidden md:flex items-center bg-surface-container-low rounded-DEFAULT px-3 py-1.5 border border-outline-variant focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary transition-all">
+<span class="material-symbols-outlined text-outline text-[20px] mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md font-body-md text-on-surface w-48 placeholder:text-outline" placeholder="Rechercher un BL..." type="text">
+</div>
+<!-- Trailing Icons -->
+<button class="p-2 text-primary hover:bg-surface-container-low transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-primary hover:bg-surface-container-low transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<button class="p-2 text-primary hover:bg-surface-container-low transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 mt-16 p-gutter max-w-[1440px] mx-auto w-full">
+<!-- Page Header Actions -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+<div>
+<h2 class="font-headline-lg text-headline-lg font-bold text-on-surface">Détail Proforma</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Connaissement (B/L) : <span class="font-data-mono text-data-mono font-bold text-primary">BOCS-DKR-987654</span></p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-primary text-primary font-label-caps text-label-caps rounded-DEFAULT hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">print</span>
+                        Imprimer
+                    </button>
+<button class="px-6 py-2 bg-primary text-on-primary font-label-caps text-label-caps rounded-DEFAULT hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                        Convertir en Facture Définitive
+                    </button>
+</div>
+</div>
+<!-- Main Layout: Bento-style Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Left Column (BL Details & Standard Fees) -->
+<div class="lg:col-span-2 flex flex-col gap-6">
+<!-- BL Details Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 shadow-sm">
+<div class="flex justify-between items-center mb-4 pb-4 border-b border-surface-container-highest">
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">inventory_2</span>
+                                Informations d'Expédition
+                            </h3>
+<span class="bg-status-pending/20 text-status-pending font-label-caps text-label-caps px-3 py-1 rounded-full border border-status-pending/30">
+                                PROFORMA
+                            </span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">Navire / Voyage</p>
+<p class="font-body-md text-body-md font-bold">MSC ALICANTE / 142B</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">Port de Chargement</p>
+<p class="font-body-md text-body-md font-bold">Anvers (BEANR)</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">Port de Déchargement</p>
+<p class="font-body-md text-body-md font-bold">Dakar (SNDKR)</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">Date d'Arrivée (ETA)</p>
+<p class="font-data-mono text-data-mono font-bold">12/10/2023</p>
+</div>
+<div class="col-span-2">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">Consignataire</p>
+<p class="font-body-md text-body-md font-bold">AFRICA LOGISTICS SARL</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">Z.I. Dakar, BP 1234, Sénégal</p>
+</div>
+<div class="col-span-2">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">Marchandise</p>
+<p class="font-body-md text-body-md font-bold">Pièces Détachées Auto</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">2x40' HC | 45,000 KG</p>
+</div>
+</div>
+</div>
+<!-- Surestaries (Dmdt) Calculation Section - HERO of the page -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-0 shadow-sm overflow-hidden relative">
+<!-- Accent Bar -->
+<div class="absolute top-0 left-0 w-full h-1 bg-cargo-accent"></div>
+<div class="p-6 pb-4 border-b border-surface-container-highest flex justify-between items-end">
+<div>
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-cargo-accent">timer</span>
+                                    Calcul des Surestaries (Dmdt)
+                                </h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Détail des jours de dépassement de franchise par équipement.</p>
+</div>
+<div class="text-right">
+<p class="font-label-caps text-label-caps text-on-surface-variant">Date de Restitution</p>
+<p class="font-data-mono text-data-mono font-bold text-error">28/10/2023</p>
+</div>
+</div>
+<div class="table-container overflow-x-auto w-full">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low font-label-caps text-label-caps text-on-surface-variant border-b-2 border-outline-variant">
+<tr>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0">Équipement</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0">Type</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0 text-center">Début Dmdt</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0 text-center">Franchise (J)</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0 text-center">Jours Total</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0 text-center text-error">Taxables</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0 text-right">Taux (XOF/J)</th>
+<th class="p-cell-padding-v px-cell-padding-h sticky top-0 text-right">Montant (XOF)</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="border-b border-surface-container-highest hover:bg-primary/5 transition-colors">
+<td class="p-cell-padding-v px-cell-padding-h font-data-mono text-data-mono font-bold">MSCU1234567</td>
+<td class="p-cell-padding-v px-cell-padding-h">40' HC</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">15/10/2023</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">10</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">13</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono font-bold text-error bg-error-container/30">3</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">15 000</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono font-bold">45 000</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-primary/5 transition-colors bg-primary/[0.02]">
+<td class="p-cell-padding-v px-cell-padding-h font-data-mono text-data-mono font-bold">MSCU9876543</td>
+<td class="p-cell-padding-v px-cell-padding-h">40' HC</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">15/10/2023</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">10</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">14</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono font-bold text-error bg-error-container/30">4</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">15 000</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono font-bold">60 000</td>
+</tr>
+</tbody>
+<tfoot>
+<tr class="bg-surface-container-low font-bold">
+<td class="p-cell-padding-v px-cell-padding-h text-right text-on-surface-variant font-label-caps text-label-caps" colspan="7">Sous-total Surestaries</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-primary">105 000</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+<!-- Frais Standards (Standard Fees) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-0 shadow-sm overflow-hidden">
+<div class="p-6 pb-4 border-b border-surface-container-highest">
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">list_alt</span>
+                                Frais Standards d'Intervention
+                            </h3>
+</div>
+<div class="table-container overflow-x-auto w-full">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low font-label-caps text-label-caps text-on-surface-variant border-b border-outline-variant">
+<tr>
+<th class="p-cell-padding-v px-cell-padding-h">Code</th>
+<th class="p-cell-padding-v px-cell-padding-h">Désignation</th>
+<th class="p-cell-padding-v px-cell-padding-h text-center">Qté</th>
+<th class="p-cell-padding-v px-cell-padding-h text-right">Prix Unitaire (XOF)</th>
+<th class="p-cell-padding-v px-cell-padding-h text-right">Montant (XOF)</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="border-b border-surface-container-highest hover:bg-primary/5 transition-colors">
+<td class="p-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-outline">FTELEX</td>
+<td class="p-cell-padding-v px-cell-padding-h">Frais de Telex Release</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">1</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">25 000</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono font-bold">25 000</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-primary/5 transition-colors bg-primary/[0.02]">
+<td class="p-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-outline">FECHG</td>
+<td class="p-cell-padding-v px-cell-padding-h">Frais d'Échange (B/L)</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">1</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">35 000</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono font-bold">35 000</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-primary/5 transition-colors">
+<td class="p-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-outline">FRET</td>
+<td class="p-cell-padding-v px-cell-padding-h">Reliquat Fret Maritime</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">1</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">0</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono font-bold">0</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-primary/5 transition-colors bg-primary/[0.02]">
+<td class="p-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-outline">TVA</td>
+<td class="p-cell-padding-v px-cell-padding-h">TVA (18% sur prestations locales)</td>
+<td class="p-cell-padding-v px-cell-padding-h text-center font-data-mono text-data-mono">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono font-bold">10 800</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column (Summary & Totals) -->
+<div class="lg:col-span-1">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 shadow-sm sticky top-24">
+<h3 class="font-title-md text-title-md text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">payments</span>
+                            Récapitulatif Financier
+                        </h3>
+<div class="space-y-4 mb-6 font-body-md text-body-md">
+<div class="flex justify-between items-center pb-3 border-b border-surface-container-highest">
+<span class="text-on-surface-variant">Frais d'Intervention (HT)</span>
+<span class="font-data-mono text-data-mono font-bold">60 000 XOF</span>
+</div>
+<div class="flex justify-between items-center pb-3 border-b border-surface-container-highest">
+<span class="text-on-surface-variant">Surestaries Dmdt</span>
+<span class="font-data-mono text-data-mono font-bold text-error">105 000 XOF</span>
+</div>
+<div class="flex justify-between items-center pb-3 border-b border-surface-container-highest">
+<span class="text-on-surface-variant">TVA (18%)</span>
+<span class="font-data-mono text-data-mono font-bold">10 800 XOF</span>
+</div>
+</div>
+<div class="bg-vessel-dark text-on-primary rounded-DEFAULT p-4 mb-6">
+<div class="flex justify-between items-center">
+<span class="font-title-md text-title-md text-on-primary-fixed-variant">Total TTC à Payer</span>
+<span class="font-data-mono text-data-mono text-[24px] font-bold text-secondary-fixed">175 800 XOF</span>
+</div>
+</div>
+<div class="space-y-3">
+<button class="w-full py-3 bg-primary text-on-primary font-label-caps text-label-caps rounded-DEFAULT hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                Convertir en Facture
+                            </button>
+<button class="w-full py-3 border border-outline-variant text-on-surface font-label-caps text-label-caps rounded-DEFAULT hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+                                Modifier Lignes
+                            </button>
+</div>
+<div class="mt-6 p-4 bg-surface-container text-on-surface-variant rounded-DEFAULT text-sm">
+<div class="flex gap-2 items-start">
+<span class="material-symbols-outlined text-[16px] mt-0.5">info</span>
+<p class="font-body-md text-body-md leading-tight">Ce document est un proforma. La conversion générera un numéro de facture définitif et figera les montants de surestaries à la date actuelle.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+
+</body></html>

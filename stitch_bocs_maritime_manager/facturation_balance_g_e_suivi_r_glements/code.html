@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Balance Âgée Clients - BOCS Maritime</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "on-secondary-fixed": "#001c3a",
+                            "surface-container-highest": "#e2e2e2",
+                            "vessel-dark": "#212529",
+                            "status-validated": "#005DAA",
+                            "primary-container": "#002d50",
+                            "on-tertiary": "#ffffff",
+                            "on-surface-variant": "#43474e",
+                            "secondary-fixed": "#d4e3ff",
+                            "status-pending": "#9F7B87",
+                            "surface-container": "#eeeeee",
+                            "on-secondary-container": "#004078",
+                            "error": "#ba1a1a",
+                            "secondary-container": "#70adff",
+                            "on-primary-fixed": "#001d36",
+                            "tertiary": "#2a1000",
+                            "inverse-surface": "#2f3131",
+                            "primary-fixed-dim": "#a7c9f4",
+                            "surface-container-low": "#f3f3f3",
+                            "tertiary-fixed": "#ffdcc7",
+                            "surface-container-high": "#e8e8e8",
+                            "tertiary-fixed-dim": "#feb789",
+                            "on-primary-container": "#7495be",
+                            "outline": "#73777f",
+                            "outline-variant": "#c3c6cf",
+                            "tertiary-container": "#492000",
+                            "inverse-on-surface": "#f1f1f1",
+                            "surface": "#f9f9f9",
+                            "on-background": "#1a1c1c",
+                            "inverse-primary": "#a7c9f4",
+                            "primary": "#00182f",
+                            "surface-dim": "#dadada",
+                            "on-primary": "#ffffff",
+                            "background": "#f9f9f9",
+                            "surface-bright": "#f9f9f9",
+                            "on-tertiary-fixed": "#311300",
+                            "secondary-fixed-dim": "#a5c8ff",
+                            "error-container": "#ffdad6",
+                            "primary-fixed": "#d1e4ff",
+                            "surface-container-lowest": "#ffffff",
+                            "on-surface": "#1a1c1c",
+                            "on-error-container": "#93000a",
+                            "status-invoiced": "#212529",
+                            "on-error": "#ffffff",
+                            "on-tertiary-fixed-variant": "#6b3a16",
+                            "on-tertiary-container": "#c3845a",
+                            "surface-variant": "#e2e2e2",
+                            "secondary": "#075fac",
+                            "surface-tint": "#3f6186",
+                            "on-secondary-fixed-variant": "#004785",
+                            "on-primary-fixed-variant": "#25496d",
+                            "on-secondary": "#ffffff",
+                            "cargo-accent": "#D79375"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.125rem",
+                            "lg": "0.25rem",
+                            "xl": "0.5rem",
+                            "full": "0.75rem"
+                    },
+                    "spacing": {
+                            "cell-padding-v": "12px",
+                            "gutter": "24px",
+                            "cell-padding-h": "16px",
+                            "container-max": "1440px",
+                            "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                            "headline-lg-mobile": ["Inter"],
+                            "body-lg": ["Inter"],
+                            "title-md": ["Inter"],
+                            "label-caps": ["Inter"],
+                            "headline-md": ["Inter"],
+                            "headline-lg": ["Inter"],
+                            "data-mono": ["JetBrains Mono"],
+                            "display-lg": ["Inter"],
+                            "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                            "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                            "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                            "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                            "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                            "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                            "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                            "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        /* Hide scrollbar for clean UI but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md flex h-screen overflow-hidden antialiased">
+<!-- SideNavBar (Shared Component Blueprint) -->
+<aside class="hidden md:flex flex-col h-full py-6 space-y-2 bg-vessel-dark dark:bg-primary shadow-md fixed left-0 top-0 w-sidebar-width z-50">
+<!-- Header -->
+<div class="px-gutter mb-6">
+<h1 class="font-headline-md text-headline-md text-on-primary uppercase tracking-widest">BOCS Logistics</h1>
+<p class="font-body-md text-body-md text-on-primary opacity-70">Maritime Management</p>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 flex flex-col space-y-1 w-full">
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200 w-full font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined mr-4">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200 w-full font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined mr-4">glass</span>
+                Import
+            </a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200 w-full font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined mr-4">anchor</span>
+                Export
+            </a>
+<!-- Active State: Billing -->
+<a class="flex items-center px-gutter py-3 bg-secondary text-white border-l-4 border-secondary-container w-full font-label-caps text-label-caps transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4 filled">payments</span>
+                Billing
+            </a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200 w-full font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined mr-4">settings</span>
+                Admin
+            </a>
+</nav>
+<!-- Footer Links -->
+<div class="mt-auto flex flex-col space-y-1 w-full">
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200 w-full font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined mr-4">contact_support</span>
+                Support
+            </a>
+<a class="flex items-center px-gutter py-3 text-surface-variant opacity-70 hover:opacity-100 hover:bg-on-primary-fixed-variant transition-all duration-200 w-full font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined mr-4">logout</span>
+                Sign Out
+            </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-sidebar-width flex flex-col h-full overflow-hidden bg-background">
+<!-- Header Section -->
+<header class="bg-surface-container-lowest border-b border-outline-variant px-gutter h-16 flex items-center justify-between shrink-0">
+<h2 class="font-headline-md text-headline-md text-on-surface">Balance Âgée Clients</h2>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 border border-outline border-solid rounded text-on-surface font-body-md text-body-md hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">download</span>
+                    Export CSV
+                </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded font-body-md text-body-md hover:bg-on-primary-fixed-variant transition-colors">
+<span class="material-symbols-outlined">table_view</span>
+                    Export Excel
+                </button>
+</div>
+</header>
+<!-- Scrollable Content Canvas -->
+<div class="flex-1 overflow-y-auto p-gutter no-scrollbar">
+<div class="max-w-container-max mx-auto space-y-6">
+<!-- KPIs Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Total Impayés -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 flex flex-col gap-2">
+<span class="font-body-md text-body-md text-on-surface-variant">Total Impayés</span>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface">4 250 890</span>
+<span class="font-body-md text-body-md text-on-surface-variant">EUR</span>
+</div>
+</div>
+<!-- Retards > 30j -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 flex flex-col gap-2">
+<span class="font-body-md text-body-md text-on-surface-variant">Retards &gt; 30j</span>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-headline-lg text-status-pending">845 200</span>
+<span class="font-body-md text-body-md text-on-surface-variant">EUR</span>
+</div>
+</div>
+<!-- Retards > 60j -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 flex flex-col gap-2">
+<span class="font-body-md text-body-md text-error">Retards &gt; 60j</span>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-headline-lg text-error">120 450</span>
+<span class="font-body-md text-body-md text-on-surface-variant">EUR</span>
+</div>
+</div>
+</div>
+<!-- Filters -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 flex flex-wrap gap-4 items-end">
+<div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Client</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-10 pr-3 py-2 border border-outline-variant rounded bg-surface focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md text-body-md" placeholder="Rechercher un client..." type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Navire / Voyage</label>
+<select class="w-full px-3 py-2 border border-outline-variant rounded bg-surface focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md text-body-md">
+<option>Tous les navires</option>
+<option>BOCS VISION V.2301</option>
+<option>BOCS SPIRIT V.2302</option>
+</select>
+</div>
+</div>
+<!-- Data Table Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead>
+<tr class="bg-surface border-b border-outline-variant">
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant">Client</th>
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant text-right">Total Dû (EUR)</th>
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant text-right">Non Échu</th>
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant text-right">0-30j</th>
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant text-right">31-60j</th>
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant text-right">61-90j</th>
+<th class="sticky top-0 p-cell-padding-v px-cell-padding-h font-label-caps text-label-caps text-on-surface-variant bg-surface z-10 border-b border-outline-variant text-right">&gt; 90j</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant/50 even:bg-primary/[0.02] hover:bg-surface-container-low transition-colors">
+<td class="p-cell-padding-v px-cell-padding-h font-title-md text-title-md">Global Logistics SA</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">1,250,000.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">800,000.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">450,000.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant/50 even:bg-primary/[0.02] hover:bg-surface-container-low transition-colors">
+<td class="p-cell-padding-v px-cell-padding-h font-title-md text-title-md">Afrique Transit Ltd</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">845,200.50</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">200,000.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">500,000.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-status-pending">145,200.50</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant/50 even:bg-primary/[0.02] hover:bg-surface-container-low transition-colors">
+<td class="p-cell-padding-v px-cell-padding-h font-title-md text-title-md">Cacao Export CI</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono">320,450.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-on-surface-variant">-</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-status-pending">200,000.00</td>
+<td class="p-cell-padding-v px-cell-padding-h text-right font-data-mono text-data-mono text-error font-bold">120,450.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

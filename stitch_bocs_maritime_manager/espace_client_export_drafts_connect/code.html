@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Espace Client Export - BOCS Maritime</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "vessel-dark": "#212529",
+                        "secondary-container": "#70adff",
+                        "surface-container-high": "#e8e8e8",
+                        "primary": "#00182f",
+                        "on-secondary-container": "#004078",
+                        "on-secondary": "#ffffff",
+                        "surface-container": "#eeeeee",
+                        "on-secondary-fixed": "#001c3a",
+                        "inverse-on-surface": "#f1f1f1",
+                        "tertiary-fixed": "#ffdcc7",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#43474e",
+                        "on-primary-fixed": "#001d36",
+                        "on-secondary-fixed-variant": "#004785",
+                        "primary-container": "#002d50",
+                        "secondary-fixed-dim": "#a5c8ff",
+                        "outline-variant": "#c3c6cf",
+                        "background": "#f9f9f9",
+                        "outline": "#73777f",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "on-error": "#ffffff",
+                        "secondary": "#075fac",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed-variant": "#25496d",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e2e2e2",
+                        "status-pending": "#9F7B87",
+                        "on-tertiary-container": "#c3845a",
+                        "tertiary": "#2a1000",
+                        "secondary-fixed": "#d4e3ff",
+                        "error-container": "#ffdad6",
+                        "cargo-accent": "#D79375",
+                        "inverse-primary": "#a7c9f4",
+                        "status-validated": "#005DAA",
+                        "tertiary-container": "#492000",
+                        "surface-tint": "#3f6186",
+                        "primary-fixed": "#d1e4ff",
+                        "status-invoiced": "#212529",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "primary-fixed-dim": "#a7c9f4",
+                        "surface-bright": "#f9f9f9",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#6b3a16",
+                        "surface": "#f9f9f9",
+                        "on-tertiary-fixed": "#311300",
+                        "tertiary-fixed-dim": "#feb789",
+                        "surface-dim": "#dadada",
+                        "on-primary-container": "#7495be"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "cell-padding-h": "16px",
+                        "gutter": "24px",
+                        "container-max": "1440px",
+                        "cell-padding-v": "12px",
+                        "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "title-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "title-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex antialiased">
+<!-- SideNavBar -->
+<aside class="w-sidebar-width h-screen fixed left-0 top-0 bg-vessel-dark dark:bg-vessel-dark flex flex-col h-full py-6 z-40 hidden md:flex">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary" data-icon="anchor">anchor</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-secondary">BOCS Maritime</h1>
+<p class="text-secondary-fixed-dim font-body-md text-body-md opacity-80">Logistics Management</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<!-- Inactive -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/50 cursor-pointer active:scale-95 transition-all" href="{{DATA:SCREEN:SCREEN_32}}">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-lg text-body-lg">Dashboard</span>
+</a>
+<!-- Inactive -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/50 cursor-pointer active:scale-95 transition-all" href="{{DATA:SCREEN:SCREEN_31}}">
+<span class="material-symbols-outlined" data-icon="ship">glass</span>
+<span class="font-body-lg text-body-lg">Import</span>
+</a>
+<!-- Active -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-secondary-container bg-primary-container text-on-primary-container cursor-pointer active:scale-95 transition-all" href="{{DATA:SCREEN:SCREEN_30}}">
+<span class="material-symbols-outlined" data-icon="sailing">sailing</span>
+<span class="font-body-lg text-body-lg font-semibold">Export</span>
+</a>
+<!-- Inactive -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/50 cursor-pointer active:scale-95 transition-all" href="{{DATA:SCREEN:SCREEN_27}}">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-lg text-body-lg">Facturation</span>
+</a>
+<!-- Inactive -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/50 cursor-pointer active:scale-95 transition-all" href="{{DATA:SCREEN:SCREEN_4}}">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-lg text-body-lg">Admin</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col md:ml-[260px] min-h-screen">
+<!-- TopNavBar -->
+<header class="docked full-width top-0 sticky z-50 bg-surface-container-lowest dark:bg-vessel-dark border-b border-outline-variant flex justify-between items-center h-16 px-gutter w-full">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-md font-body-md focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none w-64 transition-all" placeholder="Rechercher..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-secondary transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-cargo-accent rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-8 w-px bg-outline-variant mx-2"></div>
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors">
+<img alt="User Avatar" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="A small, professional headshot of a maritime logistics manager in a modern office, softly lit, corporate modern style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHmM0wOS5p93v1q70SswWNNL4vKi-k6ueXvAEUo04HdbQuOpVhFOWM6rkIIOO0coc52nhKYBlGZrQyGUBet_oqsYKZ6rxtnRvPfkE-0E_NCm8KJek8fkUJhDuY-mgii5OMsVZekEH4CF_FN3-SMWZZd36bbGdgYH6S242FEI_q9u_2hp95DlSQnnC2izHRpazjtReANyE91gZ-Tw_-tlzuJKGjXUWmKtmarFO4SleXbq96l_2yB9FM"/>
+<span class="font-body-md text-body-md hidden sm:block">Profile</span>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<div class="p-gutter flex-1 w-full max-w-container-max mx-auto">
+<!-- Page Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary">Espace Client Export</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-1">Gestion et suivi de vos connaissements maritimes.</p>
+</div>
+<a class="bg-primary hover:bg-secondary text-on-primary px-6 py-2.5 rounded-lg font-title-md text-title-md flex items-center gap-2 transition-colors self-start sm:self-auto shadow-sm" href="{{DATA:SCREEN:SCREEN_29}}">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                    Nouveau Draft
+                </a>
+</div>
+<!-- Bento Layout Content -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Quick Stats / Filters Panel (Left Sidebar in Bento) -->
+<div class="lg:col-span-3 space-y-6">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
+<h3 class="font-title-md text-title-md text-primary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="filter_list">filter_list</span>
+                            Filtres
+                        </h3>
+<div class="space-y-4">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">Statut</label>
+<select class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-body-md font-body-md focus:border-secondary outline-none">
+<option>Tous les statuts</option>
+<option>Draft</option>
+<option>Soumis</option>
+<option>Validé</option>
+</select>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">Navire</label>
+<select class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-body-md font-body-md focus:border-secondary outline-none">
+<option>Tous les navires</option>
+<option>BOCS VISION</option>
+<option>ATLANTIC STAR</option>
+</select>
+</div>
+</div>
+</div>
+<div class="bg-primary-container text-on-primary-container rounded-xl p-5 border border-primary/10">
+<div class="flex justify-between items-start mb-2">
+<span class="material-symbols-outlined text-secondary-container" data-icon="description">description</span>
+<span class="font-data-mono text-data-mono text-secondary-fixed-dim">Mois en cours</span>
+</div>
+<p class="font-label-caps text-label-caps uppercase opacity-80 mt-2">Drafts en attente</p>
+<p class="font-display-lg text-display-lg font-bold text-on-secondary">12</p>
+</div>
+</div>
+<!-- Main Table Section (Right Area in Bento) -->
+<div class="lg:col-span-9">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden flex flex-col h-full">
+<div class="p-5 border-b border-outline-variant flex justify-between items-center bg-surface-bright">
+<h3 class="font-title-md text-title-md text-primary">Mes Drafts de BL</h3>
+<button class="text-on-surface-variant hover:text-secondary">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container text-on-surface-variant font-label-caps text-label-caps uppercase sticky top-0 border-b border-outline-variant shadow-sm z-10">
+<tr>
+<th class="py-cell-padding-v px-cell-padding-h font-medium">Numéro BL</th>
+<th class="py-cell-padding-v px-cell-padding-h font-medium">Navire / Voyage</th>
+<th class="py-cell-padding-v px-cell-padding-h font-medium">Destination</th>
+<th class="py-cell-padding-v px-cell-padding-h font-medium">Statut</th>
+<th class="py-cell-padding-v px-cell-padding-h font-medium text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<!-- Row 1: Draft -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-primary font-medium">BOCS-EXP-8892</td>
+<td class="py-cell-padding-v px-cell-padding-h">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]" data-icon="directions_boat">directions_boat</span>
+                                                BOCS VISION (V.24)
+                                            </div>
+</td>
+<td class="py-cell-padding-v px-cell-padding-h">Douala, CM</td>
+<td class="py-cell-padding-v px-cell-padding-h">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant border border-outline/20">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                                                Draft
+                                            </span>
+</td>
+<td class="py-cell-padding-v px-cell-padding-h text-right">
+<button class="text-secondary hover:text-primary transition-colors font-medium text-sm">Éditer</button>
+</td>
+</tr>
+<!-- Row 2: Submitted -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors bg-vessel-dark/[0.02]">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-primary font-medium">BOCS-EXP-8890</td>
+<td class="py-cell-padding-v px-cell-padding-h">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]" data-icon="directions_boat">directions_boat</span>
+                                                ATLANTIC STAR (V.12)
+                                            </div>
+</td>
+<td class="py-cell-padding-v px-cell-padding-h">Abidjan, CI</td>
+<td class="py-cell-padding-v px-cell-padding-h">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-tertiary-fixed text-on-tertiary-fixed-variant border border-tertiary-fixed-dim">
+<span class="w-1.5 h-1.5 rounded-full bg-cargo-accent"></span>
+                                                Soumis
+                                            </span>
+</td>
+<td class="py-cell-padding-v px-cell-padding-h text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors font-medium text-sm">Voir</button>
+</td>
+</tr>
+<!-- Row 3: Validated -->
+<tr class="border-b border-outline-variant/50 hover:bg-primary/5 transition-colors">
+<td class="py-cell-padding-v px-cell-padding-h font-data-mono text-data-mono text-primary font-medium">BOCS-EXP-8885</td>
+<td class="py-cell-padding-v px-cell-padding-h">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]" data-icon="directions_boat">directions_boat</span>
+                                                BOCS SPIRIT (V.09)
+                                            </div>
+</td>
+<td class="py-cell-padding-v px-cell-padding-h">Dakar, SN</td>
+<td class="py-cell-padding-v px-cell-padding-h">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-fixed text-on-primary-fixed border border-primary-fixed-dim">
+<span class="w-1.5 h-1.5 rounded-full bg-status-validated"></span>
+                                                Validé
+                                            </span>
+</td>
+<td class="py-cell-padding-v px-cell-padding-h text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors font-medium text-sm">Voir</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-outline-variant bg-surface-bright flex items-center justify-between mt-auto">
+<span class="text-sm text-on-surface-variant">Affichage 1-3 sur 24</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded hover:bg-surface-container-low text-sm text-on-surface-variant disabled:opacity-50">Précédent</button>
+<button class="px-3 py-1 border border-outline-variant rounded hover:bg-surface-container-low text-sm text-on-surface-variant">Suivant</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

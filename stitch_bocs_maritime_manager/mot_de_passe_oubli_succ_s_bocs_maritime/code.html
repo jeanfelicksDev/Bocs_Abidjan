@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BOCS Maritime - Mot de passe oublié</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-variant": "#e2e2e2",
+                        "surface-container": "#eeeeee",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#70adff",
+                        "inverse-surface": "#2f3131",
+                        "on-surface": "#1a1c1c",
+                        "on-primary-fixed": "#001d36",
+                        "surface": "#f9f9f9",
+                        "tertiary": "#2a1000",
+                        "surface-bright": "#f9f9f9",
+                        "cargo-accent": "#D79375",
+                        "on-tertiary-fixed-variant": "#6b3a16",
+                        "on-background": "#1a1c1c",
+                        "on-secondary-fixed-variant": "#004785",
+                        "on-primary-container": "#7495be",
+                        "secondary-fixed-dim": "#a5c8ff",
+                        "status-invoiced": "#212529",
+                        "status-pending": "#9F7B87",
+                        "surface-container-low": "#f3f3f3",
+                        "surface-dim": "#dadada",
+                        "on-secondary-fixed": "#001c3a",
+                        "surface-tint": "#3f6186",
+                        "error-container": "#ffdad6",
+                        "outline": "#73777f",
+                        "on-error": "#ffffff",
+                        "primary-container": "#002d50",
+                        "error": "#ba1a1a",
+                        "primary": "#00182f",
+                        "vessel-dark": "#212529",
+                        "on-tertiary-container": "#c3845a",
+                        "secondary": "#075fac",
+                        "secondary-fixed": "#d4e3ff",
+                        "on-secondary-container": "#004078",
+                        "surface-container-high": "#e8e8e8",
+                        "inverse-primary": "#a7c9f4",
+                        "background": "#f9f9f9",
+                        "inverse-on-surface": "#f1f1f1",
+                        "primary-fixed": "#d1e4ff",
+                        "on-error-container": "#93000a",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#25496d",
+                        "on-tertiary-fixed": "#311300",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#c3c6cf",
+                        "tertiary-container": "#492000",
+                        "tertiary-fixed-dim": "#feb789",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#ffdcc7",
+                        "on-surface-variant": "#43474e",
+                        "surface-container-highest": "#e2e2e2",
+                        "primary-fixed-dim": "#a7c9f4",
+                        "status-validated": "#005DAA"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "gutter": "24px",
+                        "sidebar-width": "260px",
+                        "container-max": "1440px",
+                        "cell-padding-v": "12px",
+                        "cell-padding-h": "16px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "title-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Inter"]
+                    },
+                    fontSize: {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "title-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen flex text-on-surface font-body-md">
+<!-- Split Layout Container -->
+<div class="flex w-full min-h-screen">
+<!-- Left Side: Image/Branding (Hidden on mobile) -->
+<div class="hidden lg:flex lg:w-1/2 relative bg-vessel-dark overflow-hidden items-center justify-center">
+<!-- Background Image -->
+<div class="absolute inset-0 z-0">
+<div class="bg-cover bg-center w-full h-full opacity-60" data-alt="A massive, modern cargo ship navigating through calm, deep blue ocean waters at dawn. The scene is bathed in soft, cool morning light, creating a serene and professional maritime atmosphere. The ship's structure is robust and imposing, rendered in crisp detail against a clear sky. The overall color palette emphasizes deep navy blues, crisp whites, and subtle industrial greys, perfectly aligning with a sophisticated corporate logistics aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDtBithEt-xFtmw30xioP4fLBbQbq8gTPi8-hE8VKGOrx8t5Cywffygi_xKgjQEPdjetlbRY8w19U7l1DlbVoKpV-BmRKRPOessusUmufNXnqx-6HJ6-CiSbtiDHq0pJzFJsehIqAd7j4WCntPfvz72IPZaRJBhfAPOKe02anWkA3fgkc2SZWlLCS4KVCyUEuKY16Mij3FGPeHybDrrfmgGNXtlsMh6a6nPTbhiuP15brRwd1pRwxWt')"></div>
+</div>
+<!-- Branding Overlay -->
+<div class="relative z-10 flex flex-col items-center text-on-secondary p-12 text-center max-w-lg">
+<span class="material-symbols-outlined text-6xl mb-6" style="font-variation-settings: 'FILL' 1;">sailing</span>
+<h1 class="font-display-lg text-display-lg mb-4">BOCS Maritime</h1>
+<p class="font-body-lg text-body-lg text-secondary-fixed-dim">Système de Gestion Logistique &amp; Flotte</p>
+</div>
+<!-- Subtle gradient overlay for depth -->
+<div class="absolute inset-0 bg-gradient-to-t from-vessel-dark to-transparent z-0"></div>
+</div>
+<!-- Right Side: Form Content -->
+<div class="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-surface-container-lowest">
+<div class="w-full max-w-md" id="recovery-container">
+<!-- Mobile Branding (Visible only on mobile) -->
+<div class="lg:hidden flex flex-col items-center mb-10">
+<span class="material-symbols-outlined text-4xl text-primary mb-3" style="font-variation-settings: 'FILL' 1;">sailing</span>
+<h2 class="font-headline-md text-headline-md text-primary">BOCS Maritime</h2>
+</div>
+<!-- Recovery Form Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-8 shadow-[0px_4px_12px_rgba(0,45,80,0.08)]">
+<!-- Form State -->
+<div class="hidden" id="form-state">
+<div class="mb-8">
+<h3 class="font-headline-md text-headline-md text-primary mb-2">Mot de passe oublié</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                                Saisissez votre adresse e-mail pour recevoir un lien de réinitialisation de votre mot de passe.
+                            </p>
+</div>
+<form class="space-y-6" id="recovery-form" onsubmit="event.preventDefault(); showSuccessState();">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="email">ADRESSE E-MAIL</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">mail</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 border border-outline-variant rounded bg-surface-container-lowest text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-shadow" id="email" name="email" placeholder="nom@entreprise.com" required="" type="email"/>
+</div>
+</div>
+<button class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded text-on-primary bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors font-title-md text-title-md" type="submit">
+                                Envoyer le lien
+                                <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</form>
+</div>
+<!-- Success State (Initially Hidden) -->
+<div class="text-center py-6" id="success-state"><div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 text-green-600 mb-6">
+<span class="material-symbols-outlined text-3xl">check_circle</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">E-mail envoyé !</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8">
+    Si un compte est associé à {{DATA:TEXT:EMAIL}}, vous recevrez un lien de réinitialisation sous quelques instants.
+</p>
+<button class="w-full py-3 px-4 border border-primary rounded text-primary bg-transparent hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors font-title-md text-title-md" onclick="resetForm()">
+    Renvoyer l'e-mail
+</button></div>
+</div>
+<!-- Back to Login Link -->
+<div class="mt-8 text-center">
+<a class="inline-flex items-center gap-2 font-body-md text-body-md text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">arrow_back</span>
+                        Retour à la connexion
+                    </a>
+</div>
+<!-- Footer Links -->
+<div class="mt-12 flex justify-center gap-6 font-label-caps text-label-caps text-on-surface-variant/70">
+<a class="hover:text-primary transition-colors" href="#">Aide</a>
+<a class="hover:text-primary transition-colors" href="#">Confidentialité</a>
+<a class="hover:text-primary transition-colors" href="#">Conditions</a>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function showSuccessState() {
+            const emailInput = document.getElementById('email').value;
+            if(emailInput) {
+                document.getElementById('form-state').classList.add('hidden');
+                document.getElementById('form-state').classList.remove('block');
+                
+                document.getElementById('success-state').classList.add('block');
+                document.getElementById('success-state').classList.remove('hidden');
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('email').value = '';
+            
+            document.getElementById('success-state').classList.add('hidden');
+            document.getElementById('success-state').classList.remove('block');
+            
+            document.getElementById('form-state').classList.add('block');
+            document.getElementById('form-state').classList.remove('hidden');
+        }
+    </script>
+</body></html>

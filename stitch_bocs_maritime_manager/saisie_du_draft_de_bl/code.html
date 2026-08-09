@@ -1,0 +1,366 @@
+<!DOCTYPE html><html class="light" lang="fr" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>BOCS Maritime - Saisie du Draft de BL</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Progress line custom styles */
+        .step-progress-line {
+            position: absolute;
+            top: 24px; /* Half of step circle height */
+            left: 50%; /* Start from center of current step */
+            width: 100%; /* Go full width to next step */
+            height: 2px;
+            background-color: #c3c6cf; /* outline-variant */
+            z-index: 0;
+            transform: translateX(50%); /* Adjust to connect cleanly */
+        }
+        
+        .step-progress-line.active {
+            background-color: #075fac; /* secondary */
+        }
+
+        .step-item:last-child .step-progress-line {
+            display: none;
+        }
+        
+        /* Smooth transitions for form sections */
+        .form-section {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .form-section.hidden {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .form-section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "vessel-dark": "#212529",
+                      "secondary-container": "#70adff",
+                      "surface-container-high": "#e8e8e8",
+                      "primary": "#00182f",
+                      "on-secondary-container": "#004078",
+                      "on-secondary": "#ffffff",
+                      "surface-container": "#eeeeee",
+                      "on-secondary-fixed": "#001c3a",
+                      "inverse-on-surface": "#f1f1f1",
+                      "tertiary-fixed": "#ffdcc7",
+                      "on-error-container": "#93000a",
+                      "on-surface-variant": "#43474e",
+                      "on-primary-fixed": "#001d36",
+                      "on-secondary-fixed-variant": "#004785",
+                      "primary-container": "#002d50",
+                      "secondary-fixed-dim": "#a5c8ff",
+                      "outline-variant": "#c3c6cf",
+                      "background": "#f9f9f9",
+                      "outline": "#73777f",
+                      "surface-container-highest": "#e2e2e2",
+                      "on-tertiary": "#ffffff",
+                      "inverse-surface": "#2f3131",
+                      "on-error": "#ffffff",
+                      "secondary": "#075fac",
+                      "surface-container-low": "#f3f3f3",
+                      "on-primary-fixed-variant": "#25496d",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-variant": "#e2e2e2",
+                      "status-pending": "#9F7B87",
+                      "on-tertiary-container": "#c3845a",
+                      "tertiary": "#2a1000",
+                      "secondary-fixed": "#d4e3ff",
+                      "error-container": "#ffdad6",
+                      "cargo-accent": "#D79375",
+                      "inverse-primary": "#a7c9f4",
+                      "status-validated": "#005DAA",
+                      "tertiary-container": "#492000",
+                      "surface-tint": "#3f6186",
+                      "primary-fixed": "#d1e4ff",
+                      "status-invoiced": "#212529",
+                      "error": "#ba1a1a",
+                      "on-primary": "#ffffff",
+                      "on-surface": "#1a1c1c",
+                      "primary-fixed-dim": "#a7c9f4",
+                      "surface-bright": "#f9f9f9",
+                      "on-background": "#1a1c1c",
+                      "on-tertiary-fixed-variant": "#6b3a16",
+                      "surface": "#f9f9f9",
+                      "on-tertiary-fixed": "#311300",
+                      "tertiary-fixed-dim": "#feb789",
+                      "surface-dim": "#dadada",
+                      "on-primary-container": "#7495be"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "cell-padding-h": "16px",
+                      "gutter": "24px",
+                      "container-max": "1440px",
+                      "cell-padding-v": "12px",
+                      "sidebar-width": "260px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "title-md": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "data-mono": ["JetBrains Mono"]
+              },
+              "fontSize": {
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-background min-h-screen flex text-on-surface antialiased font-body-lg">
+<!-- SideNavBar Component -->
+<nav class="w-sidebar-width h-screen fixed left-0 top-0 bg-vessel-dark z-40 flex flex-col py-6">
+<!-- Brand Area -->
+<div class="px-6 mb-10 flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-primary-container flex items-center justify-center text-on-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">directions_boat</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-secondary">BOCS Maritime</h1>
+<p class="font-label-caps text-label-caps text-secondary-fixed-dim uppercase tracking-wider mt-1">Logistics Management</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<ul class="flex-1 flex flex-col gap-1 px-4">
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/30 transition-colors cursor-pointer active:scale-95 transition-all" href="/dashboard">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md font-semibold">Dashboard</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/30 transition-colors cursor-pointer active:scale-95 transition-all" href="/import">
+<span class="material-symbols-outlined" data-icon="ship">directions_boat</span>
+<span class="font-body-md text-body-md font-semibold">Import</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT border-l-4 border-secondary-container bg-primary-container text-on-primary-container transition-colors cursor-pointer active:scale-95 transition-all" href="/export">
+<span class="material-symbols-outlined" data-icon="sailing">sailing</span>
+<span class="font-body-md text-body-md font-semibold">Export</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/30 transition-colors cursor-pointer active:scale-95 transition-all" href="/billing">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-md text-body-md font-semibold">Billing</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:text-on-secondary hover:bg-primary-container/30 transition-colors cursor-pointer active:scale-95 transition-all" href="/admin">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md font-semibold">Admin</span>
+</a>
+</li>
+</ul>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="ml-sidebar-width w-[calc(100%-theme(spacing.sidebar-width))] flex flex-col min-h-screen">
+<!-- TopNavBar Component -->
+<header class="docked full-width top-0 sticky z-50 flex justify-between items-center h-16 px-gutter bg-surface-container-lowest border-b border-outline-variant">
+<!-- Breadcrumbs / Title Area -->
+<div class="flex items-center gap-4">
+<nav aria-label="Breadcrumb" class="flex text-on-surface-variant font-body-md text-body-md">
+<ol class="inline-flex items-center space-x-1 md:space-x-2">
+<li class="inline-flex items-center">
+<a class="hover:text-secondary transition-colors" href="#">Export</a>
+</li>
+<li class="">
+<div class="flex items-center">
+<span class="material-symbols-outlined text-outline-variant mx-1" style="font-size: 16px;">chevron_right</span>
+<span aria-current="page" class="text-secondary font-bold">Saisie du Draft de BL</span>
+</div>
+</li>
+</ol>
+</nav>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="hover:text-secondary transition-colors p-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="hover:text-secondary transition-colors p-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-6 w-px bg-outline-variant mx-2"></div>
+<button class="flex items-center gap-2 hover:text-secondary transition-colors">
+<span class="font-body-md text-body-md font-semibold">Profile</span>
+<div class="w-8 h-8 rounded-full bg-surface-container overflow-hidden border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a corporate logistics manager in their late 30s, wearing a smart casual dark navy blazer. The lighting is bright and clean, typical of a modern office environment. The background is slightly blurred but suggests a maritime or corporate setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2w7JFtD-qVBik5WmLfHAI2Y5fmTiZzb3j30SyMOrdq_fniW648RqMk8NQGdPLDkNxBBzrET1fE-pGWvrI2J7d_17H2pCtWAz2jpUHsZNunystBXD52PQlp0mX_nn56xkEZSZkRocD6CWxU86Hxxw5oZixRFdfjZe9Zh5e8gxrZDIXUcUg8WJzZxVQEm7sqB1aLUXi7OjBV1AeIkHW0n8t2FPZ_kurlsuBwD1qsLMa_EgBB1mebz9S">
+</div>
+</button>
+</div>
+</header>
+<!-- Page Content -->
+<main class="flex-1 p-gutter bg-background">
+<div class="max-w-[1000px] mx-auto">
+<!-- Header Section -->
+<div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-2">Saisie du Draft de BL</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Veuillez remplir les informations nécessaires pour générer le Bill of Lading.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 border border-primary text-primary font-body-md text-body-md font-semibold rounded hover:bg-surface-container-high transition-colors" type="button">
+                            Save as Draft
+                        </button>
+<button class="px-4 py-2 bg-primary text-on-primary font-body-md text-body-md font-semibold rounded hover:bg-primary-container transition-colors shadow-sm" type="button">
+                            Submit Draft
+                        </button>
+</div>
+</div>
+<!-- Guided Multi-step Progress -->
+<div class="mb-10 px-8">
+<div class="relative flex justify-between w-full max-w-3xl mx-auto">
+<!-- Step 1 -->
+<div class="step-item relative flex flex-col items-center flex-1 z-10">
+<div class="step-progress-line active"></div>
+<div class="w-12 h-12 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-title-md text-title-md mb-2 shadow-sm border-2 border-surface-container-lowest ring-2 ring-secondary/20">
+                                1
+                            </div>
+<span class="font-label-caps text-label-caps text-secondary font-bold text-center">Infos Générales</span>
+</div>
+<!-- Step 2 -->
+<div class="step-item relative flex flex-col items-center flex-1 z-10">
+<div class="step-progress-line"></div>
+<div class="w-12 h-12 rounded-full bg-surface-container border-2 border-outline-variant text-on-surface-variant flex items-center justify-center font-title-md text-title-md mb-2">
+                                2
+                            </div>
+<span class="font-label-caps text-label-caps text-on-surface-variant text-center">Détails Cargaison</span>
+</div>
+<!-- Step 3 -->
+<div class="step-item relative flex flex-col items-center flex-1 z-10">
+<div class="step-progress-line"></div>
+<div class="w-12 h-12 rounded-full bg-surface-container border-2 border-outline-variant text-on-surface-variant flex items-center justify-center font-title-md text-title-md mb-2">
+                                3
+                            </div>
+<span class="font-label-caps text-label-caps text-on-surface-variant text-center">Conteneurs</span>
+</div>
+</div>
+</div>
+<!-- Form Canvas -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-8 shadow-sm">
+<form action="#" id="bl-draft-form" method="POST">
+<!-- Section 1: General Info (Active) -->
+<div class="form-section active" id="section-1">
+<h3 class="font-title-md text-title-md text-primary mb-6 pb-2 border-b border-outline-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">info</span>
+                                Informations Générales
+                            </h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+<!-- Shipper (Expéditeur) -->
+<div class="col-span-1 md:col-span-2">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="shipper">Shipper / Expéditeur *</label>
+<textarea class="w-full bg-surface-container-lowest border border-outline focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded px-4 py-3 font-body-md text-body-md text-on-surface transition-all placeholder:text-outline-variant" id="shipper" name="shipper" placeholder="Nom complet et adresse de l'expéditeur" rows="3"></textarea>
+</div>
+<!-- Consignee -->
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="consignee">Consignee / Destinataire *</label>
+<textarea class="w-full bg-surface-container-lowest border border-outline focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded px-4 py-3 font-body-md text-body-md text-on-surface transition-all placeholder:text-outline-variant" id="consignee" name="consignee" placeholder="À l'ordre de / Nom et adresse du destinataire" rows="3"></textarea>
+</div>
+<!-- Notify Party -->
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="notify_party">Notify Party / Partie à notifier</label>
+<textarea class="w-full bg-surface-container-lowest border border-outline focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded px-4 py-3 font-body-md text-body-md text-on-surface transition-all placeholder:text-outline-variant" id="notify_party" name="notify_party" placeholder="Nom et adresse (Si différent du destinataire)" rows="3"></textarea>
+</div>
+<!-- Ports -->
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="port_loading">Port of Loading / Port d'embarquement *</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded px-4 py-3 font-body-md text-body-md text-on-surface transition-all" id="port_loading" name="port_loading">
+<option disabled="" selected="" value="">Sélectionner un port</option>
+<option value="ROU">Rouen (FR)</option>
+<option value="DKK">Dunkerque (FR)</option>
+<option value="ANR">Antwerp (BE)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-on-surface-variant">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2" for="port_discharge">Port of Discharge / Port de déchargement *</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded px-4 py-3 font-body-md text-body-md text-on-surface transition-all" id="port_discharge" name="port_discharge">
+<option disabled="" selected="" value="">Sélectionner un port</option>
+<option value="DLA">Douala (CM)</option>
+<option value="ABJ">Abidjan (CI)</option>
+<option value="DKR">Dakar (SN)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-on-surface-variant">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex justify-end pt-4 border-t border-surface-variant">
+<a href="{{DATA:SCREEN:SCREEN_5}}" class="px-6 py-2 bg-surface-container-highest text-on-surface font-body-md text-body-md font-semibold rounded hover:bg-surface-variant transition-colors flex items-center gap-2 inline-flex">
+                                    Suivant
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Add other sections here as needed for functionality, structurally similar, currently hidden for initial view -->
+<!-- Section 2: Cargo Details (Hidden) -->
+<!-- Section 3: Containers (Hidden) -->
+</form>
+</div>
+</div>
+</main>
+</div>
+
+
+
+
+</body></html>
