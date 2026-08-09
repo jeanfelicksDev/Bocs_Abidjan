@@ -65,41 +65,13 @@ export function App() {
     return INITIAL_DRAFTS_EXPORT;
   });
 
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('bocs_invoices');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement invoices local', e); }
-    }
-    return INITIAL_INVOICES;
-  });
-
-  const [payments, setPayments] = useState<Payment[]>(() => {
-    const saved = localStorage.getItem('bocs_payments');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement payments local', e); }
-    }
-    return INITIAL_PAYMENTS;
-  });
-
+  const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
+  const [payments, setPayments] = useState<Payment[]>(INITIAL_PAYMENTS);
   const [fneParams, setFneParams] = useState<FneParam[]>(INITIAL_FNE_PARAMS);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
   const [exchangeRateUsd, setExchangeRateUsd] = useState<number>(600.00);
-
-  const [invoiceTypeConfigs, setInvoiceTypeConfigs] = useState<InvoiceTypeConfig[]>(() => {
-    const saved = localStorage.getItem('bocs_invoice_type_configs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement types factures local', e); }
-    }
-    return INITIAL_INVOICE_TYPE_CONFIGS;
-  });
-
-  const [rubriqueConfigs, setRubriqueConfigs] = useState<RubriqueConfig[]>(() => {
-    const saved = localStorage.getItem('bocs_rubrique_configs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement rubriques local', e); }
-    }
-    return INITIAL_RUBRIQUE_CONFIGS;
-  });
+  const [invoiceTypeConfigs, setInvoiceTypeConfigs] = useState<InvoiceTypeConfig[]>(INITIAL_INVOICE_TYPE_CONFIGS);
+  const [rubriqueConfigs, setRubriqueConfigs] = useState<RubriqueConfig[]>(INITIAL_RUBRIQUE_CONFIGS);
 
   // Sauvegarde automatique en temps réel dans localStorage
   useEffect(() => {
@@ -114,28 +86,58 @@ export function App() {
     localStorage.setItem('bocs_drafts', JSON.stringify(drafts));
   }, [drafts]);
 
+  // Initialisation et chargement des données depuis Neon Postgres
   useEffect(() => {
-    localStorage.setItem('bocs_invoices', JSON.stringify(invoices));
-  }, [invoices]);
+    const initAndLoad = async () => {
+      try {
+        // 1. Initialise les tables si nécessaire
+        await fetch('/api/init-db');
+        
+        // 2. Charge les configurations
+        const configsRes = await fetch('/api/configs');
+        const configsData = await configsRes.json();
+        if (configsData.success) {
+          if (configsData.types && configsData.types.length > 0) {
+            setInvoiceTypeConfigs(configsData.types);
+          }
+          if (configsData.rubriques && configsData.rubriques.length > 0) {
+            setRubriqueConfigs(configsData.rubriques);
+          }
+        }
 
-  useEffect(() => {
-    localStorage.setItem('bocs_payments', JSON.stringify(payments));
-  }, [payments]);
+        // 3. Charge les factures
+        const invoicesRes = await fetch('/api/invoices');
+        const invoicesData = await invoicesRes.json();
+        if (invoicesData.success && invoicesData.invoices && invoicesData.invoices.length > 0) {
+          setInvoices(invoicesData.invoices);
+        }
 
-  useEffect(() => {
-    localStorage.setItem('bocs_invoice_type_configs', JSON.stringify(invoiceTypeConfigs));
-  }, [invoiceTypeConfigs]);
+        // 4. Charge les règlements
+        const paymentsRes = await fetch('/api/payments');
+        const paymentsData = await paymentsRes.json();
+        if (paymentsData.success && paymentsData.payments && paymentsData.payments.length > 0) {
+          setPayments(paymentsData.payments);
+        }
 
-  useEffect(() => {
-    localStorage.setItem('bocs_rubrique_configs', JSON.stringify(rubriqueConfigs));
-  }, [rubriqueConfigs]);
+        // 5. Charge les logs d'audit
+        const auditRes = await fetch('/api/audit');
+        const auditData = await auditRes.json();
+        if (auditData.success && auditData.auditLogs && auditData.auditLogs.length > 0) {
+          setAuditLogs(auditData.auditLogs);
+        }
+      } catch (e) {
+        console.error("Erreur lors de la synchronisation avec Neon", e);
+      }
+    };
+    initAndLoad();
+  }, []);
 
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot'>('login');
 
   // Helper for Audit Logging
-  const logAuditAction = (action: string, entite: string, details: string) => {
+  const logAuditAction = async (action: string, entite: string, details: string) => {
     const newLog: AuditLog = {
       id: Date.now(),
       utilisateurNom: currentUser.nomComplet,
@@ -147,6 +149,15 @@ export function App() {
       ip: '160.155.20.14'
     };
     setAuditLogs(prev => [newLog, ...prev]);
+    try {
+      await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newLog)
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde du log d'audit sur Neon", e);
+    }
   };
 
   // --- USER & AUTHENTICATION HANDLERS ---
@@ -271,26 +282,84 @@ export function App() {
   };
 
   // Generate Invoice
-  const handleGenerateInvoice = (invoice: Invoice) => {
+  const handleGenerateInvoice = async (invoice: Invoice) => {
     setInvoices(prev => [invoice, ...prev]);
     setBls(prev => prev.map(b => b.numeroBL === invoice.numeroBL ? { ...b, statutImport: 'FACTURE' } : b));
+    try {
+      await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoice)
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde de la facture sur Neon", e);
+    }
   };
 
   // Add Payment
-  const handleAddPayment = (payment: Payment) => {
+  const handleAddPayment = async (payment: Payment) => {
     setPayments(prev => [payment, ...prev]);
+    let updatedInvoice: Invoice | null = null;
     setInvoices(prev => prev.map(inv => {
       if (inv.id === payment.factureId) {
         const newSolde = Math.max(0, inv.soldeDuFcfa - payment.montantFcfa);
         const newStatus = newSolde === 0 ? 'PAYE' : 'PARTIEL';
-        return {
+        updatedInvoice = {
           ...inv,
           soldeDuFcfa: newSolde,
           statutPaiement: newStatus
         };
+        return updatedInvoice;
       }
       return inv;
     }));
+
+    try {
+      // 1. Save payment
+      await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payment)
+      });
+
+      // 2. Save updated invoice
+      if (updatedInvoice) {
+        await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedInvoice)
+        });
+      }
+    } catch (e) {
+      console.error("Erreur lors de l'enregistrement du règlement sur Neon", e);
+    }
+  };
+
+  // Configuration update handlers for Neon Postgres
+  const handleUpdateInvoiceTypeConfigs = async (newConfigs: InvoiceTypeConfig[]) => {
+    setInvoiceTypeConfigs(newConfigs);
+    try {
+      await fetch('/api/configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ types: newConfigs, rubriques: rubriqueConfigs })
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde des types de factures sur Neon", e);
+    }
+  };
+
+  const handleUpdateRubriqueConfigs = async (newRubriques: RubriqueConfig[]) => {
+    setRubriqueConfigs(newRubriques);
+    try {
+      await fetch('/api/configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ types: invoiceTypeConfigs, rubriques: newRubriques })
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde des rubriques sur Neon", e);
+    }
   };
 
   // Update FNE Param
@@ -391,9 +460,9 @@ export function App() {
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
               invoiceTypeConfigs={invoiceTypeConfigs}
-              onUpdateInvoiceTypeConfigs={setInvoiceTypeConfigs}
+              onUpdateInvoiceTypeConfigs={handleUpdateInvoiceTypeConfigs}
               rubriqueConfigs={rubriqueConfigs}
-              onUpdateRubriqueConfigs={setRubriqueConfigs}
+              onUpdateRubriqueConfigs={handleUpdateRubriqueConfigs}
             />
           )}
 
