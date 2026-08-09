@@ -851,11 +851,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         {/* Dropzone */}
         <div 
           onClick={() => fileInputRef.current?.click()}
-          className="w-full bg-white rounded-2xl border-2 border-dashed border-blue-300 hover:border-[#005daa] p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/40 transition-all text-center min-h-[200px] shadow-xs"
+          className="w-full bg-white rounded-2xl border-2 border-dashed border-blue-300 hover:border-[#005daa] p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/40 transition-all text-center min-h-[160px] shadow-xs"
         >
-          <div className="w-14 h-14 rounded-full bg-blue-50 text-[#005daa] flex items-center justify-center mb-3 border border-blue-100 shadow-xs">
-            <span className="material-symbols-outlined text-3xl">upload</span>
-          </div>
           <h3 className="text-base font-black text-slate-900 mb-1 font-heading">Charger un Manifeste GUCE XML / PDF</h3>
           <p className="text-xs text-slate-500 max-w-md mb-4 font-medium">
             Glissez-déposez le fichier XML GUCE ou un Manifeste au format PDF pour lancer l'extraction OCR BOCS.
