@@ -1035,7 +1035,6 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-md shadow-xs">
               <tr className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                 <th className="p-3">Numéro BL</th>
-                <th className="p-3">Shipper (Expéditeur)</th>
                 <th className="p-3">Consignee (Destinataire)</th>
                 <th className="p-3">Poids / Vol / Colis</th>
                 <th className="p-3">Conteneurs</th>
@@ -1057,15 +1056,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   )
                 );
                 const pendingConfigs = plannedConfigs.filter(t => !generatedConfigs.some(g => g.id === t.id));
-                const allGenerated = (plannedConfigs.length > 0 && pendingConfigs.length === 0) || bl.statutImport === 'FACTURE';
+                const allGenerated = (plannedConfigs.length > 0 && pendingConfigs.length === 0);
 
                 return (
                   <tr key={bl.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="p-3">
                       <span className="font-mono font-bold text-primary text-sm block">{bl.numeroBL}</span>
-                      <span className="text-[10px] text-outline uppercase">{bl.typeOperation}</span>
+                      <span className="text-[10px] text-slate-500 font-semibold truncate block max-w-[160px]" title={bl.shipperNom}>{bl.shipperNom}</span>
                     </td>
-                    <td className="p-3 font-medium text-on-surface">{bl.shipperNom}</td>
                     <td className="p-3 font-semibold text-primary">{bl.consigneeNom}</td>
                     <td className="p-3 font-mono">
                       <div>{bl.poidsBrutKg.toLocaleString()} kg</div>
