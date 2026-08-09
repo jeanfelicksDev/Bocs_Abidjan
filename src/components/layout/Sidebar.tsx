@@ -202,16 +202,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.99] cursor-pointer ${
                           isMainActive
-                            ? item.subItems
-                              ? 'bg-[#ffe135] text-[#0f172a] shadow-md font-black border border-[#e5c122]'
-                              : 'bg-[#005daa] text-white shadow-md font-extrabold'
+                            ? 'bg-[#005daa] text-white shadow-md font-extrabold'
                             : `${item.colorClass || 'text-slate-400 hover:text-white'} hover:bg-[#13233c]/60`
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span className={`material-symbols-outlined text-lg ${
                             isMainActive
-                              ? item.subItems ? 'text-[#0f172a]' : 'text-white'
+                              ? 'text-white'
                               : item.colorClass ? '' : 'text-slate-400'
                           }`}>
                             {item.icon}
@@ -230,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           {item.badge !== null && item.badge !== undefined && (
                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                               isMainActive
-                                ? item.subItems ? 'bg-[#0f172a]/10 text-[#0f172a]' : 'bg-white/20 text-white'
+                                ? 'bg-white/20 text-white'
                                 : 'bg-[#152a48] text-blue-300'
                             }`}>
                               {item.badge}
