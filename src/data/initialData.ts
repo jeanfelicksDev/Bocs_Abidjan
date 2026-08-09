@@ -42,13 +42,7 @@ export const INITIAL_FNE_PARAMS: FneParam[] = [
   { id: 5, cle: 'auto_submit', valeur: 'TRUE', description: 'Transmission automatique des factures définitives à la DGI', updatedAt: '2026-04-01' }
 ];
 
-export const INITIAL_AUDIT_LOGS: AuditLog[] = [
-  { id: 1, utilisateurNom: 'Jean-Marc KOFFI', role: 'ADMIN', action: 'CONNEXION', entite: 'Session', details: 'Connexion réussie depuis Abidjan', dateAction: '2026-04-09 08:30:12', ip: '160.155.20.14' },
-  { id: 2, utilisateurNom: 'Marie-Claire ADOU', role: 'AGENT_IMPORT', action: 'UPLOAD_MANIFESTE', entite: 'Escale', entiteId: 1, details: 'Importation du manifeste GUCE_ABIDJAN_IMPORT.XML (71 BLs, 153 Conteneurs)', dateAction: '2026-04-09 09:14:05', ip: '160.155.20.18' },
-  { id: 3, utilisateurNom: 'Marie-Claire ADOU', role: 'AGENT_IMPORT', action: 'CALCUL_DMDT', entite: 'BL', entiteId: 1, details: 'Calcul des surestaries sur le BL OOLU2321529710 (950 000 FCFA retenus sur caution)', dateAction: '2026-04-12 11:20:44', ip: '160.155.20.18' },
-  { id: 4, utilisateurNom: 'FRIESLANDCAMPINA IVORY COAST', role: 'CLIENT_EXPORT', action: 'VALIDATION_DRAFT', entite: 'DraftExport', entiteId: 1, details: 'Validation autonome du draft DRAFT-EXP-2026-001 par le client', dateAction: '2026-04-04 14:30:00', ip: '41.207.210.5' },
-  { id: 5, utilisateurNom: 'Kouassi PATRICE', role: 'AGENT_EXPORT', action: 'GENERATION_BL_ORIGINAL', entite: 'BL', entiteId: 101, details: 'Génération et signature électronique du BL Original BOCS-EXP-2026-00101', dateAction: '2026-04-04 15:10:22', ip: '160.155.20.22' }
-];
+export const INITIAL_AUDIT_LOGS: AuditLog[] = [];
 
 export const INITIAL_TARIFS_SURESTARIE: TarifSurestarie[] = DEFAULT_TARIFS;
 

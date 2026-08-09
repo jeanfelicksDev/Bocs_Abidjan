@@ -138,6 +138,10 @@ export function App() {
 
   // Helper for Audit Logging
   const logAuditAction = async (action: string, entite: string, details: string) => {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const formattedDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
     const newLog: AuditLog = {
       id: Date.now(),
       utilisateurNom: currentUser.nomComplet,
@@ -145,7 +149,7 @@ export function App() {
       action,
       entite,
       details,
-      dateAction: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      dateAction: formattedDate,
       ip: '160.155.20.14'
     };
     setAuditLogs(prev => [newLog, ...prev]);

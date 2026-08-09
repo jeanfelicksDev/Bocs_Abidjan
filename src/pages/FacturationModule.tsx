@@ -89,12 +89,20 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
   // Handlers for Local Rubriques
   const handleToggleLocalRubrique = (rubriqueId: string) => {
+    const target = localRubriques.find(r => r.id === rubriqueId);
     const updated = localRubriques.map(r => 
       r.id === rubriqueId ? { ...r, isActive: !r.isActive } : r
     );
     setLocalRubriques(updated);
     if (onUpdateRubriqueConfigs) {
       onUpdateRubriqueConfigs(updated);
+    }
+    if (target) {
+      onLogAudit(
+        'TOGGLE_RUBRIQUE',
+        'RubriqueConfig',
+        `Rubrique "${target.name}" (${target.code}) ${!target.isActive ? 'activée' : 'désactivée'}`
+      );
     }
   };
 
@@ -216,6 +224,12 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       onUpdateRubriqueConfigs(updated);
     }
 
+    onLogAudit(
+      'AJOUT_RUBRIQUE',
+      'RubriqueConfig',
+      `Ajout de la rubrique "${newRubrique.name}" (${newRubrique.code}) - ${newRubrique.montantUnitaire} FCFA (${newRubrique.baseCalcul})`
+    );
+
     setShowAddRubriqueModal(false);
     setNewRubriqueName('');
     setNewRubriqueDescription('');
@@ -247,6 +261,12 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       onUpdateRubriqueConfigs(updated);
     }
 
+    onLogAudit(
+      'MODIFICATION_RUBRIQUE',
+      'RubriqueConfig',
+      `Modification de la rubrique "${editRubriqueName}" (${editRubriqueCode}) - ${editRubriqueAmount} FCFA (${editRubriqueBaseCalcul})`
+    );
+
     setShowEditRubriqueModal(false);
     setEditingRubrique(null);
   };
@@ -264,6 +284,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     if (onUpdateRubriqueConfigs) {
       onUpdateRubriqueConfigs(updated);
     }
+    onLogAudit(
+      'SUPPRESSION_RUBRIQUE',
+      'RubriqueConfig',
+      `Suppression définitive de la rubrique "${rubriqueToDelete.name}" (${rubriqueToDelete.code})`
+    );
     setShowDeleteConfirmModal(false);
     setRubriqueToDelete(null);
   };
