@@ -1152,9 +1152,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         {plannedConfigs.length === 0 ? (
                           <button
                             onClick={() => handleOpenInvoiceSelection(bl)}
-                            className="px-3 py-1.5 bg-[#005daa] text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
                           >
-                            <span className="material-symbols-outlined text-sm">receipt_long</span>
+                            <span className="material-symbols-outlined text-sm text-slate-500">receipt_long</span>
                             <span>Proforma PDF</span>
                           </button>
                         ) : (
