@@ -210,12 +210,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           @page { size: A4; margin: 10mm; }
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
           body { font-family: 'Inter', 'Arial', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .logo-container { width: 280px; position: relative; margin-bottom: 20px; }
-          .logo-bg { background-color: #f1f5f9; height: 8px; width: 100%; margin-bottom: 2px; }
-          .logo-green { color: #16a34a; font-size: 40px; font-weight: 900; font-style: italic; letter-spacing: -1.5px; display: inline-block; padding-left: 40px; line-height: 1; }
-          .logo-blue-bg { display: flex; align-items: stretch; margin-top: 2px; }
-          .logo-blue-bar { flex-grow: 1; background-color: #f1f5f9; }
-          .logo-blue-text { background-color: #1e3a8a; color: white; font-weight: 900; font-size: 13px; font-style: italic; padding: 3px 15px 3px 25px; letter-spacing: 1px; }
+          .logo-container { width: 350px; margin-bottom: 25px; }
           
           .header-main { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
           .title { font-size: 16px; font-weight: 900; color: #0f172a; }
@@ -259,12 +254,11 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
       </head>
       <body>
         <div class="logo-container">
-          <div class="logo-bg"></div>
-          <div class="logo-green">BOCS</div>
-          <div class="logo-blue-bg">
-            <div class="logo-blue-bar"></div>
-            <div class="logo-blue-text">ABIDJAN</div>
-          </div>
+          <svg width="100%" viewBox="0 0 350 90" xmlns="http://www.w3.org/2000/svg">
+            <text x="340" y="42" font-family="'Arial Black', Arial, sans-serif" font-weight="900" font-size="52" font-style="italic" fill="#209641" text-anchor="end" letter-spacing="-2">BOCS</text>
+            <polygon points="0,48 350,48 315,88 290,88 316.25,58 0,58" fill="#232766" />
+            <text x="282" y="81" font-family="Arial, sans-serif" font-weight="bold" font-size="19" fill="#232766" text-anchor="end">ABIDJAN</text>
+          </svg>
         </div>
         
         <div class="header-main">
