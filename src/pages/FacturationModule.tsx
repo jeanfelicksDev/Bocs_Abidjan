@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Invoice, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory } from '../types';
+import { Invoice, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase } from '../types';
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf } from '../utils/pdfGenerator';
 

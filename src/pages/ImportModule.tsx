@@ -734,9 +734,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       } else if (r.baseCalcul === 'POIDS_TONNE') {
         quantity = bl.poidsBrutKg ? Math.round((bl.poidsBrutKg / 1000) * 100) / 100 : 1;
       }
+      const typeFraisOptions = ['FRET', 'ECHANGE', 'TELEX', 'TRANSFERT', 'CAUTION', 'DMDT_SURESTARIE', 'AUTRE'];
+      const itemTypeFrais = typeFraisOptions.includes(r.code) ? r.code : 'AUTRE';
       return {
         designation: r.name,
-        typeFrais: r.code,
+        typeFrais: itemTypeFrais as any,
         quantite: quantity,
         prixUnitaireFcfa: r.montantUnitaire,
         montantHtFcfa: Math.round(quantity * r.montantUnitaire),

@@ -20,7 +20,18 @@ import { ExportModule } from './pages/ExportModule';
 import { FacturationModule } from './pages/FacturationModule';
 import { AdminModule } from './pages/AdminModule';
 import { AuthModal } from './components/common/AuthModal';
-import { InvoiceTypeConfig, RubriqueConfig } from './types';
+import { 
+  InvoiceTypeConfig, 
+  RubriqueConfig, 
+  User, 
+  Escale, 
+  BL, 
+  DraftExport, 
+  Invoice, 
+  Payment, 
+  FneParam, 
+  AuditLog 
+} from './types';
 
 export function App() {
   // Global Application & Auth State
@@ -334,7 +345,7 @@ export function App() {
             />
           )}
 
-          {(activeTab === 'import' || activeTab === 'import_dmdt') && (
+          {activeTab === 'import' && (
             <ImportModule
               escales={escales}
               bls={bls}
