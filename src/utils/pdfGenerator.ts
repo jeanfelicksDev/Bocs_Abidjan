@@ -232,10 +232,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           .main-table th:last-child { border-right: none; }
           .main-table td { padding: 6px; border-right: 1px solid #cbd5e1; color: #1e293b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
           .main-table td:last-child { border-right: none; }
-          .main-table tbody tr:last-child td { border-bottom: none; }
-          
-          .totals-table { width: 100%; font-size: 9px; border-collapse: collapse; }
-          .totals-table td { padding: 5px 6px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700; color: #0f172a; }
+          .main-table tbody tr.lignes-data:last-child td { border-bottom: none; }
           
           .footer-section { display: flex; justify-content: space-between; margin-top: 15px; page-break-inside: avoid; }
           .notes { font-size: 8px; font-style: italic; max-width: 60%; line-height: 1.4; color: #64748b; }
@@ -340,17 +337,15 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
               <td style="border-bottom: none;"></td>
               <td style="border-bottom: none; border-right: none;"></td>
             </tr>
+            <tr class="totals-row">
+              <td style="border-bottom: none; border-top: none;"></td>
+              <td style="border-bottom: none; border-top: none;"></td>
+              <td style="border-bottom: none; border-top: none;"></td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${invoice.montantHtFcfa.toLocaleString('fr-FR')} CFA</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${invoice.tvaFcfa.toLocaleString('fr-FR')} CFA</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-right: none; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</td>
+            </tr>
           </tbody>
-        </table>
-        
-        <table class="totals-table">
-          <tr>
-            <td style="border: none; width: 50%;"></td>
-            <td style="border: none; width: 10%;"></td>
-            <td style="width: 13.3%; border-bottom: 1px solid #c3c6cf;">${invoice.montantHtFcfa.toLocaleString('fr-FR')} CFA</td>
-            <td style="width: 13.3%; border-bottom: 1px solid #c3c6cf;">${invoice.tvaFcfa.toLocaleString('fr-FR')} CFA</td>
-            <td style="width: 13.3%; border-bottom: 1px solid #c3c6cf;">${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</td>
-          </tr>
         </table>
 
         <div class="footer-section">
