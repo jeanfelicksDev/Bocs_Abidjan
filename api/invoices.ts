@@ -20,7 +20,8 @@ export default async function handler(req: any, res: any) {
           tva as "tvaFcfa", 
           montant_ttc as "montantTtcFcfa", 
           solde_du as "soldeDuFcfa", 
-          statut_paiement as "statutPaiement"
+          statut_paiement as "statutPaiement",
+          invoice_type_id as "invoiceTypeId"
         FROM invoices 
         ORDER BY id DESC;
       `;
@@ -77,11 +78,11 @@ export default async function handler(req: any, res: any) {
         INSERT INTO invoices (
           id, bl_id, numero_bl, client_nom, escale_info, type_facture, 
           numero_facture, date_facture, date_echeance, devise, 
-          taux_change_usd, montant_ht, tva, montant_ttc, solde_du, statut_paiement
+          taux_change_usd, montant_ht, tva, montant_ttc, solde_du, statut_paiement, invoice_type_id
         ) VALUES (
           ${invoice.id}, ${invoice.blId}, ${invoice.numeroBL}, ${invoice.clientNom}, ${invoice.escaleInfo}, ${invoice.typeFacture},
           ${invoice.numeroFacture}, ${invoice.dateFacture}, ${invoice.dateEcheance}, ${invoice.devise},
-          ${invoice.tauxChangeUsd}, ${invoice.montantHtFcfa}, ${invoice.tvaFcfa}, ${invoice.montantTtcFcfa}, ${invoice.soldeDuFcfa}, ${invoice.statutPaiement}
+          ${invoice.tauxChangeUsd}, ${invoice.montantHtFcfa}, ${invoice.tvaFcfa}, ${invoice.montantTtcFcfa}, ${invoice.soldeDuFcfa}, ${invoice.statutPaiement}, ${invoice.invoiceTypeId || null}
         );
       `;
 

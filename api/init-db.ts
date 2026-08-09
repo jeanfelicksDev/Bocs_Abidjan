@@ -44,9 +44,17 @@ export default async function handler(req: any, res: any) {
         tva BIGINT NOT NULL,
         montant_ttc BIGINT NOT NULL,
         solde_du BIGINT NOT NULL,
-        statut_paiement VARCHAR(50) NOT NULL
+        statut_paiement VARCHAR(50) NOT NULL,
+        invoice_type_id VARCHAR(50)
       );
     `;
+
+    // Ensure invoice_type_id exists for existing tables
+    try {
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_type_id VARCHAR(50);`;
+    } catch (e) {
+      console.log('Column invoice_type_id may already exist');
+    }
 
     // Create invoice_items table
     await sql`

@@ -288,9 +288,9 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
               <tr><td>Voy :</td><td>${blVoy}</td></tr>
               <tr><td>Pol/Pod :</td><td>${blPolPod}</td></tr>
               <tr><td>B/L N° :</td><td>${bl?.numeroBL || invoice.numeroBL || 'ANRABJ26607108'}</td></tr>
-              <tr><td>ETA :</td><td>${invoice.dateFacture}, wp, agw</td></tr>
-              <tr><td>ETB :</td><td>${invoice.dateFacture}, wp, agw</td></tr>
-              <tr><td>ETD :</td><td>${invoice.dateFacture}, wp, agw</td></tr>
+              <tr><td>ETA :</td><td>${invoice.dateFacture.split('-').reverse().join('-')}</td></tr>
+              <tr><td>ETB :</td><td>${invoice.dateFacture.split('-').reverse().join('-')}</td></tr>
+              <tr><td>ETD :</td><td>${invoice.dateFacture.split('-').reverse().join('-')}</td></tr>
               <tr><td>Poids (Kgs):</td><td>${blPoids}</td></tr>
               <tr><td>Volume (M3):</td><td>${blVol}</td></tr>
               <tr><td>Nbre Colis :</td><td>${blColis}</td></tr>
@@ -307,7 +307,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
               <tr><td>Transitaire :</td><td>${invoice.clientNom}</td></tr>
             </table>
             
-            <div class="section-title" style="margin-top: 15px; white-space: nowrap; letter-spacing: 0;">Conditions de paiements et mentions particulières</div>
+            <div class="section-title" style="margin-top: 15px; font-size: 8.5px; white-space: nowrap; letter-spacing: -0.2px;">Conditions de paiements et mentions particulières</div>
             <div style="font-size: 10px; line-height: 1.5;">
               Paiement dû à réception<br />
               Règlement à effectuer à l'ordre de BOCS ABIDJAN
