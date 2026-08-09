@@ -307,7 +307,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
               <tr><td>Transitaire :</td><td>${invoice.clientNom}</td></tr>
             </table>
             
-            <div class="section-title" style="margin-top: 15px;">Conditions de paiements et mentions particulières</div>
+            <div class="section-title" style="margin-top: 15px; white-space: nowrap; letter-spacing: 0;">Conditions de paiements et mentions particulières</div>
             <div style="font-size: 10px; line-height: 1.5;">
               Paiement dû à réception<br />
               Règlement à effectuer à l'ordre de BOCS ABIDJAN
