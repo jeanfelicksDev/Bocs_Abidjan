@@ -60,31 +60,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
           </div>
         </div>
 
-        {/* View Switchers */}
-        <div className="flex items-center space-x-2">
-          <div className="bg-slate-900/80 p-1 rounded-xl border border-slate-800 flex items-center space-x-1">
-            <button
-              onClick={() => setMapMode('ACCORSTAGE')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${mapMode === 'ACCORSTAGE' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-            >
-              Plan d'Accostage
-            </button>
-            <button
-              onClick={() => setMapMode('SCHEMATIQUE')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${mapMode === 'SCHEMATIQUE' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-            >
-              Vue Quais & Tirants
-            </button>
-          </div>
 
-          <button
-            onClick={() => setShowRadeOnly(!showRadeOnly)}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition ${showRadeOnly ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}
-          >
-            <Anchor className="w-3.5 h-3.5 text-amber-400" />
-            <span>Zone de Mouillage</span>
-          </button>
-        </div>
       </div>
 
       {/* Main Vector Map Display (MarineTraffic Style) */}
