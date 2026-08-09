@@ -1044,91 +1044,162 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50 text-xs">
-                      {/* Statut Column */}
-                      <td className="p-3">
-                        {plannedConfigs.length === 0 ? (
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
-                            EN ATTENTE
-                          </span>
-                        ) : allGenerated ? (
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-600 text-white shadow-xs inline-flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">check_circle</span>
-                            <span>FACTURÉ</span>
-                          </span>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs inline-flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs text-amber-700">pending_actions</span>
-                              <span>EN ATTENTE ({pendingConfigs.map(t => t.name).join(', ')})</span>
+              {filteredBls.map(bl => {
+                const plannedIds = plannedInvoicesByBl[bl.id] || (bl.selectedInvoiceTypeIds && bl.selectedInvoiceTypeIds.length > 0 ? bl.selectedInvoiceTypeIds : []);
+                const blInvoices = invoices.filter(inv => inv.blId === bl.id || inv.numeroBL === bl.numeroBL);
+
+                const plannedConfigs = invoiceTypeConfigs.filter(t => plannedIds.includes(t.id));
+                const generatedConfigs = plannedConfigs.filter(t => 
+                  blInvoices.some(inv => 
+                    inv.invoiceTypeId === t.id || 
+                    inv.numeroFacture.startsWith(`PROF-${t.name.substring(0, 3).toUpperCase()}`) ||
+                    inv.typeFacture.toLowerCase().includes(t.name.toLowerCase())
+                  )
+                );
+                const pendingConfigs = plannedConfigs.filter(t => !generatedConfigs.some(g => g.id === t.id));
+                const allGenerated = (plannedConfigs.length > 0 && pendingConfigs.length === 0) || bl.statutImport === 'FACTURE';
+
+                return (
+                  <tr key={bl.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="p-3">
+                      <span className="font-mono font-bold text-primary text-sm block">{bl.numeroBL}</span>
+                      <span className="text-[10px] text-outline uppercase">{bl.typeOperation}</span>
+                    </td>
+                    <td className="p-3 font-medium text-on-surface">{bl.shipperNom}</td>
+                    <td className="p-3 font-semibold text-primary">{bl.consigneeNom}</td>
+                    <td className="p-3 font-mono">
+                      <div>{bl.poidsBrutKg.toLocaleString()} kg</div>
+                      <div className="text-[10px] text-outline">{bl.volumeM3} m³ | {bl.nombreColis} colis</div>
+                    </td>
+                    <td className="p-3">
+                      {bl.conteneurs && bl.conteneurs.length > 0 ? (
+                        (() => {
+                          const count20 = bl.conteneurs.filter(c => c.typeConteneur && c.typeConteneur.startsWith('20')).length;
+                          const count40 = bl.conteneurs.filter(c => c.typeConteneur && c.typeConteneur.startsWith('40')).length;
+                          const otherCount = bl.conteneurs.length - count20 - count40;
+                          return (
+                            <div className="flex flex-wrap items-center gap-1.5 font-mono">
+                              {count20 > 0 && (
+                                <span className="px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[#005daa] text-xs font-black shadow-2xs" title={`${count20} conteneur(s) de 20 pieds`}>
+                                  {count20} x 20'
+                                </span>
+                              )}
+                              {count40 > 0 && (
+                                <span className="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black shadow-2xs" title={`${count40} conteneur(s) de 40 pieds`}>
+                                  {count40} x 40'
+                                </span>
+                              )}
+                              {otherCount > 0 && (
+                                <span className="px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black shadow-2xs">
+                                  {otherCount} x Divers
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()
+                      ) : bl.marquesEtNumeros ? (
+                        <div className="flex flex-col gap-1 font-mono">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                              bl.marquesEtNumeros.includes('CDE')
+                                ? 'bg-amber-50 border border-amber-200 text-amber-700'
+                                : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                            }`}>
+                              {bl.marquesEtNumeros.includes('CDE') ? 'VRAC' : 'RORO'}
                             </span>
-                            <span className="text-[9px] text-slate-500 font-mono font-bold">
-                              {generatedConfigs.length}/{plannedConfigs.length} éditée(s)
-                            </span>
+                            <span className="text-slate-700 font-bold text-xs">{bl.marquesEtNumeros}</span>
                           </div>
-                        )}
-                      </td>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">Sans repères</span>
+                      )}
+                    </td>
 
-                      {/* Actions Column */}
-                      <td className="p-3 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {/* Statut Column */}
+                    <td className="p-3">
+                      {plannedConfigs.length === 0 ? (
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                          EN ATTENTE
+                        </span>
+                      ) : allGenerated ? (
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-600 text-white shadow-xs inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">check_circle</span>
+                          <span>FACTURÉ</span>
+                        </span>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-amber-700">pending_actions</span>
+                            <span>EN ATTENTE ({pendingConfigs.map(t => t.name).join(', ')})</span>
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-mono font-bold">
+                            {generatedConfigs.length}/{plannedConfigs.length} éditée(s)
+                          </span>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Actions Column */}
+                    <td className="p-3 text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setSelectedBlDetails(bl)}
+                          className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold rounded-lg text-xs transition-all cursor-pointer"
+                        >
+                          Détails
+                        </button>
+
+                        {plannedConfigs.length === 0 ? (
                           <button
-                            onClick={() => setSelectedBlDetails(bl)}
-                            className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold rounded-lg text-xs transition-all cursor-pointer"
+                            onClick={() => handleOpenInvoiceSelection(bl)}
+                            className="px-3 py-1.5 bg-[#005daa] text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
                           >
-                            Détails
+                            <span className="material-symbols-outlined text-sm">receipt_long</span>
+                            <span>Proforma PDF</span>
                           </button>
+                        ) : (
+                          <>
+                            {plannedConfigs.map(typeConfig => {
+                              const isGen = generatedConfigs.some(g => g.id === typeConfig.id);
+                              const generatedInv = blInvoices.find(inv => 
+                                inv.invoiceTypeId === typeConfig.id || 
+                                inv.numeroFacture.startsWith(`PROF-${typeConfig.name.substring(0, 3).toUpperCase()}`)
+                              );
 
-                          {plannedConfigs.length === 0 ? (
+                              return (
+                                <button
+                                  key={typeConfig.id}
+                                  onClick={() => handleGenerateProformaForType(bl, typeConfig, generatedInv)}
+                                  className={`px-2.5 py-1 font-bold rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs ${
+                                    isGen
+                                      ? 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                                      : 'bg-[#005daa] hover:bg-blue-700 text-white shadow-xs'
+                                  }`}
+                                  title={isGen ? `Facture ${typeConfig.name} déjà éditée (Cliquer pour revoir/télécharger)` : `Éditer la Facture Proforma ${typeConfig.name}`}
+                                >
+                                  <span className="material-symbols-outlined text-xs">
+                                    {isGen ? 'check_circle' : 'receipt_long'}
+                                  </span>
+                                  <span>Facture {typeConfig.name}</span>
+                                </button>
+                              );
+                            })}
+
+                            {/* Bouton pour réajuster ou modifier les types de factures */}
                             <button
                               onClick={() => handleOpenInvoiceSelection(bl)}
-                              className="px-3 py-1.5 bg-[#005daa] text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                              className="p-1 text-slate-400 hover:text-[#005daa] hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                              title="Modifier la sélection des factures pour ce BL"
                             >
-                              <span className="material-symbols-outlined text-sm">receipt_long</span>
-                              <span>Proforma PDF</span>
+                              <span className="material-symbols-outlined text-base">settings</span>
                             </button>
-                          ) : (
-                            <>
-                              {plannedConfigs.map(typeConfig => {
-                                const isGen = generatedConfigs.some(g => g.id === typeConfig.id);
-                                const generatedInv = blInvoices.find(inv => 
-                                  inv.invoiceTypeId === typeConfig.id || 
-                                  inv.numeroFacture.startsWith(`PROF-${typeConfig.name.substring(0, 3).toUpperCase()}`)
-                                );
-
-                                return (
-                                  <button
-                                    key={typeConfig.id}
-                                    onClick={() => handleGenerateProformaForType(bl, typeConfig, generatedInv)}
-                                    className={`px-2.5 py-1 font-bold rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs ${
-                                      isGen
-                                        ? 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                                        : 'bg-[#005daa] hover:bg-blue-700 text-white shadow-xs'
-                                    }`}
-                                    title={isGen ? `Facture ${typeConfig.name} déjà éditée (Cliquer pour revoir/télécharger)` : `Éditer la Facture Proforma ${typeConfig.name}`}
-                                  >
-                                    <span className="material-symbols-outlined text-xs">
-                                      {isGen ? 'check_circle' : 'receipt_long'}
-                                    </span>
-                                    <span>Facture {typeConfig.name}</span>
-                                  </button>
-                                );
-                              })}
-
-                              {/* Bouton pour réajuster ou modifier les types de factures */}
-                              <button
-                                onClick={() => handleOpenInvoiceSelection(bl)}
-                                className="p-1 text-slate-400 hover:text-[#005daa] hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
-                                title="Modifier la sélection des factures pour ce BL"
-                              >
-                                <span className="material-symbols-outlined text-base">settings</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
