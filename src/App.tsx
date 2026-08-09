@@ -117,7 +117,6 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('bocs_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
-
   // Initialisation et chargement des données depuis Neon Postgres
   useEffect(() => {
     const initAndLoad = async () => {
@@ -134,6 +133,60 @@ export function App() {
           }
           if (configsData.rubriques && configsData.rubriques.length > 0) {
             setRubriqueConfigs(configsData.rubriques);
+          }
+        }
+
+        // Load escales from DB
+        const escalesRes = await fetch('/api/escales');
+        const escalesData = await escalesRes.json();
+        if (escalesData.success && escalesData.escales && escalesData.escales.length > 0) {
+          setEscales(escalesData.escales);
+        } else {
+          // Migration from localStorage if database is empty
+          const saved = localStorage.getItem('bocs_escales');
+          if (saved) {
+            try {
+              const localEscales = JSON.parse(saved);
+              if (localEscales.length > 0) {
+                setEscales(localEscales);
+                // Save to DB
+                for (const esc of localEscales) {
+                  await fetch('/api/escales', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(esc)
+                  });
+                }
+              }
+            } catch (e) {
+              console.error('Erreur migration escales', e);
+            }
+          }
+        }
+
+        // Load bls from DB
+        const blsRes = await fetch('/api/bls');
+        const blsData = await blsRes.json();
+        if (blsData.success && blsData.bls && blsData.bls.length > 0) {
+          setBls(blsData.bls);
+        } else {
+          // Migration from localStorage if database is empty
+          const saved = localStorage.getItem('bocs_bls');
+          if (saved) {
+            try {
+              const localBls = JSON.parse(saved);
+              if (localBls.length > 0) {
+                setBls(localBls);
+                // Save to DB
+                await fetch('/api/bls', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ bls: localBls })
+                });
+              }
+            } catch (e) {
+              console.error('Erreur migration bls', e);
+            }
           }
         }
 
@@ -274,18 +327,41 @@ export function App() {
   // --- BUSINESS DOMAIN HANDLERS ---
 
   // Add Escale
-  const handleAddEscale = (escale: Escale) => {
+  const handleAddEscale = async (escale: Escale) => {
     setEscales(prev => [escale, ...prev]);
+    try {
+      await fetch('/api/escales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(escale)
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde de l'escale", e);
+    }
   };
 
   // Import XML Manifest
-  const handleImportManifest = (escale: Escale, newBls: BL[]) => {
+  const handleImportManifest = async (escale: Escale, newBls: BL[]) => {
     setEscales(prev => [escale, ...prev]);
     setBls(prev => [...newBls, ...prev]);
+    try {
+      await fetch('/api/escales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(escale)
+      });
+      await fetch('/api/bls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bls: newBls })
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde du manifeste importé", e);
+    }
   };
 
   // Delete Escale and all associated XML BLs
-  const handleDeleteEscaleIntegration = (escaleId: number) => {
+  const handleDeleteEscaleIntegration = async (escaleId: number) => {
     const targetEscale = escales.find(e => e.id === escaleId);
     const deletedBlsCount = bls.filter(b => b.escaleId === escaleId).length;
 
@@ -294,6 +370,14 @@ export function App() {
     setInvoices(prev => prev.filter(inv => !bls.filter(b => b.escaleId === escaleId).some(b => b.id === inv.blId)));
 
     logAuditAction('SUPPRESSION_INTEGRATION_XML', 'Escale', `Suppression de l'escale ${targetEscale?.nomNavire || escaleId} et de ses ${deletedBlsCount} BLs rattachés`);
+
+    try {
+      await fetch(`/api/escales?id=${escaleId}`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.error("Erreur lors de la suppression de l'escale en base", e);
+    }
   };
 
   // Add Export Draft
@@ -327,6 +411,16 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoice)
       });
+
+      const targetBl = bls.find(b => b.numeroBL === invoice.numeroBL);
+      if (targetBl) {
+        const updatedBl = { ...targetBl, statutImport: 'FACTURE' as const };
+        await fetch('/api/bls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedBl)
+        });
+      }
     } catch (e) {
       console.error("Erreur lors de la sauvegarde de la facture sur Neon", e);
     }

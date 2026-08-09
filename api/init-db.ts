@@ -100,6 +100,74 @@ export default async function handler(req: any, res: any) {
       );
     `;
 
+    // Create escales table
+    await sql`
+      CREATE TABLE IF NOT EXISTS escales (
+        id BIGINT PRIMARY KEY,
+        nom_navire VARCHAR(255) NOT NULL,
+        callsign VARCHAR(100) NOT NULL,
+        numero_voyage VARCHAR(100) NOT NULL,
+        port_chargement VARCHAR(255) NOT NULL,
+        port_dechargement VARCHAR(255) NOT NULL,
+        date_arrivee VARCHAR(50) NOT NULL,
+        date_depart VARCHAR(50),
+        statut VARCHAR(50) NOT NULL,
+        created_by VARCHAR(255)
+      );
+    `;
+
+    // Create bls table
+    await sql`
+      CREATE TABLE IF NOT EXISTS bls (
+        id BIGINT PRIMARY KEY,
+        escale_id BIGINT NOT NULL,
+        numero_bl VARCHAR(100) NOT NULL,
+        type_operation VARCHAR(50) NOT NULL,
+        shipper_nom VARCHAR(255) NOT NULL,
+        shipper_adresse TEXT,
+        consignee_nom VARCHAR(255) NOT NULL,
+        consignee_adresse TEXT,
+        notify_nom VARCHAR(255),
+        notify_adresse TEXT,
+        port_chargement_code VARCHAR(50) NOT NULL,
+        port_dechargement_code VARCHAR(50) NOT NULL,
+        destination_finale VARCHAR(100),
+        description_goods TEXT,
+        nombre_colis INT NOT NULL,
+        type_emballage VARCHAR(100) NOT NULL,
+        poids_brut_kg DOUBLE PRECISION NOT NULL,
+        volume_m3 DOUBLE PRECISION NOT NULL,
+        statut_import VARCHAR(50) NOT NULL,
+        selected_invoice_type_ids TEXT,
+        client_id INT,
+        code_nature VARCHAR(100),
+        unique_carrier_ref VARCHAR(100),
+        marques_et_numeros TEXT,
+        cachet_agent_appose BOOLEAN DEFAULT FALSE,
+        date_signature VARCHAR(50),
+        hash_signature VARCHAR(255)
+      );
+    `;
+
+    // Create containers table
+    await sql`
+      CREATE TABLE IF NOT EXISTS containers (
+        id BIGINT PRIMARY KEY,
+        bl_id BIGINT NOT NULL,
+        numero_conteneur VARCHAR(100) NOT NULL,
+        type_conteneur VARCHAR(50) NOT NULL,
+        numero_scelle VARCHAR(100) NOT NULL,
+        poids_kg DOUBLE PRECISION NOT NULL,
+        tare_kg DOUBLE PRECISION NOT NULL,
+        nombre_colis INT NOT NULL,
+        date_entree_parc VARCHAR(50),
+        date_sortie_parc VARCHAR(50),
+        montant_caution_fcfa INT NOT NULL,
+        statut_livraison VARCHAR(50)
+      );
+    `;
+
+
     // Populate initial configuration data if tables are empty
     const typeCountRes = await sql`SELECT COUNT(*)::int as count FROM invoice_type_configs;`;
     if (typeCountRes[0].count === 0) {
