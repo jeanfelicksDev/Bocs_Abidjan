@@ -1130,9 +1130,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                             <span className="material-symbols-outlined text-xs text-amber-700">pending_actions</span>
                             <span>EN ATTENTE ({pendingConfigs.map(t => t.name).join(', ')})</span>
                           </span>
-                          <span className="text-[9px] text-slate-500 font-mono font-bold">
-                            {generatedConfigs.length}/{plannedConfigs.length} éditée(s)
-                          </span>
+                          {generatedConfigs.length > 0 && (
+                            <span className="text-[9px] text-slate-500 font-mono font-bold">
+                              {generatedConfigs.length}/{plannedConfigs.length} éditée(s)
+                            </span>
+                          )}
                         </div>
                       )}
                     </td>
