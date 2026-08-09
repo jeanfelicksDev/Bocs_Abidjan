@@ -207,52 +207,53 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
         <meta charset="UTF-8" />
         <title>${titleText} - ${invoice.numeroFacture}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700;900&display=swap');
-          body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px 40px; color: #000; background: white; font-size: 11px; line-height: 1.3; }
-          .logo-container { width: 350px; position: relative; margin-bottom: 30px; }
-          .logo-bg { background-color: #f3f3f3; height: 10px; width: 100%; margin-bottom: 2px; }
-          .logo-green { color: #1e8f41; font-size: 48px; font-weight: 900; font-style: italic; letter-spacing: -1px; display: inline-block; padding-left: 60px; line-height: 1; }
+          @page { size: A4; margin: 10mm; }
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+          body { font-family: 'Inter', 'Arial', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .logo-container { width: 280px; position: relative; margin-bottom: 20px; }
+          .logo-bg { background-color: #f1f5f9; height: 8px; width: 100%; margin-bottom: 2px; }
+          .logo-green { color: #16a34a; font-size: 40px; font-weight: 900; font-style: italic; letter-spacing: -1.5px; display: inline-block; padding-left: 40px; line-height: 1; }
           .logo-blue-bg { display: flex; align-items: stretch; margin-top: 2px; }
-          .logo-blue-bar { flex-grow: 1; background-color: #f3f3f3; }
-          .logo-blue-text { background-color: #212c6a; color: white; font-weight: 900; font-size: 16px; font-style: italic; padding: 4px 15px 4px 30px; letter-spacing: 1px; }
+          .logo-blue-bar { flex-grow: 1; background-color: #f1f5f9; }
+          .logo-blue-text { background-color: #1e3a8a; color: white; font-weight: 900; font-size: 13px; font-style: italic; padding: 3px 15px 3px 25px; letter-spacing: 1px; }
           
-          .header-main { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
-          .title { font-size: 18px; font-weight: 900; }
-          .title-red { color: red; font-size: 18px; font-weight: 900; }
-          .type-fact { font-size: 14px; font-weight: 700; color: #555; text-align: right; }
-          .dates { font-size: 9px; text-align: right; margin-top: 10px; line-height: 1.5; }
+          .header-main { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
+          .title { font-size: 16px; font-weight: 900; color: #0f172a; }
+          .title-red { color: #ef4444; font-size: 16px; font-weight: 900; }
+          .type-fact { font-size: 13px; font-weight: 700; color: #475569; text-align: right; }
+          .dates { font-size: 9px; text-align: right; margin-top: 6px; line-height: 1.4; color: #334155; }
           
-          .grid-2 { display: grid; grid-template-columns: 45% 55%; gap: 30px; margin-bottom: 20px; }
-          .section-title { font-size: 11px; font-weight: 700; color: #17215c; border-bottom: 1px solid #17215c; padding-bottom: 2px; margin-bottom: 8px; }
+          .grid-2 { display: grid; grid-template-columns: 48% 48%; gap: 4%; margin-bottom: 15px; }
+          .section-title { font-size: 10px; font-weight: 800; color: #1e3a8a; border-bottom: 1.5px solid #1e3a8a; padding-bottom: 3px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
           
-          .info-table { width: 100%; border-collapse: collapse; font-size: 10px; }
-          .info-table td { padding: 3px 0; vertical-align: top; }
-          .info-table td:first-child { width: 110px; color: #000; }
+          .info-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+          .info-table td { padding: 1.5px 0; vertical-align: top; color: #334155; font-weight: 500; }
+          .info-table td:first-child { width: 110px; color: #64748b; font-weight: 600; }
           
-          .marchandises { margin-bottom: 15px; font-size: 10px; }
+          .marchandises { margin-bottom: 12px; font-size: 9px; color: #334155; font-weight: 600; }
           
-          .main-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; border: 1px solid #c3c6cf; }
-          .main-table th { background-color: #d1d5db; color: #ffffff; text-transform: uppercase; font-weight: 700; padding: 6px; border-right: 1px solid #fff; font-size: 10px; }
+          .main-table { width: 100%; border-collapse: collapse; font-size: 9px; border: 1px solid #cbd5e1; border-bottom: none; }
+          .main-table th { background-color: #f8fafc; color: #475569; text-transform: uppercase; font-weight: 800; padding: 6px; border-right: 1px solid #cbd5e1; border-bottom: 2px solid #cbd5e1; font-size: 9px; }
           .main-table th:last-child { border-right: none; }
-          .main-table td { padding: 8px 6px; }
-          .main-table tbody { min-height: 200px; }
-          .main-table tr.empty-row td { padding: 80px 0; border-right: 1px solid #c3c6cf; }
+          .main-table td { padding: 6px; border-right: 1px solid #cbd5e1; color: #1e293b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+          .main-table td:last-child { border-right: none; }
+          .main-table tbody tr:last-child td { border-bottom: none; }
           
-          .totals-table { width: 100%; font-size: 10px; border-collapse: collapse; }
-          .totals-table td { padding: 5px 6px; border: 1px solid #c3c6cf; text-align: right; }
+          .totals-table { width: 100%; font-size: 9px; border-collapse: collapse; }
+          .totals-table td { padding: 5px 6px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700; color: #0f172a; }
           
-          .footer-section { display: flex; justify-content: space-between; margin-top: 15px; }
-          .notes { font-size: 9px; font-style: italic; max-width: 60%; line-height: 1.4; }
-          .amount-words { font-size: 10px; font-weight: 700; margin-top: 15px; font-style: italic; }
-          .timbre { font-size: 8px; margin-top: 10px; }
-          .timbre-total { background-color: #e5e7eb; padding: 4px 10px; font-weight: 900; display: inline-block; margin-top: 5px; font-size: 11px; }
+          .footer-section { display: flex; justify-content: space-between; margin-top: 15px; page-break-inside: avoid; }
+          .notes { font-size: 8px; font-style: italic; max-width: 60%; line-height: 1.4; color: #64748b; }
+          .amount-words { font-size: 9.5px; font-weight: 700; margin-top: 8px; font-style: italic; color: #0f172a; }
+          .timbre { font-size: 8px; margin-top: 6px; color: #475569; }
+          .timbre-total { background-color: #f1f5f9; padding: 3px 8px; font-weight: 900; display: inline-block; margin-top: 4px; font-size: 10px; color: #0f172a; border-radius: 2px; }
           
-          .totals-right { width: 250px; font-size: 10px; font-weight: 700; }
-          .totals-right-row { display: flex; justify-content: space-between; padding: 3px 0; }
-          .totals-right-row.grand { border-top: 1px solid #000; border-bottom: 2px solid #000; padding: 5px 0; font-size: 11px; }
+          .totals-right { width: 220px; font-size: 9px; font-weight: 700; color: #1e293b; }
+          .totals-right-row { display: flex; justify-content: space-between; padding: 2.5px 0; }
+          .totals-right-row.grand { border-top: 1px solid #cbd5e1; border-bottom: 2px solid #0f172a; padding: 4px 0; font-size: 10px; margin-top: 4px; color: #0f172a; }
           
-          .footer-banner { margin-top: 50px; border-top: 5px solid #d1d5db; border-bottom: 10px solid #d1d5db; padding: 10px 0; display: flex; justify-content: space-between; font-size: 9px; color: #17215c; text-align: center; }
-          .footer-banner div { flex: 1; padding: 0 10px; border-right: 1px solid #d1d5db; }
+          .footer-banner { margin-top: 25px; border-top: 2px solid #cbd5e1; padding-top: 10px; display: flex; justify-content: space-between; font-size: 7.5px; color: #64748b; text-align: center; page-break-inside: avoid; line-height: 1.3; }
+          .footer-banner div { flex: 1; padding: 0 10px; border-right: 1px solid #e2e8f0; }
           .footer-banner div:last-child { border-right: none; }
         </style>
       </head>
@@ -334,14 +335,6 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           </thead>
           <tbody>
             ${lignesHtml}
-            <tr class="empty-row">
-              <td style="border-right: 1px solid #c3c6cf;"></td>
-              <td style="border-right: 1px solid #c3c6cf;"></td>
-              <td style="border-right: 1px solid #c3c6cf;"></td>
-              <td style="border-right: 1px solid #c3c6cf;"></td>
-              <td style="border-right: 1px solid #c3c6cf;"></td>
-              <td></td>
-            </tr>
           </tbody>
         </table>
         
