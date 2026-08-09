@@ -42,6 +42,7 @@ interface NavSection {
     icon: string;
     badge?: number | string | null;
     glassBadge?: string;
+    colorClass?: string;
     subItems?: {
       id: NavTab;
       label: string;
@@ -61,17 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   exchangeRateUsd = 600,
   counts
 }) => {
-  // Collapsible accordion state for sub-menus
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    export: true,
-    facturation: true,
-    admin: true
-  });
-
-  const toggleSubMenu = (menuId: string) => {
-    setExpandedMenus(prev => ({ ...prev, [menuId]: !prev[menuId] }));
-  };
-
   const isAllowed = (tab: NavTab) => {
     if (userRole === 'ADMIN') return true;
     if (userRole === 'AGENT_IMPORT') {
@@ -121,6 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Exportation & Draft BL',
           icon: 'anchor',
           badge: counts.draftsCount > 0 ? counts.draftsCount : null,
+          colorClass: 'text-amber-500 hover:text-amber-400',
           subItems: [
             { id: 'export_saisie', label: 'Saisie Draft BL', icon: 'edit_note' },
             { id: 'export_list', label: 'Espace Client / Drafts', icon: 'folder_open' },
@@ -137,6 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Billing & Factures FNE',
           icon: 'credit_card',
           badge: counts.facturesCount > 0 ? counts.facturesCount : null,
+          colorClass: 'text-orange-500 hover:text-orange-400',
           subItems: [
             { id: 'facturation_tarifs', label: 'Tarifs Surestaries', icon: 'payments' },
             { id: 'facturation_balance', label: 'Balance Âgée Client', icon: 'account_balance' },
@@ -200,7 +192,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {/* Items in section */}
                 {allowedItems.map((item) => {
                   const isMainActive = activeTab === item.id || (item.subItems && item.subItems.some(sub => activeTab === sub.id));
-                  const isExpanded = expandedMenus[item.id] ?? false;
 
                   return (
                     <div key={item.id} className="space-y-0.5">
@@ -209,21 +200,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <button
                         onClick={() => {
                           onTabChange(item.id);
-                          if (item.subItems) toggleSubMenu(item.id);
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.99] cursor-pointer ${
                           isMainActive
                             ? item.subItems
                               ? 'bg-[#ffe135] text-[#0f172a] shadow-md font-black border border-[#e5c122]'
                               : 'bg-[#005daa] text-white shadow-md font-extrabold'
-                            : 'text-slate-400 hover:text-white hover:bg-[#13233c]/60'
+                            : `${item.colorClass || 'text-slate-400 hover:text-white'} hover:bg-[#13233c]/60`
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span className={`material-symbols-outlined text-lg ${
                             isMainActive
                               ? item.subItems ? 'text-[#0f172a]' : 'text-white'
-                              : 'text-slate-400'
+                              : item.colorClass ? '' : 'text-slate-400'
                           }`}>
                             {item.icon}
                           </span>
@@ -248,18 +238,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           )}
 
-                          {item.subItems && (
-                            <span className={`material-symbols-outlined text-sm ${
-                              isMainActive && item.subItems ? 'text-[#0f172a]' : 'text-slate-400'
-                            }`}>
-                              {isExpanded ? 'expand_more' : 'chevron_right'}
-                            </span>
-                          )}
                         </div>
                       </button>
 
                       {/* Sub-items accordion */}
-                      {item.subItems && isExpanded && (
+                      {item.subItems && (
                         <div className="ml-5 pl-2 border-l border-slate-800 space-y-0.5 my-1">
                           {item.subItems.map((sub) => {
                             if (!isAllowed(sub.id)) return null;
