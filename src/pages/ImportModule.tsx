@@ -976,14 +976,30 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   </td>
                   <td className="p-3">
                     {bl.conteneurs && bl.conteneurs.length > 0 ? (
-                      <div className="flex flex-col gap-1 font-mono">
-                        {bl.conteneurs.map(c => (
-                          <div key={c.id} className="flex items-center gap-1.5">
-                            <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-[#005daa] text-[10px] font-black">{c.numeroConteneur}</span>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">{c.typeConteneur.replace('_', ' ')}</span>
+                      (() => {
+                        const count20 = bl.conteneurs.filter(c => c.typeConteneur && c.typeConteneur.startsWith('20')).length;
+                        const count40 = bl.conteneurs.filter(c => c.typeConteneur && c.typeConteneur.startsWith('40')).length;
+                        const otherCount = bl.conteneurs.length - count20 - count40;
+                        return (
+                          <div className="flex flex-wrap items-center gap-1.5 font-mono">
+                            {count20 > 0 && (
+                              <span className="px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[#005daa] text-xs font-black shadow-2xs" title={`${count20} conteneur(s) de 20 pieds`}>
+                                {count20} x 20'
+                              </span>
+                            )}
+                            {count40 > 0 && (
+                              <span className="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black shadow-2xs" title={`${count40} conteneur(s) de 40 pieds`}>
+                                {count40} x 40'
+                              </span>
+                            )}
+                            {otherCount > 0 && (
+                              <span className="px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black shadow-2xs">
+                                {otherCount} x Divers
+                              </span>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()
                     ) : bl.marquesEtNumeros ? (
                       <div className="flex flex-col gap-1 font-mono">
                         <div className="flex items-center gap-1.5">
@@ -1069,12 +1085,6 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 <div className="flex items-center gap-2 bg-[#13243d] px-3.5 py-2 rounded-xl border border-slate-700/80 shadow-xs">
                   <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total Volume:</span>
                   <span className="font-black text-sky-400 text-sm">{totalVolumeM3.toLocaleString('fr-FR')} m³</span>
-                </div>
-
-                {/* Total Colis */}
-                <div className="flex items-center gap-2 bg-[#13243d] px-3.5 py-2 rounded-xl border border-slate-700/80 shadow-xs">
-                  <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total Colis:</span>
-                  <span className="font-black text-amber-400 text-sm">{totalNombreColis.toLocaleString('fr-FR')} colis</span>
                 </div>
 
                 {/* Total Conteneurs */}
