@@ -830,8 +830,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         </div>
       </div>
 
-      {/* Upload Zone & Session Context Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Upload Zone */}
+      <div className="w-full">
         
         <input
           type="file"
@@ -851,7 +851,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         {/* Dropzone */}
         <div 
           onClick={() => fileInputRef.current?.click()}
-          className="lg:col-span-2 bg-white rounded-2xl border-2 border-dashed border-blue-300 hover:border-[#005daa] p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/40 transition-all text-center min-h-[220px] shadow-xs"
+          className="w-full bg-white rounded-2xl border-2 border-dashed border-blue-300 hover:border-[#005daa] p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/40 transition-all text-center min-h-[200px] shadow-xs"
         >
           <div className="w-14 h-14 rounded-full bg-blue-50 text-[#005daa] flex items-center justify-center mb-3 border border-blue-100 shadow-xs">
             <span className="material-symbols-outlined text-3xl">upload</span>
@@ -892,51 +892,6 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </button>
             </div>
           )}
-        </div>
-
-        {/* Integration Session Card */}
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-5 flex flex-col justify-between shadow-sm">
-          <div>
-            <h3 className="font-bold text-sm text-primary uppercase tracking-wider border-b border-outline-variant pb-2 mb-3">
-              Session d'Intégration Active
-            </h3>
-            
-            <div className="space-y-3">
-              <div>
-                <span className="text-[10px] font-bold text-outline uppercase block">Dernier Fichier XML Traité</span>
-                <div className="flex items-center gap-2 bg-surface-container p-2 rounded mt-1 overflow-hidden">
-                  <span className="material-symbols-outlined text-secondary text-sm shrink-0">description</span>
-                  <span className="text-xs font-mono font-bold text-primary truncate" title={lastXmlFileName || (escales.length > 0 ? `GUCE_MANIFESTE_${escales[0].nomNavire.replace(/\s+/g, '_')}_${escales[0].numeroVoyage}.XML` : 'AUCUN_FICHIER_INTEGRE.XML')}>
-                    {escales.length > 0
-                      ? (lastXmlFileName || `GUCE_MANIFESTE_${escales[0].nomNavire.replace(/\s+/g, '_')}_${escales[0].numeroVoyage}.XML`)
-                      : 'AUCUN_FICHIER_INTEGRE.XML'
-                    }
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2 bg-surface-container rounded">
-                  <span className="text-[10px] text-outline uppercase block">Statut XML</span>
-                  <span className={`font-bold flex items-center gap-1 ${escales.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                    <span className="material-symbols-outlined text-sm">
-                      {escales.length > 0 ? 'check_circle' : 'info'}
-                    </span>
-                    {escales.length > 0 ? 'Extrait' : 'Aucun'}
-                  </span>
-                </div>
-                <div className="p-2 bg-surface-container rounded">
-                  <span className="text-[10px] text-outline uppercase block">BLs Extraits</span>
-                  <span className="font-bold font-mono text-primary text-sm">{bls.length} BLs</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-outline-variant flex items-center justify-between text-xs">
-            <span className="text-outline">Format: Guce Xml v2.1</span>
-            <span className="text-secondary font-bold">100% Conforme</span>
-          </div>
         </div>
 
       </div>
