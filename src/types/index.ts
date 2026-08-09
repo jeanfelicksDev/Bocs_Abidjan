@@ -120,15 +120,18 @@ export type DraftStatus =
 
 export interface DraftExport {
   id: number;
-  numeroDraft: string;
-  bookingRef: string;
-  navireNom: string;
-  numeroVoyage: string;
-  portChargementCode: string;
-  portDechargementCode: string;
-  portDechargementNom: string;
+  clientId?: number;
   clientNom: string;
-  clientEmail: string;
+  clientSociete?: string;
+  clientEmail?: string;
+  escaleId?: number;
+  numeroDraft: string;
+  bookingRef?: string;
+  navireNom?: string;
+  numeroVoyage?: string;
+  portChargementCode?: string;
+  portDechargementCode?: string;
+  portDechargementNom?: string;
   shipperInfo: {
     nom: string;
     adresse: string;
