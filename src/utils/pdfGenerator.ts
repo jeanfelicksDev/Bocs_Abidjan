@@ -126,141 +126,304 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
   }
 
   const isPaid = invoice.statutPaiement === 'PAYE' || !!payment;
-  let modeText = "RÉGLÉ AU COMPTANT";
   
-  if (payment) {
-    const mode = payment.modePaiement;
-    const refLower = (payment.referenceTransaction || "").toLowerCase();
-    const noteLower = (payment.note || "").toLowerCase();
-    if (mode === 'VIREMENT') {
-      modeText = "RÉGLÉ PAR VIREMENT BANCAIRE";
-    } else if (mode === 'CHEQUE') {
-      modeText = "RÉGLÉ PAR CHÈQUE";
-    } else if (mode === 'ESPECES') {
-      modeText = "RÉGLÉ AU COMPTANT";
-    } else if (mode === 'MOBILE_MONEY') {
-      if (refLower.includes('wave') || noteLower.includes('wave')) {
-        modeText = "RÉGLÉ PAR WAVE";
-      } else if (refLower.includes('orange') || noteLower.includes('orange') || refLower.includes('om') || noteLower.includes('om')) {
-        modeText = "RÉGLÉ PAR ORANGE MONEY";
-      } else if (refLower.includes('mtn') || noteLower.includes('mtn')) {
-        modeText = "RÉGLÉ PAR MTN MOBILE MONEY";
-      } else if (refLower.includes('moov') || noteLower.includes('moov')) {
-        modeText = "RÉGLÉ PAR MOOV MONEY";
-      } else {
-        modeText = "RÉGLÉ PAR MOBILE MONEY (WAVE)";
+  // numberToLetters helper
+  const units = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
+  const tens = ["", "dix", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante-dix", "quatre-vingt", "quatre-vingt-dix"];
+  function numberToLetters(n: number): string {
+      if (n === 0) return "zéro";
+      if (n < 20) return units[n];
+      if (n < 100) {
+          const t = Math.floor(n / 10);
+          const u = n % 10;
+          let res = "";
+          if (t === 7 || t === 9) {
+              res = tens[t - 1] + (u === 1 ? " et onze" : "-" + units[10 + u]);
+          } else {
+              res = tens[t] + (u === 1 ? " et un" : (u === 0 ? "" : "-" + units[u]));
+          }
+          return res.replace("quatre-vingt et un", "quatre-vingt-un");
       }
-    }
-  } else if (isPaid) {
-    modeText = "RÉGLÉ AU COMPTANT";
+      if (n < 1000) {
+          const h = Math.floor(n / 100);
+          const rest = n % 100;
+          let res = h === 1 ? "cent" : units[h] + " cent";
+          if (rest === 0 && h > 1) res += "s";
+          return res + (rest > 0 ? " " + numberToLetters(rest) : "");
+      }
+      if (n < 1000000) {
+          const k = Math.floor(n / 1000);
+          const rest = n % 1000;
+          let res = k === 1 ? "mille" : numberToLetters(k) + " mille";
+          return res + (rest > 0 ? " " + numberToLetters(rest) : "");
+      }
+      if (n < 1000000000) {
+          const m = Math.floor(n / 1000000);
+          const rest = n % 1000000;
+          let res = m === 1 ? "un million" : numberToLetters(m) + " millions";
+          return res + (rest > 0 ? " " + numberToLetters(rest) : "");
+      }
+      return n.toString();
   }
 
-  const stampHtml = isPaid ? `
-    <div style="margin-top: 15px; margin-left: auto; width: 280px; border: 4px double #10B981; padding: 12px 18px; border-radius: 8px; background: #ECFDF5; color: #047857; text-align: center; transform: rotate(-2deg); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800; line-height: 1.4; pointer-events: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); float: right; clear: both; margin-right: 0;">
-      <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #047857; margin-bottom: 6px; padding-bottom: 2px;">BOCS MARITIME CI</div>
-      <div style="font-size: 11px; font-weight: 900; color: #065F46;">${modeText}</div>
-      <div style="font-size: 9px; font-weight: bold; margin-top: 3px;">RÉF: ${payment?.referenceTransaction || 'CASH-COMPTANT'}</div>
-      <div style="font-size: 9px; font-weight: bold;">DATE: ${payment?.datePaiement || invoice.dateFacture}</div>
-      <div style="font-size: 10px; color: #047857; margin-top: 4px; font-weight: 950; letter-spacing: 1px;">CAISSE - ACQUITTE</div>
-    </div>
-    <div style="clear: both;"></div>
-  ` : '';
+  const montantEnLettres = numberToLetters(invoice.montantTtcFcfa);
+  const montantEnLettresCapitalized = montantEnLettres.charAt(0).toUpperCase() + montantEnLettres.slice(1) + " Francs CFA";
 
-  const lignesHtml = (invoice.lignes || []).map((l, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td><strong>${l.designation}</strong></td>
-      <td>${l.typeFrais}</td>
-      <td style="text-align:center">${l.quantite}</td>
-      <td style="text-align:right">${l.prixUnitaireFcfa.toLocaleString('fr-FR')} FCFA</td>
-      <td style="text-align:right">${l.montantHtFcfa.toLocaleString('fr-FR')} FCFA</td>
-    </tr>
-  `).join('');
+  const blNavire = invoice.escaleInfo?.split('V.')[0]?.trim() || "BOCS VISION";
+  const blVoy = invoice.escaleInfo?.split('V.')[1]?.trim() || "26607";
+  const blPolPod = bl ? `${bl.portChargementCode || 'ANVERS'} / ${bl.portDechargementCode || 'ABIDJAN'}` : "ANVERS / ABIDJAN";
+  const blPoids = bl ? bl.poidsBrutKg.toLocaleString('fr-FR') : "127 999,00";
+  const blVol = bl && bl.volumeM3 ? bl.volumeM3 : "NC";
+  const blColis = bl ? bl.nombreColis : "48";
+  
+  const conteneursDesc = bl?.conteneurs?.length 
+    ? bl.conteneurs.map(c => `${c.typeConteneur} N° ${c.numeroConteneur} - Pb N° ${c.numeroScelle}`).join(' &nbsp;&nbsp; ')
+    : '05x40\' HC COC, STC 48 REELS - KLB KRAFTLINER BROWN, WTKL ROYAL WHITE';
+
+  const titleText = isPaid ? 'FACTURE DÉFINITIVE' : 'PROFORMA INVOICE';
+  
+  const lignesHtml = (invoice.lignes || []).map(l => {
+    const tva = Math.round(l.montantHtFcfa * 0.18);
+    const ttc = l.montantHtFcfa + tva;
+    return `
+      <tr>
+        <td style="text-align: left; border-right: 1px solid #c3c6cf;">${l.designation}</td>
+        <td style="text-align: right; border-right: 1px solid #c3c6cf;">${l.quantite}</td>
+        <td style="text-align: right; border-right: 1px solid #c3c6cf;">${l.prixUnitaireFcfa.toLocaleString('fr-FR')} CFA</td>
+        <td style="text-align: right; border-right: 1px solid #c3c6cf;">${l.montantHtFcfa.toLocaleString('fr-FR')} CFA</td>
+        <td style="text-align: right; border-right: 1px solid #c3c6cf;">${tva.toLocaleString('fr-FR')} CFA</td>
+        <td style="text-align: right;">${ttc.toLocaleString('fr-FR')} CFA</td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Compute equivalent in EUR (e.g. 1 EUR = 655.957 CFA)
+  const totalEur = (invoice.montantTtcFcfa / 655.957).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   printWindow.document.write(`
     <!DOCTYPE html>
     <html lang="fr">
       <head>
         <meta charset="UTF-8" />
-        <title>${isPaid ? 'Facture Définitive' : 'Facture Proforma'} - ${invoice.numeroFacture}</title>
+        <title>${titleText} - ${invoice.numeroFacture}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap');
-          body { font-family: 'Inter', sans-serif; margin: 0; padding: 24px; color: #1a1c1c; background: white; position: relative; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #00182f; padding-bottom: 16px; margin-bottom: 20px; }
-          .brand { font-size: 24px; font-weight: 800; color: #00182f; }
-          .sub { color: #075fac; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-          .box-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; font-size: 12px; }
-          .box { background: #f3f3f3; padding: 12px; border-radius: 6px; border: 1px solid #c3c6cf; }
-          .box h4 { margin: 0 0 6px 0; color: #00182f; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-          th, td { border: 1px solid #c3c6cf; padding: 8px 10px; }
-          th { background-color: #00182f; color: white; text-transform: uppercase; font-size: 10px; }
-          .totals { margin-top: 20px; margin-left: auto; width: 300px; font-size: 12px; }
-          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #c3c6cf; }
-          .totals-row.grand { font-weight: 800; font-size: 14px; color: #00182f; border-bottom: 2px solid #00182f; }
+          @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700;900&display=swap');
+          body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px 40px; color: #000; background: white; font-size: 11px; line-height: 1.3; }
+          .logo-container { width: 350px; position: relative; margin-bottom: 30px; }
+          .logo-bg { background-color: #f3f3f3; height: 10px; width: 100%; margin-bottom: 2px; }
+          .logo-green { color: #1e8f41; font-size: 48px; font-weight: 900; font-style: italic; letter-spacing: -1px; display: inline-block; padding-left: 60px; line-height: 1; }
+          .logo-blue-bg { display: flex; align-items: stretch; margin-top: 2px; }
+          .logo-blue-bar { flex-grow: 1; background-color: #f3f3f3; }
+          .logo-blue-text { background-color: #212c6a; color: white; font-weight: 900; font-size: 16px; font-style: italic; padding: 4px 15px 4px 30px; letter-spacing: 1px; }
+          
+          .header-main { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+          .title { font-size: 18px; font-weight: 900; }
+          .title-red { color: red; font-size: 18px; font-weight: 900; }
+          .type-fact { font-size: 14px; font-weight: 700; color: #555; text-align: right; }
+          .dates { font-size: 9px; text-align: right; margin-top: 10px; line-height: 1.5; }
+          
+          .grid-2 { display: grid; grid-template-columns: 45% 55%; gap: 30px; margin-bottom: 20px; }
+          .section-title { font-size: 11px; font-weight: 700; color: #17215c; border-bottom: 1px solid #17215c; padding-bottom: 2px; margin-bottom: 8px; }
+          
+          .info-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+          .info-table td { padding: 3px 0; vertical-align: top; }
+          .info-table td:first-child { width: 110px; color: #000; }
+          
+          .marchandises { margin-bottom: 15px; font-size: 10px; }
+          
+          .main-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; border: 1px solid #c3c6cf; }
+          .main-table th { background-color: #d1d5db; color: #ffffff; text-transform: uppercase; font-weight: 700; padding: 6px; border-right: 1px solid #fff; font-size: 10px; }
+          .main-table th:last-child { border-right: none; }
+          .main-table td { padding: 8px 6px; }
+          .main-table tbody { min-height: 200px; }
+          .main-table tr.empty-row td { padding: 80px 0; border-right: 1px solid #c3c6cf; }
+          
+          .totals-table { width: 100%; font-size: 10px; border-collapse: collapse; }
+          .totals-table td { padding: 5px 6px; border: 1px solid #c3c6cf; text-align: right; }
+          
+          .footer-section { display: flex; justify-content: space-between; margin-top: 15px; }
+          .notes { font-size: 9px; font-style: italic; max-width: 60%; line-height: 1.4; }
+          .amount-words { font-size: 10px; font-weight: 700; margin-top: 15px; font-style: italic; }
+          .timbre { font-size: 8px; margin-top: 10px; }
+          .timbre-total { background-color: #e5e7eb; padding: 4px 10px; font-weight: 900; display: inline-block; margin-top: 5px; font-size: 11px; }
+          
+          .totals-right { width: 250px; font-size: 10px; font-weight: 700; }
+          .totals-right-row { display: flex; justify-content: space-between; padding: 3px 0; }
+          .totals-right-row.grand { border-top: 1px solid #000; border-bottom: 2px solid #000; padding: 5px 0; font-size: 11px; }
+          
+          .footer-banner { margin-top: 50px; border-top: 5px solid #d1d5db; border-bottom: 10px solid #d1d5db; padding: 10px 0; display: flex; justify-content: space-between; font-size: 9px; color: #17215c; text-align: center; }
+          .footer-banner div { flex: 1; padding: 0 10px; border-right: 1px solid #d1d5db; }
+          .footer-banner div:last-child { border-right: none; }
         </style>
+      </head>
       <body>
-        <div class="header">
+        <div class="logo-container">
+          <div class="logo-bg"></div>
+          <div class="logo-green">BOCS</div>
+          <div class="logo-blue-bg">
+            <div class="logo-blue-bar"></div>
+            <div class="logo-blue-text">ABIDJAN</div>
+          </div>
+        </div>
+        
+        <div class="header-main">
           <div>
-            <div class="brand">BOCS MARITIME</div>
-            <div class="sub">${agencyInfo}</div>
+            <span class="title">${titleText} N° &nbsp;&nbsp;&nbsp;</span>
+            <span class="title">${invoice.numeroFacture.split('/')[0]}</span><span class="title-red">/${invoice.numeroFacture.split('/')[1] || '022'}</span>
           </div>
-          <div style="text-align: right">
-            <h2 style="margin: 0; color: #00182f; font-size: 18px;">${isPaid ? 'FACTURE DÉFINITIVE' : 'FACTURE PROFORMA'}</h2>
-            <div style="font-family: 'JetBrains Mono'; font-weight: bold; color: #075fac;">${invoice.numeroFacture}</div>
-            <div style="font-size: 11px; color: #73777f;">Date: ${invoice.dateFacture} | Échéance: ${invoice.dateEcheance}</div>
-          </div>
-        </div>
-
-        <div class="box-grid">
-          <div class="box">
-            <h4>Client Facturé</h4>
-            <strong>${invoice.clientNom}</strong><br />
-            N° Connaissement (BL): ${invoice.numeroBL || 'N/A'}<br />
-            Devise de facturation: ${invoice.devise}
-          </div>
-          <div class="box">
-            <h4>Escale & Opération</h4>
-            ${invoice.escaleInfo || 'Escale Port Abidjan (CIABJ)'}<br />
-            Type Facture: ${invoice.typeFacture}<br />
-            Taux USD appliqué: 1 USD = ${invoice.tauxChangeUsd} FCFA
+          <div>
+            <div class="type-fact">${invoice.typeFacture === 'PROFORMA_IMPORT' ? 'Import Charges locales' : invoice.typeFacture.replace(/_/g, ' ')}</div>
+            <div class="dates">
+              Date de facturation : ${invoice.dateFacture}<br />
+              Date d'échéance : ${invoice.dateEcheance || invoice.dateFacture}
+            </div>
           </div>
         </div>
 
-        <table>
+        <div class="grid-2">
+          <div>
+            <div class="section-title">Détail d'expédition</div>
+            <table class="info-table">
+              <tr><td>Navire :</td><td>${blNavire}</td></tr>
+              <tr><td>Voy :</td><td>${blVoy}</td></tr>
+              <tr><td>Pol/Pod :</td><td>${blPolPod}</td></tr>
+              <tr><td>B/L N° :</td><td>${bl?.numeroBL || invoice.numeroBL || 'ANRABJ26607108'}</td></tr>
+              <tr><td>ETA :</td><td>${invoice.dateFacture}, wp, agw</td></tr>
+              <tr><td>ETB :</td><td>${invoice.dateFacture}, wp, agw</td></tr>
+              <tr><td>ETD :</td><td>${invoice.dateFacture}, wp, agw</td></tr>
+              <tr><td>Poids (Kgs):</td><td>${blPoids}</td></tr>
+              <tr><td>Volume (M3):</td><td>${blVol}</td></tr>
+              <tr><td>Nbre Colis :</td><td>${blColis}</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="section-title">Client / Compte</div>
+            <table class="info-table">
+              <tr><td>Dénomination :</td><td>${invoice.clientNom}</td></tr>
+              <tr><td>Compte contribuable N° :</td><td>${bl?.clientId || '9817464X'}</td></tr>
+              <tr><td>Adresse :</td><td>${bl?.consigneeAdresse || 'TREICHVILLE ZONE 3C RUE DE L\'INDUSTRIE'}</td></tr>
+              <tr><td>Contact :</td><td>01BP3750 ABIDJAN 01 / 27-21-24-20-58</td></tr>
+              <tr><td>Dossier N° :</td><td></td></tr>
+              <tr><td>Transitaire :</td><td>${invoice.clientNom}</td></tr>
+            </table>
+            
+            <div class="section-title" style="margin-top: 15px;">Conditions de paiements et mentions particulières</div>
+            <div style="font-size: 10px; line-height: 1.5;">
+              Paiement dû à réception<br />
+              Règlement à effectuer à l'ordre de BOCS ABIDJAN
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title" style="border:none; margin-bottom: 2px;">Détails marchandises / conteneurs / roulants</div>
+        <div class="marchandises">
+          ${bl?.descriptionGoods || 'MARCHANDISES GÉNÉRALES'}<br />
+          ${conteneursDesc}
+        </div>
+
+        <table class="main-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Désignation de la Prestation / Frais</th>
-              <th>Catégorie</th>
-              <th style="text-align:center">Qté</th>
-              <th style="text-align:right">P.U HT (FCFA)</th>
-              <th style="text-align:right">Montant HT (FCFA)</th>
+              <th style="text-align:left;">DESCRIPTION</th>
+              <th>QTÉ</th>
+              <th>PU</th>
+              <th>TOTAL HT</th>
+              <th>TVA</th>
+              <th>TOTAL TTC</th>
             </tr>
           </thead>
           <tbody>
             ${lignesHtml}
+            <tr class="empty-row">
+              <td style="border-right: 1px solid #c3c6cf;"></td>
+              <td style="border-right: 1px solid #c3c6cf;"></td>
+              <td style="border-right: 1px solid #c3c6cf;"></td>
+              <td style="border-right: 1px solid #c3c6cf;"></td>
+              <td style="border-right: 1px solid #c3c6cf;"></td>
+              <td></td>
+            </tr>
           </tbody>
         </table>
+        
+        <table class="totals-table">
+          <tr>
+            <td style="border: none; width: 50%;"></td>
+            <td style="border: none; width: 10%;"></td>
+            <td style="width: 13.3%; border-bottom: 1px solid #c3c6cf;">${invoice.montantHtFcfa.toLocaleString('fr-FR')} CFA</td>
+            <td style="width: 13.3%; border-bottom: 1px solid #c3c6cf;">${invoice.tvaFcfa.toLocaleString('fr-FR')} CFA</td>
+            <td style="width: 13.3%; border-bottom: 1px solid #c3c6cf;">${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</td>
+          </tr>
+        </table>
 
-        <div class="totals">
-          <div class="totals-row">
-            <span>Total Général HT:</span>
-            <span>${invoice.montantHtFcfa.toLocaleString('fr-FR')} FCFA</span>
+        <div class="footer-section">
+          <div style="width: 65%;">
+            <div class="notes">
+              NB : La présente facture pro-forma est une estimation établie sur la base des informations existantes au moment de son établissement.<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Elle ne peut, en aucun cas, se substituer à la facture définitive qui sera établie au moment du paiement.
+            </div>
+            
+            <div class="amount-words">
+              Arrêtée la présente facture à la somme de :<br />
+              ${montantEnLettresCapitalized}
+            </div>
+            
+            <div class="timbre">
+              Pour un règlement en espèces, prévoir le montant du timbre d'état de 1000 Fancs CFA . Le montant à régler est alors de : 
+              <span class="timbre-total">${(invoice.montantTtcFcfa + 1000).toLocaleString('fr-FR')} CFA</span>
+            </div>
           </div>
-          <div class="totals-row">
-            <span>TVA (18%):</span>
-            <span>${invoice.tvaFcfa.toLocaleString('fr-FR')} FCFA</span>
-          </div>
-          <div class="totals-row grand">
-            <span>NET À PAYER TTC:</span>
-            <span>${invoice.montantTtcFcfa.toLocaleString('fr-FR')} FCFA</span>
-          </div>
-          <div style="font-size: 10px; color: #73777f; text-align: right; margin-top: 4px;">
-            Équivalent USD: ~$ ${(invoice.montantTtcFcfa / invoice.tauxChangeUsd).toFixed(2)}
+          
+          <div class="totals-right">
+            <div class="totals-right-row">
+              <span>Total HT :</span>
+              <span>${invoice.montantHtFcfa.toLocaleString('fr-FR')} CFA</span>
+            </div>
+            <div class="totals-right-row">
+              <span>TVA (0-18%) :</span>
+              <span>${invoice.tvaFcfa.toLocaleString('fr-FR')} CFA</span>
+            </div>
+            <div class="totals-right-row">
+              <span>AIRSI (0-5%) :</span>
+              <span>0 CFA</span>
+            </div>
+            <div class="totals-right-row">
+              <span>Total TTC :</span>
+              <span>${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</span>
+            </div>
+            <div class="totals-right-row grand" style="margin-top: 10px;">
+              <span>Net à payer :</span>
+              <span>${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</span>
+            </div>
+            <div class="totals-right-row grand" style="background-color: #e5e7eb; padding: 4px 10px; margin-top: 5px;">
+              <span></span>
+              <span>${totalEur} EUR</span>
+            </div>
           </div>
         </div>
-        ${stampHtml}
+
+        <div class="footer-banner">
+          <div style="text-align: left; padding-left: 0; flex: 0.5;">
+            <div style="font-weight: 900; font-size: 14px; font-style: italic; color: #1e8f41; line-height: 1;">BOCS</div>
+            <div style="background-color: #212c6a; color: white; font-weight: 900; font-size: 7px; display: inline-block; padding: 1px 4px;">ABIDJAN</div>
+          </div>
+          <div>
+            BOCS ABIDJAN SARL<br />
+            Treichville zone 3 | Rue des Brasseurs<br />
+            Imm. Rive Gauche | 2e étage<br />
+            05 BP 3282 Abidjan 05 | Côte d'Ivoire
+          </div>
+          <div>
+            +225 27 24 36 40 41<br />
+            abidjan@bocs.de<br />
+            www.bocs.de
+          </div>
+          <div>
+            BOCS ABIDJAN SARL au capital de 5.000.000 FRS CFA<br />
+            RCCM: CI-ABJ-03-2023-B13-02079 - C.C: 2300820M<br />
+            Compte Bancaire: BICICI CI006 01766 010207300028 37<br />
+            IBAN: CI93 CI00 6017 6601 0207 3000 2837 - BIC: BICICIABXXX
+          </div>
+        </div>
 
         <script>
           window.onload = function() {
