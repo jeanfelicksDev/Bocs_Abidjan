@@ -418,7 +418,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                         {/* Name & Avatar */}
                         <td className="p-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container font-bold text-xs flex items-center justify-center border border-primary/20 shadow-sm">
+                            <div className="w-9 h-9 rounded-full bg-[#00182f] text-white font-black text-xs flex items-center justify-center border border-slate-700 shadow-sm">
                               {u.nomComplet.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                             </div>
                             <div>
