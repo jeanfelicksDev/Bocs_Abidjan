@@ -861,7 +861,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       numeroBL: bl.numeroBL,
       clientId: bl.clientId,
       clientNom: bl.consigneeNom,
-      escaleInfo: `Escale BL #${bl.numeroBL}`,
+      escaleInfo: escales.find(e => e.id === bl.escaleId) ? `${escales.find(e => e.id === bl.escaleId)?.nomNavire} V.${escales.find(e => e.id === bl.escaleId)?.numeroVoyage}` : `Escale BL #${bl.numeroBL}`,
       typeFacture: 'PROFORMA_IMPORT',
       numeroFacture: `PROF-${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
       dateFacture: today,
@@ -1141,7 +1141,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                     {/* Actions Column */}
                     <td className="p-3 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <div className="flex flex-nowrap items-center justify-end gap-1.5 min-w-max">
                         <button
                           onClick={() => setSelectedBlDetails(bl)}
                           className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold rounded-lg text-xs transition-all cursor-pointer"

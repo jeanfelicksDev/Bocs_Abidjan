@@ -395,7 +395,7 @@ export function App() {
         />
 
         {/* Content Main Panel */}
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-6 overflow-y-auto w-full">
           
           {activeTab === 'dashboard' && (
             <Dashboard
