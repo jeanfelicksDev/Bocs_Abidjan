@@ -87,261 +87,63 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
         </div>
       </div>
 
-      {/* Main Vector Map Display */}
-      <div className="relative w-full h-[420px] bg-[#090d16] overflow-hidden select-none">
+      {/* Main Vector Map Display (MarineTraffic Style) */}
+      <div className="relative w-full h-[420px] bg-[#cbd5e1] overflow-hidden select-none">
         
-        {/* SVG Background Layer - Water Bassins, Coastal Land, Dock Lines */}
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            {/* Water Gradient */}
-            <radialGradient id="waterGrad" cx="50%" cy="50%" r="75%">
-              <stop offset="0%" stopColor="#0f2b48" />
-              <stop offset="100%" stopColor="#081426" />
-            </radialGradient>
-            
-            {/* Land Texture Pattern */}
-            <pattern id="landGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" strokeWidth="0.5" />
-            </pattern>
-
-            {/* Quay Hatching */}
-            <pattern id="quayHatch" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
-              <line x1="0" y1="0" x2="0" y2="10" stroke="#334155" strokeWidth="2" />
-            </pattern>
-          </defs>
-
-          {/* Background Water Surface */}
-          <rect width="100%" height="100%" fill="url(#waterGrad)" />
-
-          {/* Channel Grid Lines */}
-          <line x1="0" y1="50%" x2="100%" y2="50%" stroke="#1e293b" strokeDasharray="4,4" strokeWidth="1" />
-          <line x1="50%" y1="0" x2="50%" y2="100%" stroke="#1e293b" strokeDasharray="4,4" strokeWidth="1" />
-
-          {/* COASTLINE & LAND MASSES (PORT D'ABIDJAN - TERMINALS & VRIDI) */}
+        {/* SVG Background - Ocean and Coastline */}
+        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          {/* Ocean */}
+          <path d="M 0 240 Q 250 270 450 250 T 850 270 T 1200 240 L 1200 500 L 0 500 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1" />
           
-          {/* North Coast / Terre-Plein principal */}
-          <path
-            d="M 0 0 L 1000 0 L 1000 130 L 850 130 L 850 160 L 200 160 L 200 130 L 0 130 Z"
-            fill="#172033"
-            stroke="#334155"
-            strokeWidth="2"
-          />
-          <path
-            d="M 0 0 L 1000 0 L 1000 130 L 850 130 L 850 160 L 200 160 L 200 130 L 0 130 Z"
-            fill="url(#landGrid)"
-            opacity="0.4"
-          />
-
-          {/* West Coast / Quai Ro-Ro & Fruitier Peninsula */}
-          <path
-            d="M 0 130 L 180 130 L 180 400 L 0 400 Z"
-            fill="#172033"
-            stroke="#334155"
-            strokeWidth="2"
-          />
-          <path
-            d="M 0 130 L 180 130 L 180 400 L 0 400 Z"
-            fill="url(#landGrid)"
-            opacity="0.4"
-          />
-
-          {/* East Coast / Zone Industrielle & Terminal Pétrolier */}
-          <path
-            d="M 800 240 L 1000 240 L 1000 420 L 700 420 Z"
-            fill="#172033"
-            stroke="#334155"
-            strokeWidth="2"
-          />
-
-          {/* QUAY ACCORSTAGE WALL LINES (Lignes Jaunes d'Accostage) */}
-          {/* North Quay Line TC1 / TC2 */}
-          <line x1="200" y1="160" x2="850" y2="160" stroke="#f59e0b" strokeWidth="4" strokeDasharray="12 4" />
+          {/* Borders (approximate) */}
+          <path d="M 300 0 L 280 120 L 320 180 L 300 245" stroke="#94a3b8" fill="none" strokeWidth="1" strokeDasharray="5 3" />
+          <path d="M 750 0 L 730 150 L 760 210 L 720 260" stroke="#94a3b8" fill="none" strokeWidth="1" strokeDasharray="5 3" />
           
-          {/* West Quay Line Ro-Ro / Fruitier */}
-          <line x1="180" y1="160" x2="180" y2="380" stroke="#38bdf8" strokeWidth="4" strokeDasharray="12 4" />
-
-          {/* East Oil/Vrac Berth Line */}
-          <line x1="700" y1="420" x2="800" y2="240" stroke="#ec4899" strokeWidth="4" strokeDasharray="12 4" />
-
-          {/* Fairway Navigational Channel (Passage des Navires) */}
-          <path
-            d="M 190 280 Q 500 250 820 180"
-            fill="none"
-            stroke="#0284c7"
-            strokeWidth="2"
-            strokeDasharray="6 6"
-            opacity="0.6"
-          />
-          <text x="500" y="270" fill="#38bdf8" fontSize="10" fontFamily="monospace" textAnchor="middle" opacity="0.8">
-            ◀ CHANAL PRINCIPAL DE NAVIGATION (PROFONDEUR 15.0m) ▶
-          </text>
-
-          {/* Quay Labels on SVG */}
-          <text x="320" y="145" fill="#f8fafc" fontSize="11" fontWeight="bold" fontFamily="sans-serif">
-            QUAI NORTH — TERMINAL CONTENEURS (TC1 / TC2)
-          </text>
-          <text x="30" y="270" fill="#f8fafc" fontSize="10" fontWeight="bold" fontFamily="sans-serif" transform="rotate(-90 30 270)">
-            QUAI OUEST — RO-RO & FRUITIÈRE
-          </text>
-          <text x="830" y="340" fill="#f8fafc" fontSize="10" fontWeight="bold" fontFamily="sans-serif" transform="rotate(-60 830 340)">
-            QUAI PETROLIER & VRAC
-          </text>
-
-          {/* Anchorage Zone / Rade Extérieure */}
-          <circle cx="850" cy="90" r="45" fill="#f59e0b" fillOpacity="0.05" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 4" />
-          <text x="850" y="93" fill="#f59e0b" fontSize="9" fontWeight="bold" textAnchor="middle">
-            ZONE DE MOUILLAGE (RADE)
-          </text>
+          {/* Labels */}
+          <text x="500" y="140" fill="#64748b" fontSize="18" fontWeight="600" fontFamily="sans-serif" textAnchor="middle">Ivory Coast</text>
+          <text x="500" y="170" fill="#94a3b8" fontSize="12" fontWeight="500" fontFamily="sans-serif" textAnchor="middle">Yamoussoukro</text>
+          <text x="850" y="160" fill="#64748b" fontSize="16" fontWeight="600" fontFamily="sans-serif">Ghana</text>
+          <text x="150" y="160" fill="#64748b" fontSize="16" fontWeight="600" fontFamily="sans-serif">Liberia</text>
+          
+          {/* Abidjan Marker */}
+          <circle cx="580" cy="255" r="8" fill="none" stroke="#475569" strokeWidth="2" />
+          <circle cx="580" cy="255" r="4" fill="white" stroke="#475569" strokeWidth="1" />
+          <circle cx="580" cy="255" r="2" fill="#475569" />
+          <text x="600" y="260" fill="#334155" fontSize="13" fontWeight="bold" fontFamily="sans-serif">Abidjan</text>
         </svg>
 
-        {/* INTERACTIVE QUAY BERTH POSITIONS & SHIPS DOCKED */}
-        {BASE_QUAYS.map((quay, idx) => {
-          // Dynamically assign docked escales to available quays
-          const assignedEscale = dockedEscales[idx];
-          const isOccupied = !!assignedEscale;
+        {/* Ships (Escales) */}
+        {escales.map((escale, idx) => {
+          // Positions approximatives au large d'Abidjan (x: ~58%, y: ~70%)
+          const isDocked = escale.statut === 'EN_COURS';
+          const posX = 55 + (Math.sin(idx * 45) * 12) + (isDocked ? (Math.random() * 4) : (Math.random() * 20 - 10)); 
+          const posY = 65 + (Math.cos(idx * 45) * 8) + (isDocked ? (Math.random() * 3) : (Math.random() * 15 + 5));
+          const rotation = (idx * 73) % 360;
+          
+          // Green for active/docked, Red for others
+          const colorClass = isDocked ? 'fill-emerald-400 stroke-emerald-700' : 'fill-red-500 stroke-red-800';
 
-          return (
-            <div
-              key={quay.id}
-              style={{ left: `${quay.x}%`, top: `${quay.y}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 group cursor-pointer"
-              onClick={() => {
-                setSelectedQuay(quay);
-                if (assignedEscale) onSelectEscale(assignedEscale);
-              }}
-            >
-              {/* Quay Docking Slot Indicator */}
-              <div className={`p-2 rounded-xl border backdrop-blur-md transition-all duration-300 ${isOccupied ? 'bg-slate-900/90 border-emerald-500 shadow-lg shadow-emerald-950/40 ring-2 ring-emerald-500/30' : 'bg-slate-900/70 border-slate-700 hover:border-blue-400 hover:bg-slate-800/90'}`}>
-                
-                {/* Quay Header Info */}
-                <div className="flex items-center space-x-2 border-b border-slate-800 pb-1 mb-1.5">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-800">
-                    {quay.code}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-300 truncate max-w-[120px]">
-                    {quay.nom}
-                  </span>
-                </div>
-
-                {/* Ship Docked State */}
-                {isOccupied ? (
-                  <div className="flex items-center space-x-2 bg-emerald-950/60 p-1.5 rounded-lg border border-emerald-800/60">
-                    {/* Ship Vector Icon Hull */}
-                    <div className="w-7 h-7 rounded bg-emerald-500 text-slate-950 font-bold flex items-center justify-center shadow">
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M3 13.5L5 6h14l2 7.5v4.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18v-4.5zM7 9h10v2H7V9z" />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <div className="flex items-center space-x-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span className="text-xs font-black text-white font-mono">
-                          {assignedEscale ? assignedEscale.nomNavire : 'NAVIRE À QUAI'}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono text-emerald-300 block">
-                        Accosté • Tirant: {quay.tirantEau}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono py-0.5">
-                    <span className="flex items-center text-slate-400">
-                      <CheckCircle2 className="w-3 h-3 text-slate-500 mr-1" /> Libre
-                    </span>
-                    <span>L: {quay.longueur}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* ANCHORED SHIPS IN RADE (Mouillage Extérieur) */}
-        {anchoredEscales.map((escale, idx) => {
-          const posX = 78 + (idx * 8);
-          const posY = 18 + (idx * 12);
           return (
             <div
               key={escale.id}
               style={{ left: `${posX}%`, top: `${posY}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer"
+              className="absolute z-20 group cursor-pointer"
               onClick={() => onSelectEscale(escale)}
             >
-              <div className="bg-amber-950/80 border border-amber-500/60 p-1.5 rounded-lg backdrop-blur-sm flex items-center space-x-1.5 shadow-lg hover:scale-105 transition">
-                <Anchor className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
-                <div className="text-left">
-                  <span className="text-[10px] font-bold text-amber-200 block font-mono leading-none">
-                    {escale.nomNavire}
-                  </span>
-                  <span className="text-[8px] text-amber-400/80 font-mono">En Rade (Attente Quai)</span>
-                </div>
+              {/* Tooltip on hover */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-slate-900 text-white text-[10px] py-1 px-2 rounded shadow-lg border border-slate-700 z-30">
+                <p className="font-bold">{escale.nomNavire}</p>
+                <p className="text-slate-400">{escale.statut}</p>
+              </div>
+              {/* Ship Arrow */}
+              <div style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }} className="hover:scale-125 transition-transform duration-200">
+                <svg width="16" height="16" viewBox="0 0 24 24" className={colorClass} strokeWidth="1.5">
+                  <path d="M12 2L22 20L12 17L2 20L12 2Z" />
+                </svg>
               </div>
             </div>
           );
         })}
-
-        {/* Map Legend Overlay Card */}
-        <div className="absolute bottom-3 left-3 bg-[#0f172a]/95 backdrop-blur-md p-3 rounded-xl border border-slate-800 text-xs shadow-xl space-y-1.5 max-w-xs z-30">
-          <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">
-            <span>LÉGENDE PORTUAIRE ACCORSTAGE</span>
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded bg-emerald-500 border border-emerald-300"></span>
-              <span className="text-slate-300">Navire À Quai (Actif)</span>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded bg-amber-500 border border-amber-300"></span>
-              <span className="text-slate-300">Navire En Rade</span>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded bg-slate-700 border border-slate-500"></span>
-              <span className="text-slate-300">Poste à Quai Libre</span>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <span className="w-4 h-0.5 bg-amber-500 stroke-dasharray"></span>
-              <span className="text-slate-300">Ligne d'Accostage</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Selected Quay Drawer Details */}
-        {selectedQuay && (
-          <div className="absolute top-3 right-3 bg-[#0f172a]/95 backdrop-blur-md p-4 rounded-xl border border-blue-500/50 shadow-2xl max-w-xs w-full z-40 space-y-3 animate-fade-in text-xs">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-blue-400 uppercase">Fiche Poste à Quai</span>
-                <h4 className="font-bold text-white text-sm">{selectedQuay.nom}</h4>
-              </div>
-              <button
-                onClick={() => setSelectedQuay(null)}
-                className="w-6 h-6 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div className="bg-slate-900 p-2 rounded border border-slate-800">
-                <span className="text-slate-500 block text-[9px] uppercase font-bold">Longueur Quai</span>
-                <span className="font-bold text-white font-mono">{selectedQuay.longueur}</span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800">
-                <span className="text-slate-500 block text-[9px] uppercase font-bold">Tirant d'Eau Max</span>
-                <span className="font-bold text-emerald-400 font-mono">{selectedQuay.tirantEau}</span>
-              </div>
-            </div>
-
-            <div className="bg-blue-950/40 p-2.5 rounded-lg border border-blue-800/50 space-y-1">
-              <span className="text-[10px] font-bold text-blue-300 uppercase block">Type de Terminal</span>
-              <p className="font-semibold text-slate-200">{selectedQuay.type} — Équipé d'outillage de manutention portuaire moderne.</p>
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );
