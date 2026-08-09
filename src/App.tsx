@@ -65,10 +65,30 @@ export function App() {
     return INITIAL_DRAFTS_EXPORT;
   });
 
-  const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
-  const [payments, setPayments] = useState<Payment[]>(INITIAL_PAYMENTS);
+  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+    const saved = localStorage.getItem('bocs_invoices');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement invoices local', e); }
+    }
+    return INITIAL_INVOICES;
+  });
+
+  const [payments, setPayments] = useState<Payment[]>(() => {
+    const saved = localStorage.getItem('bocs_payments');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement payments local', e); }
+    }
+    return INITIAL_PAYMENTS;
+  });
+
   const [fneParams, setFneParams] = useState<FneParam[]>(INITIAL_FNE_PARAMS);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
+    const saved = localStorage.getItem('bocs_audit_logs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement audit_logs local', e); }
+    }
+    return INITIAL_AUDIT_LOGS;
+  });
   const [exchangeRateUsd, setExchangeRateUsd] = useState<number>(600.00);
   const [invoiceTypeConfigs, setInvoiceTypeConfigs] = useState<InvoiceTypeConfig[]>(INITIAL_INVOICE_TYPE_CONFIGS);
   const [rubriqueConfigs, setRubriqueConfigs] = useState<RubriqueConfig[]>(INITIAL_RUBRIQUE_CONFIGS);
@@ -85,6 +105,18 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('bocs_drafts', JSON.stringify(drafts));
   }, [drafts]);
+
+  useEffect(() => {
+    localStorage.setItem('bocs_invoices', JSON.stringify(invoices));
+  }, [invoices]);
+
+  useEffect(() => {
+    localStorage.setItem('bocs_payments', JSON.stringify(payments));
+  }, [payments]);
+
+  useEffect(() => {
+    localStorage.setItem('bocs_audit_logs', JSON.stringify(auditLogs));
+  }, [auditLogs]);
 
   // Initialisation et chargement des données depuis Neon Postgres
   useEffect(() => {

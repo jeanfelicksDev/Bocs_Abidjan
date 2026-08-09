@@ -565,9 +565,31 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       <td className="p-3 font-mono font-bold text-primary">{inv.numeroBL || inv.numeroFacture}</td>
                       <td className="p-3 font-semibold text-on-surface">{inv.clientNom}</td>
                       <td className="p-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant">
-                          {inv.typeFacture}
-                        </span>
+                        {(() => {
+                          // Chercher le nom dans invoiceTypeConfigs via invoiceTypeId
+                          const matchedType = inv.invoiceTypeId
+                            ? invoiceTypeConfigs.find(t => t.id === inv.invoiceTypeId)
+                            : null;
+
+                          const label = matchedType
+                            ? matchedType.name
+                            : inv.typeFacture
+                              .replace('PROFORMA_IMPORT', 'Proforma Import')
+                              .replace('PROFORMA_EXPORT', 'Proforma Export')
+                              .replace('DEFINITIVE_IMPORT', 'Facture Définitive Import')
+                              .replace('DEFINITIVE_EXPORT', 'Facture Définitive Export');
+
+                          const isImport = inv.typeFacture.includes('IMPORT');
+                          return (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              isImport
+                                ? 'bg-blue-50 border border-blue-200 text-[#005daa]'
+                                : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                            }`}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 font-mono">{inv.montantHtFcfa.toLocaleString()} FCFA</td>
                       <td className="p-3 font-mono font-bold text-primary">{inv.montantTtcFcfa.toLocaleString()} FCFA</td>

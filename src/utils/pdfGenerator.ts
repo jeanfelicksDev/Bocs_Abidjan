@@ -1,4 +1,5 @@
 import { BL, DraftExport, Invoice, Escale } from '../types';
+import { INITIAL_INVOICE_TYPE_CONFIGS } from '../data/initialData';
 
 /**
  * Triggers native browser print dialog formatted as an official PDF document
@@ -267,7 +268,11 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
             <span class="title">${invoice.numeroFacture.split('/')[0]}</span><span class="title-red">/${invoice.numeroFacture.split('/')[1] || '022'}</span>
           </div>
           <div>
-            <div class="type-fact">${invoice.typeFacture === 'PROFORMA_IMPORT' ? 'Import Charges locales' : invoice.typeFacture.replace(/_/g, ' ')}</div>
+            <div class="type-fact">${
+              invoice.typeFacture === 'PROFORMA_IMPORT' 
+                ? (INITIAL_INVOICE_TYPE_CONFIGS.find(c => c.id === invoice.invoiceTypeId)?.name ? `Import Charges locales (${INITIAL_INVOICE_TYPE_CONFIGS.find(c => c.id === invoice.invoiceTypeId)?.name})` : 'Import Charges locales')
+                : invoice.typeFacture.replace(/_/g, ' ')
+            }</div>
             <div class="dates">
               Date de facturation : ${invoice.dateFacture}<br />
               Date d'échéance : ${invoice.dateEcheance || invoice.dateFacture}
