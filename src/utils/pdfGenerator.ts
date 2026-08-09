@@ -209,7 +209,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
         <style>
           @page { size: A4; margin: 10mm; }
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-          body { font-family: 'Inter', 'Arial', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { font-family: 'Inter', 'Arial', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; display: flex; flex-direction: column; min-height: 275mm; }
           .logo-container { width: 350px; margin-bottom: 25px; }
           
           .header-main { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
@@ -227,7 +227,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           
           .marchandises { margin-bottom: 12px; font-size: 9px; color: #334155; font-weight: 600; }
           
-          .main-table { width: 100%; border-collapse: collapse; font-size: 9px; border: 1px solid #cbd5e1; border-bottom: none; }
+          .main-table { width: 100%; border-collapse: collapse; font-size: 9px; border: 1px solid #cbd5e1; border-bottom: none; flex-grow: 1; }
           .main-table th { background-color: #f8fafc; color: #475569; text-transform: uppercase; font-weight: 800; padding: 6px; border-right: 1px solid #cbd5e1; border-bottom: 2px solid #cbd5e1; font-size: 9px; }
           .main-table th:last-child { border-right: none; }
           .main-table td { padding: 6px; border-right: 1px solid #cbd5e1; color: #1e293b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
@@ -247,9 +247,12 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           .totals-right-row { display: flex; justify-content: space-between; padding: 2.5px 0; }
           .totals-right-row.grand { border-top: 1px solid #cbd5e1; border-bottom: 2px solid #0f172a; padding: 4px 0; font-size: 10px; margin-top: 4px; color: #0f172a; }
           
-          .footer-banner { margin-top: 25px; border-top: 2px solid #cbd5e1; padding-top: 10px; display: flex; justify-content: space-between; font-size: 7.5px; color: #64748b; text-align: center; page-break-inside: avoid; line-height: 1.3; }
+          .footer-banner { margin-top: auto; border-top: 2px solid #cbd5e1; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; color: #64748b; text-align: center; page-break-inside: avoid; line-height: 1.3; }
           .footer-banner div { flex: 1; padding: 0 10px; border-right: 1px solid #e2e8f0; }
           .footer-banner div:last-child { border-right: none; }
+          .footer-logo { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+          .footer-logo-bocs { color: #209641; font-family: 'Arial Black', sans-serif; font-style: italic; font-weight: 900; font-size: 16px; line-height: 1; letter-spacing: -0.5px; }
+          .footer-logo-abidjan { background-color: #232766; color: white; font-family: Arial, sans-serif; font-weight: bold; font-size: 8px; padding: 2px 6px; margin-top: 1px; }
         </style>
       </head>
       <body>
@@ -329,6 +332,14 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           </thead>
           <tbody>
             ${lignesHtml}
+            <tr class="filler-row">
+              <td style="border-bottom: none; height: 100%;"></td>
+              <td style="border-bottom: none;"></td>
+              <td style="border-bottom: none;"></td>
+              <td style="border-bottom: none;"></td>
+              <td style="border-bottom: none;"></td>
+              <td style="border-bottom: none; border-right: none;"></td>
+            </tr>
           </tbody>
         </table>
         
@@ -389,9 +400,9 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
         </div>
 
         <div class="footer-banner">
-          <div style="text-align: left; padding-left: 0; flex: 0.5;">
-            <div style="font-weight: 900; font-size: 14px; font-style: italic; color: #1e8f41; line-height: 1;">BOCS</div>
-            <div style="background-color: #212c6a; color: white; font-weight: 900; font-size: 7px; display: inline-block; padding: 1px 4px;">ABIDJAN</div>
+          <div class="footer-logo">
+            <div class="footer-logo-bocs">BOCS</div>
+            <div class="footer-logo-abidjan">ABIDJAN</div>
           </div>
           <div>
             BOCS ABIDJAN SARL<br />
