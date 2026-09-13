@@ -191,7 +191,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   React.useEffect(() => {
     if (initialTab) setActiveAdminTab(initialTab);
   }, [initialTab]);
-  
+
   // Search & Filter state for Users
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
@@ -225,7 +225,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     try {
       const saved = localStorage.getItem('bocs_permissions_matrix');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return INITIAL_PERMISSIONS;
   });
 
@@ -235,7 +235,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     try {
       const saved = localStorage.getItem('bocs_user_permission_overrides');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return {};
   });
   const [rightsCategoryFilter, setRightsCategoryFilter] = useState<string>('ALL');
@@ -292,14 +292,14 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
   // Filtering users
   const filteredUsers = allUsers.filter(u => {
-    const matchesSearch = 
+    const matchesSearch =
       u.nomComplet.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.nomSociete && u.nomSociete.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
-    const matchesStatus = statusFilter === 'ALL' || 
-      (statusFilter === 'ACTIVE' && u.estActif) || 
+    const matchesStatus = statusFilter === 'ALL' ||
+      (statusFilter === 'ACTIVE' && u.estActif) ||
       (statusFilter === 'INACTIVE' && !u.estActif);
 
     return matchesSearch && matchesRole && matchesStatus;
@@ -439,7 +439,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     }
   };
 
-  const filteredLogs = auditLogs.filter(l => 
+  const filteredLogs = auditLogs.filter(l =>
     l.utilisateurNom.toLowerCase().includes(auditQuery.toLowerCase()) ||
     l.action.toLowerCase().includes(auditQuery.toLowerCase()) ||
     l.details.toLowerCase().includes(auditQuery.toLowerCase())
@@ -447,7 +447,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-100">
-      
+
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 ocean-glass-banner p-6 rounded-2xl shadow-2xl">
         <div>
@@ -464,36 +464,32 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         <div className="flex flex-wrap items-center gap-2 bg-[#0F172A] p-1.5 rounded-xl border border-slate-700/80 shadow-sm">
           <button
             onClick={() => setActiveAdminTab('USERS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeAdminTab === 'USERS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'USERS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+              }`}
           >
             <span className="material-symbols-outlined text-base text-slate-300">manage_accounts</span>
             <span className="font-bold text-white">Utilisateurs &amp; Rôles</span>
           </button>
           <button
             onClick={() => setActiveAdminTab('RIGHTS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeAdminTab === 'RIGHTS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'RIGHTS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+              }`}
           >
             <span className="material-symbols-outlined text-base text-slate-300">shield_lock</span>
             <span className="font-bold text-white">Attribution des Droits</span>
           </button>
           <button
             onClick={() => setActiveAdminTab('FNE')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeAdminTab === 'FNE' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'FNE' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+              }`}
           >
             <span className="material-symbols-outlined text-base text-slate-300">tune</span>
             <span className="font-bold text-white">Params Factures &amp; Devise</span>
           </button>
           <button
             onClick={() => setActiveAdminTab('AUDIT')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeAdminTab === 'AUDIT' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'AUDIT' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+              }`}
           >
             <span className="material-symbols-outlined text-base text-slate-300">verified_user</span>
             <span className="font-bold text-white">Journal d'Audit ({auditLogs.length})</span>
@@ -504,7 +500,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* TAB 1: USERS MANAGEMENT */}
       {activeAdminTab === 'USERS' && (
         <div className="space-y-6">
-          
+
           {/* Bento Cards Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="ocean-glass-card p-4 rounded-2xl border-l-4 border-l-emerald-400">
@@ -563,7 +559,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
           {/* Action Toolbar & Search Filters */}
           <div className="ocean-glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-            
+
             {/* Search input */}
             <div className="relative w-full md:w-80">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 text-sm">search</span>
@@ -578,7 +574,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              
+
               {/* Role filter */}
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-400 uppercase">Rôle:</span>
@@ -666,7 +662,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   ) : (
                     filteredUsers.map(u => (
                       <tr key={u.id} className="hover:bg-cyan-950/20 transition-colors">
-                        
+
                         {/* Name & Avatar */}
                         <td className="p-3.5">
                           <div className="flex items-center gap-3">
@@ -716,7 +712,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                         {/* Actions */}
                         <td className="p-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            
+
                             {/* Edit */}
                             <button
                               onClick={() => handleOpenEditModal(u)}
@@ -738,11 +734,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                             {/* Toggle status */}
                             <button
                               onClick={() => onToggleUserStatus(u.id)}
-                              className={`px-2.5 py-1 font-bold text-[11px] rounded-lg transition-all cursor-pointer ${
-                                u.estActif 
-                                  ? 'bg-amber-950/60 text-amber-300 border border-amber-700/50 hover:bg-amber-900/60' 
+                              className={`px-2.5 py-1 font-bold text-[11px] rounded-lg transition-all cursor-pointer ${u.estActif
+                                  ? 'bg-amber-950/60 text-amber-300 border border-amber-700/50 hover:bg-amber-900/60'
                                   : 'bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 hover:bg-emerald-900/60'
-                              }`}
+                                }`}
                               title={u.estActif ? 'Désactiver le compte' : 'Activer le compte'}
                             >
                               {u.estActif ? 'Désactiver' : 'Activer'}
@@ -772,10 +767,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* TAB: ATTRIBUTION DES DROITS (RBAC & MATRICE PAR PROFIL ET PAR UTILISATEUR) */}
       {activeAdminTab === 'RIGHTS' && (
         <div className="space-y-6">
-          
+
           {/* Executive Overview Bento Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
+
             <div className="ocean-glass-card p-4 rounded-2xl border-l-4 border-l-purple-500">
               <div className="flex items-center justify-between text-slate-400 mb-1">
                 <span className="text-[11px] font-black uppercase font-mono">Profils Types</span>
@@ -818,15 +813,14 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
           {/* Controls & Mode Switcher Header */}
           <div className="ocean-glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-            
+
             {/* View Mode Toggle */}
             <div className="flex items-center gap-2 bg-[#040e1b] p-1.5 rounded-xl border border-cyan-500/20">
               <button
                 type="button"
                 onClick={() => setRightsViewMode('PROFILES')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  rightsViewMode === 'PROFILES' ? 'bg-[#005DAA] text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${rightsViewMode === 'PROFILES' ? 'bg-[#005DAA] text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 <span className="material-symbols-outlined text-base">badge</span>
                 <span>Attribution par Profil (Matrice RBAC)</span>
@@ -835,9 +829,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <button
                 type="button"
                 onClick={() => setRightsViewMode('USER_SPECIFIC')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  rightsViewMode === 'USER_SPECIFIC' ? 'bg-[#005DAA] text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${rightsViewMode === 'USER_SPECIFIC' ? 'bg-[#005DAA] text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 <span className="material-symbols-outlined text-base">person_search</span>
                 <span>Attribution par Utilisateur</span>
@@ -889,12 +882,12 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           {/* VIEW MODE 1: MATRICE PAR PROFIL (RBAC) */}
           {rightsViewMode === 'PROFILES' && (
             <div className="bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-300">
-              <div className="p-4 bg-slate-900 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <h3 className="font-black text-white text-xs uppercase tracking-wider flex items-center gap-2">
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
                   <span className="material-symbols-outlined text-cyan-400 text-base">grid_on</span>
                   <span>Matrice Interactive d'Attribution des Droits selon le Profil ({permissionsMatrix.filter(p => rightsCategoryFilter === 'ALL' || p.category === rightsCategoryFilter).length} habilitations)</span>
                 </h3>
-                <span className="text-[11px] text-slate-300 font-semibold italic">
+                <span className="text-[11px] text-slate-600 font-semibold italic">
                   💡 Cliquez sur les cases pour accorder ou retirer un droit pour un profil
                 </span>
               </div>
@@ -902,21 +895,21 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider border-b border-slate-800">
-                      <th className="p-4 w-2/5 font-black text-white bg-slate-900">Permission / Module Applicatif</th>
-                      <th className="p-4 text-center w-28 bg-purple-950 text-purple-200 border-l border-purple-800 font-black">
+                    <tr className="bg-slate-100 text-slate-900 text-[11px] font-black uppercase tracking-wider border-b border-slate-300">
+                      <th className="p-4 w-2/5 font-black text-slate-900 bg-slate-100">Permission / Module Applicatif</th>
+                      <th className="p-4 text-center w-28 bg-purple-100 text-purple-900 border-l border-purple-300 font-black">
                         ADMIN
                       </th>
-                      <th className="p-4 text-center w-28 bg-blue-950 text-blue-200 border-l border-blue-800 font-black">
+                      <th className="p-4 text-center w-28 bg-blue-100 text-blue-900 border-l border-blue-300 font-black">
                         IMPORT
                       </th>
-                      <th className="p-4 text-center w-28 bg-amber-950 text-amber-200 border-l border-amber-800 font-black">
+                      <th className="p-4 text-center w-28 bg-amber-100 text-amber-900 border-l border-amber-300 font-black">
                         EXPORT
                       </th>
-                      <th className="p-4 text-center w-28 bg-emerald-950 text-emerald-200 border-l border-emerald-800 font-black">
+                      <th className="p-4 text-center w-28 bg-emerald-100 text-emerald-900 border-l border-emerald-300 font-black">
                         COMPTA
                       </th>
-                      <th className="p-4 text-center w-28 bg-indigo-950 text-indigo-200 border-l border-indigo-800 font-black">
+                      <th className="p-4 text-center w-28 bg-indigo-100 text-indigo-900 border-l border-indigo-300 font-black">
                         CLIENT
                       </th>
                     </tr>
@@ -926,7 +919,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                       .filter(perm => rightsCategoryFilter === 'ALL' || perm.category === rightsCategoryFilter)
                       .map((perm) => (
                         <tr key={perm.id} className="hover:bg-slate-50 transition-colors">
-                          
+
                           {/* Permission info */}
                           <td className="p-4">
                             <div className="flex items-center gap-2">
@@ -953,11 +946,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'AGENT_IMPORT')}
-                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
-                                perm.roles.AGENT_IMPORT 
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black' 
+                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.AGENT_IMPORT
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
                                   : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
-                              }`}
+                                }`}
                             >
                               <span className="material-symbols-outlined text-base">
                                 {perm.roles.AGENT_IMPORT ? 'check_circle' : 'cancel'}
@@ -971,11 +963,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'AGENT_EXPORT')}
-                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
-                                perm.roles.AGENT_EXPORT 
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black' 
+                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.AGENT_EXPORT
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
                                   : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
-                              }`}
+                                }`}
                             >
                               <span className="material-symbols-outlined text-base">
                                 {perm.roles.AGENT_EXPORT ? 'check_circle' : 'cancel'}
@@ -989,11 +980,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'COMPTABILITE')}
-                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
-                                perm.roles.COMPTABILITE 
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black' 
+                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.COMPTABILITE
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
                                   : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
-                              }`}
+                                }`}
                             >
                               <span className="material-symbols-outlined text-base">
                                 {perm.roles.COMPTABILITE ? 'check_circle' : 'cancel'}
@@ -1007,11 +997,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'CLIENT_EXPORT')}
-                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
-                                perm.roles.CLIENT_EXPORT 
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black' 
+                              className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.CLIENT_EXPORT
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
                                   : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
-                              }`}
+                                }`}
                             >
                               <span className="material-symbols-outlined text-base">
                                 {perm.roles.CLIENT_EXPORT ? 'check_circle' : 'cancel'}
@@ -1031,7 +1020,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           {/* VIEW MODE 2: ATTRIBUTION PAR UTILISATEUR SPÉCIFIQUE */}
           {rightsViewMode === 'USER_SPECIFIC' && (
             <div className="bg-white rounded-2xl p-6 space-y-6 shadow-xl border border-slate-300">
-              
+
               {/* User Selection Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
                 <div>
@@ -1094,7 +1083,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                     <div className="border border-slate-300 rounded-xl overflow-hidden shadow-2xs bg-white">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-900 text-white text-[11px] font-black uppercase border-b border-slate-800">
+                          <tr className="bg-slate-100 text-slate-900 text-[11px] font-black uppercase border-b border-slate-300">
                             <th className="p-3.5">Fonctionnalité Applicative</th>
                             <th className="p-3.5 text-center">Droit par Défaut (Rôle {targetUser.role})</th>
                             <th className="p-3.5 text-center">Droit Attribué à l'Utilisateur</th>
@@ -1124,11 +1113,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => handleToggleUserOverride(targetUser.id, perm.id, defaultRoleVal)}
-                                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
-                                      effectiveVal 
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700' 
+                                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${effectiveVal
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700'
                                         : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950'
-                                    }`}
+                                      }`}
                                   >
                                     <span className="material-symbols-outlined text-sm">
                                       {effectiveVal ? 'check_circle' : 'do_not_disturb_on'}
@@ -1160,7 +1148,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* TAB 2: FNE PARAMS & DEVISE */}
       {activeAdminTab === 'FNE' && (
         <div className="space-y-6">
-          
+
           {/* Currency Exchange Rate Box */}
           <div className="ocean-glass-card rounded-2xl p-6 shadow-xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1298,7 +1286,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {showAddUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="ocean-glass-card border border-cyan-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-lg w-full p-6 space-y-4 text-white">
-            
+
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">
               <h3 className="font-bold text-lg text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-cyan-400">person_add</span>
@@ -1310,7 +1298,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
             </div>
 
             <form onSubmit={handleAddSubmit} className="space-y-3 text-xs">
-              
+
               <div>
                 <label className="block font-bold text-slate-300 uppercase mb-1">Nom et Prénom *</label>
                 <input
@@ -1425,7 +1413,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="ocean-glass-card border border-cyan-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-lg w-full p-6 space-y-4 text-white">
-            
+
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">
               <h3 className="font-bold text-lg text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-cyan-400">edit_note</span>
@@ -1437,7 +1425,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
             </div>
 
             <form onSubmit={handleEditSubmit} className="space-y-3 text-xs">
-              
+
               <div>
                 <label className="block font-bold text-slate-300 uppercase mb-1">Nom et Prénom</label>
                 <input
@@ -1537,7 +1525,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {resetPasswordUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="ocean-glass-card border border-amber-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white">
-            
+
             <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
               <h3 className="font-bold text-lg text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-amber-400">key</span>
@@ -1585,7 +1573,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {deletingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="ocean-glass-card border border-rose-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white">
-            
+
             <div className="flex items-center gap-3 text-rose-400 border-b border-rose-500/20 pb-3">
               <span className="material-symbols-outlined text-3xl">warning</span>
               <div>
@@ -1621,7 +1609,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {showPermissionsMatrix && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="ocean-glass-card border border-cyan-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col p-6 space-y-4 text-white">
-            
+
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">
               <div>
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
@@ -1648,7 +1636,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-xs">
-                  
+
                   <tr>
                     <td className="p-3.5 font-bold text-white">Tableau de Bord Global</td>
                     <td className="p-3.5 text-center text-emerald-400 font-bold">✓ Accès Total</td>
