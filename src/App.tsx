@@ -1355,7 +1355,7 @@ export function App() {
               initialSubTab={
                 activeTab === 'export_saisie' ? 'SAISIE_DRAFT' :
                   activeTab === 'export_list' ? 'ESPACE_CLIENT' :
-                    activeTab === 'export_consolidation' ? 'CONSOLIDATION' : 'SAISIE_DRAFT'
+                    activeTab === 'export_consolidation' ? 'CONSOLIDATION' : 'ESPACE_CLIENT'
               }
               drafts={drafts}
               escales={escales}

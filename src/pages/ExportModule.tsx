@@ -86,10 +86,12 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   onLogAudit,
   userRole
 }) => {
-  // Navigation par sous-onglets : par défaut Espace Client pour un client export
+  // Navigation par sous-onglets : « Espace Client & Historique » est l'onglet
+  // actif par défaut à l'ouverture de la page (tous profils). Un client export
+  // y retrouve ses drafts ; un agent y voit la liste complète.
   const [activeSubTab, setActiveSubTab] = useState<'CONSOLIDATION' | 'SAISIE_DRAFT' | 'ESPACE_CLIENT'>(() => {
     if (initialSubTab) return initialSubTab;
-    return userRole === 'CLIENT_EXPORT' ? 'ESPACE_CLIENT' : 'ESPACE_CLIENT';
+    return 'ESPACE_CLIENT';
   });
 
   // ── Isolation client export : chaque client ne voit que SES propres drafts ──
