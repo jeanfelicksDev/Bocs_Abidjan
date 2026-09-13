@@ -68,6 +68,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   // Search state (supports BL number or Shipper name)
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEscaleFilter, setSelectedEscaleFilter] = useState<number | 'ALL'>('ALL');
+  // Filtre par type d'opération : Tous / Import / Export
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'IMPORT' | 'EXPORT'>('ALL');
   const [activeBlId, setActiveBlId] = useState<number | null>(() => {
     if (externalSelectedBlId) return externalSelectedBlId;
     return bls.length > 0 ? bls[0].id : null;
@@ -156,11 +158,14 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   const [showInvoiceSelectionModal, setShowInvoiceSelectionModal] = useState(false);
   const [tempSelectedTypeIds, setTempSelectedTypeIds] = useState<string[]>([]);
 
-  // Filter BLs matching search query (by BL number, Shipper name, or Consignee)
+  // Filter BLs matching search query (by BL number, Shipper name, or Consignee) + type d'opération
   const matchingBls = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return bls.filter(bl => {
       if (selectedEscaleFilter !== 'ALL' && bl.escaleId !== selectedEscaleFilter) {
+        return false;
+      }
+      if (typeFilter !== 'ALL' && bl.typeOperation !== typeFilter) {
         return false;
       }
       if (!q) return true;
@@ -170,12 +175,23 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       const containerMatch = (bl.conteneurs || []).some(c => (c.numeroConteneur || '').toLowerCase().includes(q));
       return numMatch || shipperMatch || consigneeMatch || containerMatch;
     });
-  }, [bls, searchQuery, selectedEscaleFilter]);
+  }, [bls, searchQuery, selectedEscaleFilter, typeFilter]);
 
-  // Currently active BL object
+  // Compteurs par type d'opération (dans le périmètre de l'escale sélectionnée)
+  const typeCounts = useMemo(() => {
+    const scope = selectedEscaleFilter === 'ALL' ? bls : bls.filter(b => b.escaleId === selectedEscaleFilter);
+    return {
+      ALL: scope.length,
+      IMPORT: scope.filter(b => b.typeOperation === 'IMPORT').length,
+      EXPORT: scope.filter(b => b.typeOperation === 'EXPORT').length
+    };
+  }, [bls, selectedEscaleFilter]);
+
+  // Currently active BL object — toujours dans le périmètre des filtres actifs
   const activeBl = useMemo(() => {
-    if (!activeBlId) return matchingBls.length > 0 ? matchingBls[0] : (bls.length > 0 ? bls[0] : null);
-    return bls.find(b => b.id === activeBlId) || (matchingBls.length > 0 ? matchingBls[0] : null);
+    const found = activeBlId ? bls.find(b => b.id === activeBlId) : null;
+    if (found && matchingBls.some(b => b.id === found.id)) return found;
+    return matchingBls.length > 0 ? matchingBls[0] : null;
   }, [bls, activeBlId, matchingBls]);
 
   // Active Escale for active BL
@@ -969,6 +985,33 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
         <div className="h-8 w-px bg-zinc-200 hidden md:block"></div>
 
+        {/* Filtre Type d'Opération : Tous / Import / Export */}
+        <div className="flex items-center gap-1 p-1 bg-zinc-50 border border-zinc-200 rounded-xl shrink-0" role="group" aria-label="Filtrer par type d'opération">
+          {([
+            { val: 'ALL', label: 'Tous', icon: 'apps' },
+            { val: 'IMPORT', label: 'Import', icon: 'south_west' },
+            { val: 'EXPORT', label: 'Export', icon: 'north_east' }
+          ] as const).map(tf => (
+            <button
+              key={tf.val}
+              type="button"
+              onClick={() => setTypeFilter(tf.val)}
+              className={`px-3 py-1.5 rounded-lg font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                typeFilter === tf.val
+                  ? 'bg-[#005DAA] text-white shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+              }`}
+              title={`Afficher les BL ${tf.label === 'Tous' ? '(Import & Export)' : tf.label}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">{tf.icon}</span>
+              <span className="hidden sm:inline">{tf.label}</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono font-black ${typeFilter === tf.val ? 'bg-white/20 text-white' : 'bg-zinc-200 text-zinc-600'}`}>
+                {typeCounts[tf.val]}
+              </span>
+            </button>
+          ))}
+        </div>
+
         {/* Filtre Escale & Navigation Rapide */}
         <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto px-1 shrink-0">
           <div className="relative font-bold">
@@ -1060,6 +1103,9 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               >
                 <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-cyan-600" />
                 <span className="font-mono font-black tracking-tight whitespace-nowrap pl-1">{bl.numeroBL}</span>
+                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-wider ${bl.typeOperation === 'IMPORT' ? 'bg-blue-100 text-blue-800' : 'bg-violet-100 text-violet-800'}`}>
+                  {bl.typeOperation === 'IMPORT' ? 'IMP' : 'EXP'}
+                </span>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot}`} />
               </button>
             );
@@ -1076,6 +1122,9 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               className="shrink-0 min-w-max bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 px-4 py-2 rounded-xl whitespace-nowrap font-bold text-xs text-zinc-700 flex items-center gap-2.5 transition-all shadow-2xs cursor-pointer select-none active:scale-95"
             >
               <span className="font-mono whitespace-nowrap">{bl.numeroBL}</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-wider ${bl.typeOperation === 'IMPORT' ? 'bg-blue-100 text-blue-800' : 'bg-violet-100 text-violet-800'}`}>
+                {bl.typeOperation === 'IMPORT' ? 'IMP' : 'EXP'}
+              </span>
               <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot}`} />
             </button>
           );
@@ -1091,7 +1140,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
             
             {/* Carte d'Identité Maritime */}
             <div className="ocean-glass-card rounded-2xl p-6 relative overflow-hidden group shadow-2xl">
-              <div className="absolute top-0 right-0 p-6">
+              <div className="absolute top-0 right-0 p-6 flex flex-col items-end gap-1.5">
                 {(() => {
                   const cat = getBlCategory(activeBl);
                   let colorClass = "bg-zinc-100 text-zinc-800 border-zinc-300";
@@ -1104,6 +1153,9 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     </span>
                   );
                 })()}
+                <span className={`px-2.5 py-0.5 rounded-lg font-black text-[9px] tracking-widest uppercase border ${activeBl.typeOperation === 'IMPORT' ? 'bg-blue-50 text-blue-900 border-blue-300' : 'bg-violet-50 text-violet-900 border-violet-300'}`}>
+                  {activeBl.typeOperation}
+                </span>
               </div>
               <div className="font-black text-[11px] text-zinc-600 uppercase tracking-widest mb-1.5 font-display">Connaissement Maritime</div>
               <div className="text-xl md:text-2xl text-[#005DAA] font-black mb-2 font-mono tracking-tight">{activeBl.numeroBL}</div>
