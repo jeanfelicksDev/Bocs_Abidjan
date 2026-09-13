@@ -227,7 +227,8 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
   
   const lignesHtml = filteredLignes.map(l => {
     totalQuantite += Number(l.quantite) || 0;
-    const tva = Math.round(l.montantHtFcfa * 0.18);
+    // Respect du taux TVA par ligne (factures Export : 0 % — Import : 18 %)
+    const tva = Math.round(l.montantHtFcfa * ((l.tauxTva ?? 18) / 100));
     const ttc = l.montantHtFcfa + tva;
     return `
       <tr>
@@ -904,12 +905,17 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
   const montantEnLettres = numberToLetters(Math.abs(creditNote.montantTtcFcfa));
   const montantEnLettresCapitalized = montantEnLettres.charAt(0).toUpperCase() + montantEnLettres.slice(1) + " Francs CFA";
 
+  const cnTvaRate = creditNote.montantHtFcfa > 0
+    ? (creditNote.tvaFcfa / creditNote.montantHtFcfa) * 100
+    : 0;
+
   const blNavire = originalInvoice?.escaleInfo?.split('V.')[0]?.trim() || "BOCS VISION";
   const blVoy = originalInvoice?.escaleInfo?.split('V.')[1]?.trim() || "26607";
   const blPolPod = bl ? `${bl.portChargementCode || 'ANVERS'} / ${bl.portDechargementCode || 'ABIDJAN'}` : "ANVERS / ABIDJAN";
 
   const lignesHtml = (creditNote.lignes || []).map(l => {
-    const tva = Math.round(l.montantHtFcfa * 0.18);
+    // Respect du taux TVA par ligne (factures Export : 0 % — Import : 18 %)
+    const tva = Math.round(l.montantHtFcfa * ((l.tauxTva ?? 18) / 100));
     const ttc = l.montantHtFcfa + tva;
     return `
       <tr>
@@ -1063,7 +1069,7 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
               <span style="color: #dc2626;">-${creditNote.montantHtFcfa.toLocaleString('fr-FR')} CFA</span>
             </div>
             <div class="totals-right-row">
-              <span>TVA (18.00%) :</span>
+              <span>TVA (${cnTvaRate.toFixed(2)}%) :</span>
               <span style="color: #dc2626;">-${creditNote.tvaFcfa.toLocaleString('fr-FR')} CFA</span>
             </div>
             <div class="totals-right-row grand">

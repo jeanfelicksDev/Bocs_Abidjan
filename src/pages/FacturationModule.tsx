@@ -648,8 +648,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
     const isTotal = creditNoteType === 'TOTAL';
     const ttc = isTotal ? targetInvoiceForCreditNote.montantTtcFcfa : creditNotePartielMontant;
-    const ht = Math.round(ttc / 1.18);
-    const tva = ttc - ht;
+    // TVA dérivée de la facture d'origine : les factures Export ne sont pas
+    // assujetties (0 %), les factures Import sont à 18 % — l'avoir reflète
+    // toujours le taux réel de la facture annulée.
+    const invTtc = targetInvoiceForCreditNote.montantTtcFcfa || 0;
+    const invTva = targetInvoiceForCreditNote.tvaFcfa || 0;
+    const tvaRatio = invTtc > 0 ? invTva / invTtc : 0;
+    const tva = Math.round(ttc * tvaRatio);
+    const ht = ttc - tva;
 
     const newCreditNote: CreditNote = {
       id: Date.now(),
@@ -684,7 +690,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               quantite: 1,
               prixUnitaireFcfa: ht,
               montantHtFcfa: ht,
-              tauxTva: 18
+              tauxTva: invTva > 0 ? 18 : 0
             }
           ]
     };
@@ -1493,7 +1499,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             </div>
 
             <div className="bocs-card p-5 border-l-4 border-blue-500 bg-white shadow-sm rounded-xl">
-              <span className="text-xs font-bold uppercase text-slate-500 block">TVA Régularisée (18%)</span>
+              <span className="text-xs font-bold uppercase text-slate-500 block">TVA Régularisée</span>
               <span className="text-2xl font-extrabold text-blue-600 font-mono">
                 {(creditNotes || []).reduce((sum, cn) => sum + cn.tvaFcfa, 0).toLocaleString('fr-FR')} FCFA
               </span>

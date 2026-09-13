@@ -47,6 +47,7 @@ import {
   UserRound
 } from 'lucide-react';
 import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User } from '../types';
+import { filterDraftsForUser } from '../utils/draftOwnership';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { buildBocsBremenBls } from '../utils/manifestParser';
 import { toastSuccess, toastError } from './common/Toast';
@@ -217,7 +218,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   // Calculations for KPIs
   const activeEscalesCount = escales.filter(e => e.statut === 'EN_COURS').length;
   const pendingImportBlsCount = bls.filter(b => b.statutImport !== 'FACTURE').length;
-  const pendingDraftsCount = drafts.filter(d => d.statut === 'SOUMIS' || d.statut === 'BROUILLON').length;
+  // KPI Drafts Export : pour un client export, uniquement SES propres drafts
+  // (règle d'isolation partagée) — les agents voient la totalité.
+  const pendingDraftsCount = filterDraftsForUser(drafts, currentUser, userRole)
+    .filter(d => d.statut === 'SOUMIS' || d.statut === 'BROUILLON').length;
   const totalSoldeDuFcfa = invoices.reduce((acc, inv) => acc + (inv.soldeDuFcfa || 0), 0);
 
   // Multi-PDF modal state

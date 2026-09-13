@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toastSuccess, toastInfo, toastWarning, toastError } from '../components/common/Toast';
 import { DraftExport, Escale, User, UserRole, ContainerType, BL, Invoice } from '../types';
+import { isDraftOwnedByUser, filterDraftsForUser } from '../utils/draftOwnership';
 import { generateOriginalBlPdf, generateBocsExportBlLetterheadPdf, generateExportManifestPdf } from '../utils/pdfGenerator';
 import { exportExportManifestCsv } from '../utils/exportCsv';
 import { SignatureModal } from '../components/common/SignatureModal';
@@ -92,37 +93,13 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   });
 
   // ── Isolation client export : chaque client ne voit que SES propres drafts ──
-  // Rattachement par identifiants stables (id, email, société, nom) — sans repli générique.
-  const normalizeToken = (v?: string) =>
-    (v || '').trim().toLowerCase().replace(/[\s_.-]+/g, '');
+  // Règle d'appartenance partagée (src/utils/draftOwnership.ts) : rattachement
+  // par identifiants stables (id, email, société, nom) — sans repli générique.
   const isClientExport = userRole === 'CLIENT_EXPORT';
-  const displayedDrafts = drafts.filter(d => {
-    if (!isClientExport) return true;
-    const userId = Number(currentUser.id);
-    const userEmail = (currentUser.email || '').trim().toLowerCase();
-    const userSociete = normalizeToken(currentUser.nomSociete);
-    const userName = normalizeToken(currentUser.nomComplet);
-    if (Number(d.clientId) === userId) return true;
-    if (d.clientEmail && d.clientEmail.trim().toLowerCase() === userEmail && userEmail) return true;
-    if (userSociete) {
-      const candidates = [
-        normalizeToken(d.clientSociete),
-        normalizeToken(d.clientNom),
-        normalizeToken(d.shipperInfo?.nom),
-      ].filter(Boolean);
-      if (candidates.some(c => c === userSociete)) return true;
-    }
-    if (userName) {
-      const candidates = [
-        normalizeToken(d.clientNom),
-        normalizeToken(d.clientEmail),
-        normalizeToken(d.shipperInfo?.nom),
-        normalizeToken(d.shipperInfo?.email),
-      ].filter(Boolean);
-      if (candidates.some(c => c === userName)) return true;
-    }
-    return false;
-  });
+  const displayedDrafts = useMemo(
+    () => filterDraftsForUser(drafts, currentUser, userRole),
+    [drafts, currentUser, userRole]
+  );
 
   // Garde : un client export ne doit jamais voir le manifeste consolidé
   // (ni l'atteindre par navigation directe) — réservé aux agents/admins.
@@ -131,7 +108,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   // (la liste affichée étant déjà strictement filtrée, toute action
   // hors liste est refusée).
   const isOwnDraft = (draft: DraftExport) =>
-    displayedDrafts.some(d => d.id === draft.id);
+    !isClientExport || isDraftOwnedByUser(draft, currentUser);
 
   // Liste des escales disponibles (avec repli sur BOCS BREMEN si aucune escale enregistrée)
   const activeEscales: Escale[] = escales && escales.length > 0 ? escales : [
@@ -578,10 +555,11 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     if (!targetDraftForApproval) return;
 
     // Calcul des montants selon le type de frais choisi
+    // Règle BOCS : les factures Export ne sont PAS assujetties à la TVA (0 %) — TTC = HT.
     const isFraisDouane = correctionFeeType === 'AGENCE_DOUANE';
     const montantHt = isFraisDouane ? 75000 : 50000;  // 50 000 agence + 25 000 douane
-    const tva = Math.round(montantHt * 0.18);
-    const montantTtc = montantHt + tva;
+    const tva = 0;
+    const montantTtc = montantHt;
 
     const updatedDraft: DraftExport = {
       ...targetDraftForApproval,
@@ -609,7 +587,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
         quantite: 1,
         prixUnitaireFcfa: 50000,
         montantHtFcfa: 50000,
-        tauxTva: 18
+        tauxTva: 0
       }
     ];
     if (isFraisDouane) {
@@ -620,7 +598,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
         quantite: 1,
         prixUnitaireFcfa: 25000,
         montantHtFcfa: 25000,
-        tauxTva: 18
+        tauxTva: 0
       });
     }
 
@@ -652,7 +630,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
     onGenerateInvoice(invoice);
 
-    const typeLabel = isFraisDouane ? 'Frais Agence + Frais Douane (75 000 FCFA HT)' : 'Frais Agence (50 000 FCFA HT)';
+    const typeLabel = isFraisDouane ? 'Frais Agence + Frais Douane (75 000 FCFA)' : 'Frais Agence (50 000 FCFA)';
     onLogAudit('APPROBATION_AMENDEMENT_DRAFT', 'DraftExport', `Approbation amendement ${targetDraftForApproval.numeroDraft} — Facture ${invoiceNumber} émise — ${typeLabel}`);
     toastSuccess(`Demande acceptée ! Draft déverrouillé. Facture ${invoiceNumber} (${typeLabel}) rattachée au BL ${targetDraftForApproval.numeroBlGenere || targetDraftForApproval.numeroDraft}.`);
     setAgentApprovalModalOpen(false);
@@ -2146,7 +2124,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                   <div className="flex-1">
                     <div className="font-black text-zinc-900">Frais d'agence uniquement</div>
                     <div className="text-[11px] text-zinc-600 font-medium">Frais de gestion agence BOCS pour révision/amendement du BL</div>
-                    <div className="font-mono font-black text-[#005DAA] mt-1">50 000 FCFA HT + TVA 18% = 59 000 FCFA TTC</div>
+                    <div className="font-mono font-black text-[#005DAA] mt-1">50 000 FCFA HT = 50 000 FCFA TTC — Export non assujetti à la TVA (0 %)</div>
                   </div>
                 </label>
 
@@ -2163,7 +2141,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                   <div className="flex-1">
                     <div className="font-black text-zinc-900">Frais d'agence + Frais de douane</div>
                     <div className="text-[11px] text-zinc-600 font-medium">Révision BL en agence (50 000) + Rectification déclaration douane (25 000)</div>
-                    <div className="font-mono font-black text-amber-700 mt-1">75 000 FCFA HT + TVA 18% = 88 500 FCFA TTC</div>
+                    <div className="font-mono font-black text-amber-700 mt-1">75 000 FCFA HT = 75 000 FCFA TTC — Export non assujetti à la TVA (0 %)</div>
                   </div>
                 </label>
               </div>
