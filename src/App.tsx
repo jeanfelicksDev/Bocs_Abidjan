@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { ToastContainer, toastError } from './components/common/Toast';
-import { 
-  INITIAL_USERS, 
-  INITIAL_ESCALES, 
-  INITIAL_BLS, 
-  INITIAL_DRAFTS_EXPORT, 
-  INITIAL_INVOICES, 
-  INITIAL_PAYMENTS, 
-  INITIAL_FNE_PARAMS, 
+import {
+  INITIAL_USERS,
+  INITIAL_ESCALES,
+  INITIAL_BLS,
+  INITIAL_DRAFTS_EXPORT,
+  INITIAL_INVOICES,
+  INITIAL_PAYMENTS,
+  INITIAL_FNE_PARAMS,
   INITIAL_AUDIT_LOGS,
   INITIAL_INVOICE_TYPE_CONFIGS,
   INITIAL_RUBRIQUE_CONFIGS
@@ -26,18 +26,19 @@ import { AuthModal } from './components/common/AuthModal';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProfileModal } from './components/auth/ProfileModal';
-import { 
-  InvoiceTypeConfig, 
-  RubriqueConfig, 
-  User, 
-  Escale, 
-  BL, 
-  DraftExport, 
-  Invoice, 
+import { isTabAllowed, usePermissionsSync } from './utils/permissions';
+import {
+  InvoiceTypeConfig,
+  RubriqueConfig,
+  User,
+  Escale,
+  BL,
+  DraftExport,
+  Invoice,
   CreditNote,
-  Payment, 
-  FneParam, 
-  AuditLog 
+  Payment,
+  FneParam,
+  AuditLog
 } from './types';
 
 export function App() {
@@ -47,7 +48,7 @@ export function App() {
     try {
       const saved = localStorage.getItem('bocs_session_user');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return INITIAL_USERS[0];
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -57,18 +58,21 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(null);
 
+  // RBAC : force le re-rendu lorsque la matrice des droits est sauvegardée/réinitialisée
+  usePermissionsSync();
+
   // Persistence en Base LocalStorage avec déduplication automatique
   const [escales, setEscales] = useState<Escale[]>(() => {
     const saved = localStorage.getItem('bocs_escales');
     if (saved) {
-      try { 
+      try {
         const parsed: Escale[] = JSON.parse(saved);
         if (parsed.length > 0) {
           return parsed.reduce((acc: Escale[], current: Escale) => {
-            const exists = acc.find(e => 
-              e.id === current.id || 
-              (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() && 
-               e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
+            const exists = acc.find(e =>
+              e.id === current.id ||
+              (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() &&
+                e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
             );
             if (!exists) acc.push(current);
             return acc;
@@ -82,7 +86,7 @@ export function App() {
   const [bls, setBls] = useState<BL[]>(() => {
     const saved = localStorage.getItem('bocs_bls');
     if (saved) {
-      try { 
+      try {
         const parsed: BL[] = JSON.parse(saved);
         if (parsed.length > 0) {
           return parsed.reduce((acc: BL[], current: BL) => {
@@ -140,7 +144,7 @@ export function App() {
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
     const saved = localStorage.getItem('bocs_invoices');
     if (saved) {
-      try { 
+      try {
         const parsed: Invoice[] = JSON.parse(saved);
         return parsed.map(normalizeInvoice);
       } catch (e) { console.error('Erreur chargement invoices local', e); }
@@ -285,7 +289,7 @@ export function App() {
                   setCurrentUser(matched);
                   localStorage.setItem('bocs_session_user', JSON.stringify(matched));
                 }
-              } catch (e) {}
+              } catch (e) { }
             }
           }
         }
@@ -315,10 +319,10 @@ export function App() {
           const escaleData = await escalesRes.json();
           if (escaleData.success && escaleData.escales && escaleData.escales.length > 0) {
             const uniqueEscales = escaleData.escales.reduce((acc: Escale[], current: Escale) => {
-              const exists = acc.find(e => 
-                e.id === current.id || 
-                (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() && 
-                 e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
+              const exists = acc.find(e =>
+                e.id === current.id ||
+                (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() &&
+                  e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
               );
               if (!exists) acc.push(current);
               return acc;
@@ -406,6 +410,10 @@ export function App() {
   const handleSwitchUser = (user: User) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
+    // RBAC : si le nouvel utilisateur n'a pas l'habilitation pour l'onglet courant, retour au cockpit
+    if (!isTabAllowed(user, activeTab)) {
+      setActiveTab('dashboard');
+    }
     localStorage.setItem('bocs_session_user', JSON.stringify(user));
     logAuditAction('CHANGEMENT_ROLE_DEMO', 'Utilisateur', `Passage sous le compte ${user.nomComplet} (${user.role})`);
   };
@@ -417,6 +425,10 @@ export function App() {
     setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
     setCurrentUser(updatedUser);
     setIsAuthenticated(true);
+    // RBAC : si l'onglet courant n'est pas permis pour cet utilisateur, retour au cockpit
+    if (!isTabAllowed(user, activeTab)) {
+      setActiveTab('dashboard');
+    }
     setShowWelcome(true); // Redirige vers la Plateforme Intégrée après connexion
     setAuthModalOpen(false);
     localStorage.setItem('bocs_session_user', JSON.stringify(updatedUser));
@@ -595,7 +607,7 @@ export function App() {
   // Add Escale
   const handleAddEscale = async (escale: Escale) => {
     setEscales(prev => [
-      escale, 
+      escale,
       ...prev.filter(e => e.id !== escale.id && (e.numeroVoyage !== escale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== escale.nomNavire.trim().toLowerCase()))
     ]);
     try {
@@ -627,7 +639,7 @@ export function App() {
   // Import XML Manifest
   const handleImportManifest = async (escale: Escale, newBls: BL[]) => {
     setEscales(prev => [
-      escale, 
+      escale,
       ...prev.filter(e => e.id !== escale.id && (e.numeroVoyage !== escale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== escale.nomNavire.trim().toLowerCase()))
     ]);
     setBls(prev => {
@@ -659,8 +671,8 @@ export function App() {
     const targetBlNumbers = targetBls.map(b => b.numeroBL);
 
     // Identify all invoices/proformas linked to any of the deleted BLs
-    const targetInvoices = invoices.filter(inv => 
-      (inv.blId !== undefined && targetBlIds.includes(inv.blId)) || 
+    const targetInvoices = invoices.filter(inv =>
+      (inv.blId !== undefined && targetBlIds.includes(inv.blId)) ||
       (inv.numeroBL !== undefined && targetBlNumbers.includes(inv.numeroBL))
     );
     const targetInvoiceIds = targetInvoices.map(inv => inv.id);
@@ -668,15 +680,15 @@ export function App() {
     // Filter state
     setEscales(prev => prev.filter(e => e.id !== escaleId));
     setBls(prev => prev.filter(b => b.escaleId !== escaleId));
-    setInvoices(prev => prev.filter(inv => 
-      !(inv.blId !== undefined && targetBlIds.includes(inv.blId)) && 
+    setInvoices(prev => prev.filter(inv =>
+      !(inv.blId !== undefined && targetBlIds.includes(inv.blId)) &&
       !(inv.numeroBL !== undefined && targetBlNumbers.includes(inv.numeroBL))
     ));
     setPayments(prev => prev.filter(p => !targetInvoiceIds.includes(p.factureId)));
 
     logAuditAction(
-      'SUPPRESSION_ESCALE', 
-      'Escale', 
+      'SUPPRESSION_ESCALE',
+      'Escale',
       `Suppression de l'escale ${targetEscale?.nomNavire || escaleId}, ses ${targetBls.length} BLs et ses ${targetInvoices.length} facture(s)/proforma(s) rattachée(s)`
     );
 
@@ -816,11 +828,11 @@ export function App() {
     const faPrefix = type === 'FACTURE' ? 'FA-' : '';
     // Format : [FA-]TEL25586-BOCS001
     const searchPrefix = `${faPrefix}${typePrefix}${cleanVoyage}-BOCS`;
-    
+
     const matchedNumbers = existingInvoices
       .map(inv => inv.numeroFacture || '')
       .filter(num => num.startsWith(searchPrefix));
-      
+
     let maxCounter = 0;
     matchedNumbers.forEach(num => {
       const suffix = num.replace(searchPrefix, '');
@@ -829,7 +841,7 @@ export function App() {
         maxCounter = counterVal;
       }
     });
-    
+
     const nextCounter = maxCounter + 1;
     const nextCounterStr = String(nextCounter).padStart(3, '0');
     return `${searchPrefix}${nextCounterStr}`;
@@ -844,7 +856,7 @@ export function App() {
     if (targetInvoice) {
       const newSolde = Math.max(0, targetInvoice.soldeDuFcfa - payment.montantFcfa);
       const newStatus = newSolde === 0 ? 'PAYE' : 'PARTIEL';
-      
+
       let typeFacture = targetInvoice.typeFacture;
       let numeroFacture = targetInvoice.numeroFacture;
 
@@ -939,7 +951,7 @@ export function App() {
       }
       const invTypeName = invoiceTypeConfigs.find(t => t.id === target.invoiceTypeId)?.name || '';
       numeroFacture = getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName);
-      
+
       if (typeFacture === 'PROFORMA_IMPORT') typeFacture = 'DEFINITIVE_IMPORT';
       if (typeFacture === 'PROFORMA_EXPORT') typeFacture = 'DEFINITIVE_EXPORT';
     }
@@ -1045,7 +1057,7 @@ export function App() {
       validatedAt: undefined,
       validatedBy: undefined,
       createdBy: currentUser.nomComplet,
-      typeFacture: originalInvoice.typeFacture.startsWith('DEFINITIVE_') 
+      typeFacture: originalInvoice.typeFacture.startsWith('DEFINITIVE_')
         ? (originalInvoice.typeFacture.replace('DEFINITIVE_', 'PROFORMA_') as any)
         : originalInvoice.typeFacture,
       lignes: (originalInvoice.lignes || []).map((line, idx) => ({
@@ -1078,11 +1090,11 @@ export function App() {
     const target = invoices.find(i => i.id === invoiceId);
     if (!target) return;
 
-    const isProforma = !(target.numeroFacture || '').startsWith('FA-') && 
-                       target.statutFacture !== 'VALIDEE' && 
-                       target.statutFacture !== 'ANNULEE' && 
-                       target.statutFacture !== 'AVOIR' && 
-                       target.statutPaiement !== 'PAYE';
+    const isProforma = !(target.numeroFacture || '').startsWith('FA-') &&
+      target.statutFacture !== 'VALIDEE' &&
+      target.statutFacture !== 'ANNULEE' &&
+      target.statutFacture !== 'AVOIR' &&
+      target.statutPaiement !== 'PAYE';
 
     if (!isProforma) {
       toastError(`Conformité fiscale : La facture ${target.numeroFacture} est inaltérable. Veuillez émettre un Avoir pour l'annuler.`);
@@ -1207,7 +1219,7 @@ export function App() {
   // ─── Porte 2 : Écran d'accueil / Plateforme intégrée (après connexion) ─
   if (showWelcome || activeTab === 'dashboard') {
     return (
-      <WelcomeScreen 
+      <WelcomeScreen
         escales={escales}
         bls={bls}
         drafts={drafts}
@@ -1216,7 +1228,13 @@ export function App() {
         rubriqueConfigs={rubriqueConfigs}
         exchangeRateUsd={exchangeRateUsd}
         userRole={currentUser.role}
+        currentUser={currentUser}
         onEnter={(targetTab, targetBlId) => {
+          // RBAC : refus immédiat si l'habilitation requise est absente de la matrice des droits
+          if (targetTab && !isTabAllowed(currentUser, targetTab)) {
+            toastError('Accès refusé : votre profil ne dispose pas de l\'habilitation requise pour ce module.');
+            return;
+          }
           setShowWelcome(false);
           if (targetBlId) {
             setSelectedBlIdForBilling(targetBlId);
@@ -1224,7 +1242,7 @@ export function App() {
           if (targetTab) {
             setActiveTab(targetTab);
           }
-        }} 
+        }}
         onImportManifest={handleImportManifest}
         onUpdateEscale={handleUpdateEscale}
         onAddEscale={handleAddEscale}
@@ -1239,9 +1257,12 @@ export function App() {
     );
   }
 
+  // RBAC : contrôle d'accès effectif au module demandé (matrice des habilitations)
+  const accessDenied = !isTabAllowed(currentUser, activeTab);
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans text-on-surface antialiased">
-      
+
       {/* Unified Premium Header Navigation */}
       <Header
         currentUser={currentUser}
@@ -1266,11 +1287,23 @@ export function App() {
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex flex-col overflow-hidden max-w-[1664px] mx-auto w-full">
-        
+
         {/* Content Main Panel */}
         <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">
 
-          {activeTab === 'vessels' && (
+          {/* RBAC : écran de refus lorsque l'habilitation requise est absente de la matrice */}
+          {accessDenied && (
+            <div className="max-w-lg mx-auto mt-12 bg-white border border-rose-200 rounded-2xl p-8 text-center shadow-sm animate-fade-in">
+              <span className="material-symbols-outlined text-5xl text-rose-500 block mb-3">lock</span>
+              <h2 className="text-lg font-black text-zinc-900 mb-1">Accès refusé</h2>
+              <p className="text-xs text-zinc-600 font-medium leading-relaxed">
+                Votre profil <span className="font-black text-[#005DAA] font-mono">{currentUser.role}</span> ne dispose pas de
+                l'habilitation requise pour ce module. Contactez l'administrateur ou ajustez la matrice des droits.
+              </p>
+            </div>
+          )}
+
+          {!accessDenied && activeTab === 'vessels' && (
             <VesselTrackingModule
               escales={escales}
               bls={bls}
@@ -1284,7 +1317,7 @@ export function App() {
             />
           )}
 
-          {activeTab === 'import' && (
+          {!accessDenied && activeTab === 'import' && (
             <ImportModule
               escales={escales}
               bls={bls}
@@ -1306,12 +1339,12 @@ export function App() {
             />
           )}
 
-          {(activeTab === 'export' || activeTab === 'export_saisie' || activeTab === 'export_list' || activeTab === 'export_consolidation') && (
+          {!accessDenied && (activeTab === 'export' || activeTab === 'export_saisie' || activeTab === 'export_list' || activeTab === 'export_consolidation') && (
             <ExportModule
               initialSubTab={
                 activeTab === 'export_saisie' ? 'SAISIE_DRAFT' :
-                activeTab === 'export_list' ? 'ESPACE_CLIENT' :
-                activeTab === 'export_consolidation' ? 'CONSOLIDATION' : 'SAISIE_DRAFT'
+                  activeTab === 'export_list' ? 'ESPACE_CLIENT' :
+                    activeTab === 'export_consolidation' ? 'CONSOLIDATION' : 'SAISIE_DRAFT'
               }
               drafts={drafts}
               escales={escales}
@@ -1325,14 +1358,14 @@ export function App() {
             />
           )}
 
-          {(activeTab === 'facturation' || activeTab === 'facturation_journal' || activeTab === 'facturation_tarifs' || activeTab === 'facturation_balance' || activeTab === 'facturation_config' || activeTab === 'facturation_avoirs') && (
+          {!accessDenied && (activeTab === 'facturation' || activeTab === 'facturation_journal' || activeTab === 'facturation_tarifs' || activeTab === 'facturation_balance' || activeTab === 'facturation_config' || activeTab === 'facturation_avoirs') && (
             <FacturationModule
               initialSubTab={
                 activeTab === 'facturation_journal' ? 'PROFORMA' :
-                activeTab === 'facturation_tarifs' ? 'TARIFS' :
-                activeTab === 'facturation_balance' ? 'BALANCE_AGEE' :
-                activeTab === 'facturation_config' ? 'CONFIG' :
-                activeTab === 'facturation_avoirs' ? 'AVOIRS' : 'FACTURATION_BL'
+                  activeTab === 'facturation_tarifs' ? 'TARIFS' :
+                    activeTab === 'facturation_balance' ? 'BALANCE_AGEE' :
+                      activeTab === 'facturation_config' ? 'CONFIG' :
+                        activeTab === 'facturation_avoirs' ? 'AVOIRS' : 'FACTURATION_BL'
               }
               invoices={invoices}
               creditNotes={creditNotes}
@@ -1362,7 +1395,7 @@ export function App() {
             />
           )}
 
-          {activeTab === 'surestarie' && (
+          {!accessDenied && activeTab === 'surestarie' && (
             <SurestarieModule
               bls={bls}
               escales={escales}
@@ -1375,12 +1408,12 @@ export function App() {
             />
           )}
 
-          {(activeTab === 'admin' || activeTab === 'admin_users' || activeTab === 'admin_rights' || activeTab === 'admin_fne' || activeTab === 'admin_audit') && (
+          {!accessDenied && (activeTab === 'admin' || activeTab === 'admin_users' || activeTab === 'admin_rights' || activeTab === 'admin_fne' || activeTab === 'admin_audit') && (
             <AdminModule
               initialTab={
                 activeTab === 'admin_rights' ? 'RIGHTS' :
-                activeTab === 'admin_fne' ? 'FNE' :
-                activeTab === 'admin_audit' ? 'AUDIT' : 'USERS'
+                  activeTab === 'admin_fne' ? 'FNE' :
+                    activeTab === 'admin_audit' ? 'AUDIT' : 'USERS'
               }
               allUsers={allUsers}
               onAddUser={handleAddUser}
@@ -1395,6 +1428,7 @@ export function App() {
               onUpdateExchangeRate={setExchangeRateUsd}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
+              currentUser={currentUser}
               onClearAllData={handleClearAllData}
             />
           )}

@@ -1,154 +1,14 @@
 import React, { useState } from 'react';
 import { toastSuccess } from '../components/common/Toast';
 import { FneParam, AuditLog, UserRole, User } from '../types';
+import { INITIAL_PERMISSIONS, hasPermission, notifyPermissionsChanged } from '../utils/permissions';
+import type { PermissionItem } from '../utils/permissions';
 
-export interface PermissionItem {
-  id: string;
-  category: 'MARITIME' | 'EXPORT' | 'FINANCE' | 'DMDT' | 'ADMIN';
-  categoryLabel: string;
-  label: string;
-  description: string;
-  roles: Record<UserRole, boolean>;
-}
+// ⚠️ Source canonique des habilitations déplacée dans src/utils/permissions.ts
+// (moteur RBAC partagé par App, Sidebar, Header et Dashboard).
+export { INITIAL_PERMISSIONS };
+export type { PermissionItem };
 
-export const INITIAL_PERMISSIONS: PermissionItem[] = [
-  {
-    id: 'view_escales',
-    category: 'MARITIME',
-    categoryLabel: '🚢 Opérations Maritime & Escales',
-    label: 'Consultation du Registre des Escales',
-    description: 'Accès au registre des navires et mouvements portuaires (CIABJ)',
-    roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: true, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'manage_escales',
-    category: 'MARITIME',
-    categoryLabel: '🚢 Opérations Maritime & Escales',
-    label: 'Création, Modification & Clôture des Escales',
-    description: 'Ouverture d\'escale, saisie numéro voyage, ETA/ETD et quai Vridi',
-    roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: true, COMPTABILITE: false, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'import_guce_xml',
-    category: 'MARITIME',
-    categoryLabel: '🚢 Opérations Maritime & Escales',
-    label: 'Parsing & Traitement XML GUCE / PDF',
-    description: 'Extraction des connaissements et conteneurs depuis fichiers douaniers',
-    roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'fleet_radar',
-    category: 'MARITIME',
-    categoryLabel: '🚢 Opérations Maritime & Escales',
-    label: 'Fleet Radar & Supervision Rade',
-    description: 'Positionnement géographique et suivi radar des navires',
-    roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: true, COMPTABILITE: false, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'saisie_draft_bl',
-    category: 'EXPORT',
-    categoryLabel: '⚓ Opérations Export & Connaissements',
-    label: 'Saisie des Drafts BL (Shipping Instructions)',
-    description: 'Création et soumission des réservations et instructions BL Export',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: true, COMPTABILITE: false, CLIENT_EXPORT: true }
-  },
-  {
-    id: 'validate_draft_bl',
-    category: 'EXPORT',
-    categoryLabel: '⚓ Opérations Export & Connaissements',
-    label: 'Validation & Émission des Connaissements Définitifs',
-    description: 'Verrouillage ETA 24h et émission du BL officiel armateur',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: true, COMPTABILITE: false, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'consolidation_export',
-    category: 'EXPORT',
-    categoryLabel: '⚓ Opérations Export & Connaissements',
-    label: 'Consolidation du Manifeste Export',
-    description: 'Groupage des conteneurs export et transmission douane',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: true, COMPTABILITE: false, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'create_invoices',
-    category: 'FINANCE',
-    categoryLabel: '💳 Finance & Facturation Maritime',
-    label: 'Émission Factures BL (Proforma & Définitive)',
-    description: 'Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours)',
-    roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: true, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'fne_certification',
-    category: 'FINANCE',
-    categoryLabel: '💳 Finance & Facturation Maritime',
-    label: 'Certification Électronique DGI / FNE',
-    description: 'Signature électronique certifiée FNE et QR code d\'authentification',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'credit_notes',
-    category: 'FINANCE',
-    categoryLabel: '💳 Finance & Facturation Maritime',
-    label: 'Émission des Notes d\'Avoir & Crédits',
-    description: 'Régularisations financières, avoirs et annulations de factures',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'balance_client',
-    category: 'FINANCE',
-    categoryLabel: '💳 Finance & Facturation Maritime',
-    label: 'Consultation Balance Âgée & Suivi Créances',
-    description: 'Règlements clients, encaissements et états des impayés',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'invoice_configs',
-    category: 'FINANCE',
-    categoryLabel: '💳 Finance & Facturation Maritime',
-    label: 'Configuration des Types & Rubriques de Factures',
-    description: 'Barèmes tarifaires, montants unitaires et débours',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'dmdt_calculator',
-    category: 'DMDT',
-    categoryLabel: '⏱️ Surestaries & DMDT',
-    label: 'Calculateur DMDT & Franchises Conteneurs',
-    description: 'Calcul dégressif surestaries / détentions import & export',
-    roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'dmdt_tarifs_manage',
-    category: 'DMDT',
-    categoryLabel: '⏱️ Surestaries & DMDT',
-    label: 'Gestion des Grilles Tarifaires DMDT',
-    description: 'Ajustement des tarifs journaliers par tranche et jours de franchise',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'admin_users_manage',
-    category: 'ADMIN',
-    categoryLabel: '🔒 Administration & Sécurité',
-    label: 'Gestion des Comptes & Réinitialisation Accès',
-    description: 'Création de compte, activation/suspension, mot de passe',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: false, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'admin_rights_assign',
-    category: 'ADMIN',
-    categoryLabel: '🔒 Administration & Sécurité',
-    label: 'Attribution des Droits & Matrice Habilitations',
-    description: 'Attribution des droits d\'accès par profil et par utilisateur',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: false, CLIENT_EXPORT: false }
-  },
-  {
-    id: 'admin_audit_logs',
-    category: 'ADMIN',
-    categoryLabel: '🔒 Administration & Sécurité',
-    label: 'Journal d\'Audit & Traçabilité Système',
-    description: 'Consultation et export des logs de sécurité et d\'activité',
-    roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: false, CLIENT_EXPORT: false }
-  }
-];
 
 interface AdminModuleProps {
   initialTab?: 'USERS' | 'RIGHTS' | 'FNE' | 'AUDIT';
@@ -165,6 +25,8 @@ interface AdminModuleProps {
   onUpdateExchangeRate: (rate: number) => void;
   onLogAudit: (action: string, entite: string, details: string) => void;
   userRole: UserRole;
+  /** Utilisateur connecté (permet d'appliquer les overrides individuels en plus de la matrice par rôle). */
+  currentUser?: User;
   onClearAllData?: () => void;
 }
 
@@ -183,14 +45,38 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   onUpdateExchangeRate,
   onLogAudit,
   userRole,
+  currentUser,
   onClearAllData
 }) => {
   const [activeAdminTab, setActiveAdminTab] = useState<'USERS' | 'RIGHTS' | 'FNE' | 'AUDIT'>(initialTab);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
 
+  // RBAC : habilitations effectives du rôle courant dans la console d'administration
+  // (overrides individuels prioritaires sur la matrice par rôle)
+  const permissionSubject = currentUser || { id: -1, role: userRole };
+  const canManageUsers = hasPermission(permissionSubject, 'admin_users_manage');
+  const canManageRights = hasPermission(permissionSubject, 'admin_rights_assign');
+  const canManageFne = hasPermission(permissionSubject, 'fne_certification');
+  const canViewAudit = hasPermission(permissionSubject, 'admin_audit_logs');
+
   React.useEffect(() => {
-    if (initialTab) setActiveAdminTab(initialTab);
-  }, [initialTab]);
+    if (initialTab) {
+      const isAllowedTab =
+        (initialTab === 'USERS' && canManageUsers) ||
+        (initialTab === 'RIGHTS' && canManageRights) ||
+        (initialTab === 'FNE' && canManageFne) ||
+        (initialTab === 'AUDIT' && canViewAudit);
+      // RBAC : si l'utilisateur n'a aucune habilitation dans la console, rester sur l'onglet par défaut
+      // plutôt que d'afficher une page blanche ; le garde App (accessDenied) protège l'accès au module.
+      if (isAllowedTab) {
+        setActiveAdminTab(initialTab);
+      } else if (!canManageUsers && !canManageRights && !canManageFne && !canViewAudit) {
+        setActiveAdminTab('USERS');
+      } else if (activeAdminTab === 'USERS' && !canManageUsers) {
+        setActiveAdminTab(canManageRights ? 'RIGHTS' : canManageFne ? 'FNE' : canViewAudit ? 'AUDIT' : 'USERS');
+      }
+    }
+  }, [initialTab, canManageUsers, canManageRights, canManageFne, canViewAudit, activeAdminTab]);
 
   // Search & Filter state for Users
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,6 +162,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const handleSavePermissions = () => {
     localStorage.setItem('bocs_permissions_matrix', JSON.stringify(permissionsMatrix));
     localStorage.setItem('bocs_user_permission_overrides', JSON.stringify(userOverrides));
+    // RBAC : notifie toute l'application pour appliquer immédiatement les nouveaux droits
+    notifyPermissionsChanged();
     onLogAudit('MODIFICATION_DROITS', 'Habilitations', 'Mise à jour et sauvegarde de la matrice d\'attribution des droits utilisateurs par profil.');
     toastSuccess('Matrice des droits et habilitations enregistrée avec succès !');
   };
@@ -286,6 +174,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     setUserOverrides({});
     localStorage.removeItem('bocs_permissions_matrix');
     localStorage.removeItem('bocs_user_permission_overrides');
+    // RBAC : notifie toute l'application pour réappliquer les droits d'usine
+    notifyPermissionsChanged();
     onLogAudit('REINITIALISATION_DROITS', 'Habilitations', 'Réinitialisation des droits d\'accès aux valeurs par défaut BOCS.');
     toastSuccess('Droits d\'accès réinitialisés aux paramètres d\'usine !');
   };
@@ -462,43 +352,51 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
         {/* Tab switcher */}
         <div className="flex flex-wrap items-center gap-2 bg-[#0F172A] p-1.5 rounded-xl border border-slate-700/80 shadow-sm">
-          <button
-            onClick={() => setActiveAdminTab('USERS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'USERS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-              }`}
-          >
-            <span className="material-symbols-outlined text-base text-slate-300">manage_accounts</span>
-            <span className="font-bold text-white">Utilisateurs &amp; Rôles</span>
-          </button>
-          <button
-            onClick={() => setActiveAdminTab('RIGHTS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'RIGHTS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-              }`}
-          >
-            <span className="material-symbols-outlined text-base text-slate-300">shield_lock</span>
-            <span className="font-bold text-white">Attribution des Droits</span>
-          </button>
-          <button
-            onClick={() => setActiveAdminTab('FNE')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'FNE' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-              }`}
-          >
-            <span className="material-symbols-outlined text-base text-slate-300">tune</span>
-            <span className="font-bold text-white">Params Factures &amp; Devise</span>
-          </button>
-          <button
-            onClick={() => setActiveAdminTab('AUDIT')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'AUDIT' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
-              }`}
-          >
-            <span className="material-symbols-outlined text-base text-slate-300">verified_user</span>
-            <span className="font-bold text-white">Journal d'Audit ({auditLogs.length})</span>
-          </button>
+          {canManageUsers && (
+            <button
+              onClick={() => setActiveAdminTab('USERS')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'USERS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+                }`}
+            >
+              <span className="material-symbols-outlined text-base text-slate-300">manage_accounts</span>
+              <span className="font-bold text-white">Utilisateurs & Rôles</span>
+            </button>
+          )}
+          {canManageRights && (
+            <button
+              onClick={() => setActiveAdminTab('RIGHTS')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'RIGHTS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+                }`}
+            >
+              <span className="material-symbols-outlined text-base text-slate-300">shield_lock</span>
+              <span className="font-bold text-white">Attribution des Droits</span>
+            </button>
+          )}
+          {canManageFne && (
+            <button
+              onClick={() => setActiveAdminTab('FNE')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'FNE' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+                }`}
+            >
+              <span className="material-symbols-outlined text-base text-slate-300">tune</span>
+              <span className="font-bold text-white">Params Factures & Devise</span>
+            </button>
+          )}
+          {canViewAudit && (
+            <button
+              onClick={() => setActiveAdminTab('AUDIT')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'AUDIT' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+                }`}
+            >
+              <span className="material-symbols-outlined text-base text-slate-300">verified_user</span>
+              <span className="font-bold text-white">Journal d'Audit ({auditLogs.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* TAB 1: USERS MANAGEMENT */}
-      {activeAdminTab === 'USERS' && (
+      {activeAdminTab === 'USERS' && canManageUsers && (
         <div className="space-y-6">
 
           {/* Bento Cards Metrics */}
@@ -608,14 +506,16 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
               {/* Buttons */}
               <div className="flex items-center gap-2 ml-auto">
-                <button
-                  onClick={() => setShowPermissionsMatrix(true)}
-                  className="px-3.5 py-2 bg-[#040e1b] hover:bg-slate-800 text-slate-200 border border-cyan-500/20 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                  title="Consulter la matrice des droits par rôle"
-                >
-                  <span className="material-symbols-outlined text-base text-cyan-400">grid_on</span>
-                  <span className="hidden sm:inline">Matrice des Droits</span>
-                </button>
+                {canManageRights && (
+                  <button
+                    onClick={() => setShowPermissionsMatrix(true)}
+                    className="px-3.5 py-2 bg-[#040e1b] hover:bg-slate-800 text-slate-200 border border-cyan-500/20 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="Consulter la matrice des droits par rôle"
+                  >
+                    <span className="material-symbols-outlined text-base text-cyan-400">grid_on</span>
+                    <span className="hidden sm:inline">Matrice des Droits</span>
+                  </button>
+                )}
 
                 <button
                   onClick={handleOpenAddModal}
@@ -765,7 +665,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       )}
 
       {/* TAB: ATTRIBUTION DES DROITS (RBAC & MATRICE PAR PROFIL ET PAR UTILISATEUR) */}
-      {activeAdminTab === 'RIGHTS' && (
+      {activeAdminTab === 'RIGHTS' && canManageRights && (
         <div className="space-y-6">
 
           {/* Executive Overview Bento Cards */}
@@ -1146,7 +1046,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       )}
 
       {/* TAB 2: FNE PARAMS & DEVISE */}
-      {activeAdminTab === 'FNE' && (
+      {activeAdminTab === 'FNE' && canManageFne && (
         <div className="space-y-6">
 
           {/* Currency Exchange Rate Box */}
@@ -1217,7 +1117,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       )}
 
       {/* TAB 3: AUDIT TRAIL LOGS */}
-      {activeAdminTab === 'AUDIT' && (
+      {activeAdminTab === 'AUDIT' && canViewAudit && (
         <div className="ocean-glass-card rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-4 bg-[#051120]/80 border-b border-cyan-500/10 flex flex-col sm:flex-row items-center justify-between gap-3">
             <h3 className="font-bold text-white text-xs uppercase tracking-wider flex items-center gap-2">

@@ -1,36 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Anchor, 
-  ArrowRight, 
-  Layers, 
-  Ship, 
-  ArrowLeft, 
-  Calendar, 
-  MapPin, 
-  Box, 
-  Upload, 
-  ChevronDown, 
-  ChevronUp, 
-  FileText, 
-  Database, 
-  Search, 
-  ExternalLink, 
-  Edit3, 
-  Check, 
-  X, 
-  Receipt, 
-  Clock, 
-  Compass, 
-  Calculator, 
-  Activity, 
-  ShieldCheck, 
-  CreditCard, 
-  PlusCircle, 
-  FileCheck, 
-  Radio, 
-  BarChart3, 
-  Globe2, 
-  Building2, 
+import {
+  Anchor,
+  ArrowRight,
+  Layers,
+  Ship,
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Box,
+  Upload,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Database,
+  Search,
+  ExternalLink,
+  Edit3,
+  Check,
+  X,
+  Receipt,
+  Clock,
+  Compass,
+  Calculator,
+  Activity,
+  ShieldCheck,
+  CreditCard,
+  PlusCircle,
+  FileCheck,
+  Radio,
+  BarChart3,
+  Globe2,
+  Building2,
   CheckCircle2,
   Navigation,
   Sparkles,
@@ -43,7 +43,7 @@ import {
   Plus,
   Printer
 } from 'lucide-react';
-import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole } from '../types';
+import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User } from '../types';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { buildBocsBremenBls } from '../utils/manifestParser';
 import { toastSuccess, toastError } from './common/Toast';
@@ -52,12 +52,13 @@ import { ExtractedBlEditModal } from './import/ExtractedBlEditModal';
 import { BlEditModal } from './import/BlEditModal';
 import { BlBillingModal } from './billing/BlBillingModal';
 import { generateImportManifestPdf } from '../utils/pdfGenerator';
-import { 
-  extractRawTextFromPdf, 
-  parseManifestBlsFromPdfText, 
-  ExtractedBlItem 
+import {
+  extractRawTextFromPdf,
+  parseManifestBlsFromPdfText,
+  ExtractedBlItem
 } from '../utils/pdfExtractor';
 import { RubriqueConfig, Payment } from '../types';
+import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
 
 
 interface WelcomeScreenProps {
@@ -69,6 +70,7 @@ interface WelcomeScreenProps {
   rubriqueConfigs?: RubriqueConfig[];
   exchangeRateUsd?: number;
   userRole?: UserRole;
+  currentUser?: User;
   onEnter: (targetTab?: any, targetBlId?: number) => void;
   onImportManifest: (escale: Escale, newBls: BL[]) => void;
   onUpdateEscale?: (updatedEscale: Escale) => void;
@@ -84,27 +86,40 @@ interface WelcomeScreenProps {
 
 type ViewState = 'welcome' | 'escales' | 'create-escale';
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ 
-  escales, 
-  bls, 
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
+  escales,
+  bls,
   drafts = [],
   invoices = [],
   invoiceTypeConfigs = [],
   rubriqueConfigs = [],
   exchangeRateUsd = 600,
   userRole = 'ADMIN',
-  onEnter, 
+  currentUser,
+  onEnter,
   onImportManifest,
   onUpdateEscale,
   onAddEscale,
   onUpdateBl,
-  onGenerateInvoice = () => {},
+  onGenerateInvoice = () => { },
   onUpdateInvoice,
   onValidateInvoice,
   onDeleteInvoice,
-  onAddPayment = () => {},
-  onLogAudit = () => {}
+  onAddPayment = () => { },
+  onLogAudit = () => { }
 }) => {
+  // RBAC : droits effectifs issus de la matrice des habilitations (source unique de vérité)
+  usePermissionsSync();
+  const permissionSubject = currentUser || { id: -1, role: userRole };
+  const canViewVessels = isTabAllowed(permissionSubject, 'vessels');
+  const canViewImport = isTabAllowed(permissionSubject, 'import');
+  const canViewExport = isTabAllowed(permissionSubject, 'export');
+  const canViewFacturation = isTabAllowed(permissionSubject, 'facturation');
+  const canViewBalance = isTabAllowed(permissionSubject, 'facturation_balance');
+  const canViewSurestarie = isTabAllowed(permissionSubject, 'surestarie');
+  const canManageEscales = hasPermission(permissionSubject, 'manage_escales');
+  const canImportGuce = hasPermission(permissionSubject, 'import_guce_xml');
+
   const [viewState, setViewState] = useState<ViewState>('welcome');
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | null>(null);
   const [selectedBlForBillingModal, setSelectedBlForBillingModal] = useState<BL | null>(null);
@@ -127,7 +142,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             plannedIds = parsed[bl.id];
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     let totalAEditer = 0;
@@ -174,7 +189,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const pendingImportBlsCount = bls.filter(b => b.statutImport !== 'FACTURE').length;
   const pendingDraftsCount = drafts.filter(d => d.statut === 'SOUMIS' || d.statut === 'BROUILLON').length;
   const totalSoldeDuFcfa = invoices.reduce((acc, inv) => acc + (inv.soldeDuFcfa || 0), 0);
-  
+
   // Multi-PDF modal state
   const [showMultiPdfModal, setShowMultiPdfModal] = useState(false);
   const [multiPdfInitialFiles, setMultiPdfInitialFiles] = useState<File[]>([]);
@@ -200,18 +215,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     }
     e.target.value = '';
   };
-  
+
   // Real-time Abidjan Clock
   const [currentTime, setCurrentTime] = useState<string>('');
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('fr-FR', { 
-        timeZone: 'UTC', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
+      setCurrentTime(now.toLocaleTimeString('fr-FR', {
+        timeZone: 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
       }) + ' GMT');
     };
     updateTime();
@@ -447,7 +462,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   // Filtered escales in explorer view
-  const filteredEscales = escales.filter(e => 
+  const filteredEscales = escales.filter(e =>
     e.nomNavire.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.numeroVoyage.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (e.callsign && e.callsign.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -542,7 +557,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
           onImportManifest(newEscale, extractedBls);
           toastSuccess(`Manifeste XML GUCE intégré avec succès ! Escale "${newEscale.nomNavire}" (${extractedBls.length} BLs).`);
-          
+
           setViewState('escales');
           setSelectedEscaleId(newEscale.id);
         } catch (err: any) {
@@ -555,15 +570,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   return (
     <div className="welcome-hub min-h-screen w-full flex flex-col justify-between text-zinc-900 bg-white relative overflow-x-hidden font-sans antialiased select-none">
-      
+
       {/* Hidden file input for manifest upload */}
-      <input 
-        type="file" 
+      <input
+        type="file"
         multiple
         accept=".xml,.pdf"
-        id="executive-manifest-upload-input" 
-        className="hidden" 
-        onChange={handleXmlFileUpload} 
+        id="executive-manifest-upload-input"
+        className="hidden"
+        onChange={handleXmlFileUpload}
       />
 
       {/* Hidden file input for specific escale direct PDF manifest upload */}
@@ -579,7 +594,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       {/* ─── 1. TOP EXECUTIVE CLEAN HEADER ─── */}
       <header className="w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md z-30 relative shrink-0 shadow-xs">
         <div className="max-w-[2054px] mx-auto px-6 sm:px-8 py-3.5 flex items-center justify-between">
-          
+
           {/* Brand Identity */}
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/30 flex items-center justify-center shadow-2xs">
@@ -639,16 +654,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       {/* ─── 2. MAIN EXECUTIVE WORKSPACE ─── */}
       <main className="w-full max-w-[2054px] mx-auto px-6 sm:px-8 pt-6 sm:pt-8 pb-12 flex-1 flex flex-col justify-start z-20 relative">
-        
+
         {/* ══════════════════════════════════════════════════════════════════
             VIEW 1: GRAND CLEAN EDITORIAL COCKPIT PORTAL
         ══════════════════════════════════════════════════════════════════ */}
         {viewState === 'welcome' && (
           <div className="w-full animate-fade-in">
-            
+
             {/* ── SECTION A: GRAND HERO BANNER ── */}
             <div className="bg-white border border-zinc-200 rounded-3xl py-7 px-8 sm:py-8 sm:px-10 shadow-xs relative overflow-hidden">
-              
+
               <div className="space-y-4 w-full relative z-10">
 
                 <h1 className="text-2xl sm:text-3xl md:text-[28px] lg:text-[36px] xl:text-[42px] font-black tracking-tight leading-tight md:whitespace-nowrap text-[#002B49]">
@@ -663,216 +678,234 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
             {/* ── SECTION B: 4 KPI BENTO CARDS ── */}
             <div className="max-w-5xl xl:max-w-6xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-              
-              {/* KPI 1 : Escales Actives */}
-              <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
-                      Escales aux Quais
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Port d'Abidjan &amp; Rade</p>
-                  </div>
-                  <div className="p-2.5 bg-[#005DAA]/10 border border-[#005DAA]/25 rounded-xl text-[#005DAA]">
-                    <span className="material-symbols-outlined text-xl">directions_boat</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline space-x-2.5">
-                  <span className="text-4xl font-black text-[#005DAA] font-sans tracking-tight">{activeEscalesCount}</span>
-                  <span className="text-xs font-extrabold text-zinc-800 flex items-center gap-0.5">
-                    <span className="material-symbols-outlined text-sm text-[#00875A]">anchor</span>
-                    <span>En cours</span>
-                  </span>
-                </div>
-              </div>
 
-              {/* KPI 2 : BLs Import à Traiter */}
-              <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
-                      BLs Import à Traiter
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Connaissements ouverts</p>
+              {/* KPI 1 : Escales Actives (RBAC : habilitation Escales/Radar requise) */}
+              {canViewVessels && (
+                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+                        Escales aux Quais
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Port d'Abidjan &amp; Rade</p>
+                    </div>
+                    <div className="p-2.5 bg-[#005DAA]/10 border border-[#005DAA]/25 rounded-xl text-[#005DAA]">
+                      <span className="material-symbols-outlined text-xl">directions_boat</span>
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-[#00875A]/10 border border-[#00875A]/25 rounded-xl text-[#00875A]">
-                    <span className="material-symbols-outlined text-xl">description</span>
+                  <div className="flex items-baseline space-x-2.5">
+                    <span className="text-4xl font-black text-[#005DAA] font-sans tracking-tight">{activeEscalesCount}</span>
+                    <span className="text-xs font-extrabold text-zinc-800 flex items-center gap-0.5">
+                      <span className="material-symbols-outlined text-sm text-[#00875A]">anchor</span>
+                      <span>En cours</span>
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-baseline space-x-2.5">
-                  <span className="text-4xl font-black text-[#00875A] font-sans tracking-tight">{pendingImportBlsCount}</span>
-                  <span className="text-[10px] font-bold text-[#00875A] bg-[#ECFDF5] px-2 py-0.5 rounded-md border border-[#00875A]/30">
-                    À Facturer
-                  </span>
-                </div>
-              </div>
+              )}
 
-              {/* KPI 3 : Drafts Export Soumis */}
-              <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
-                      Drafts Export Soumis
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Réservations chargeurs</p>
+              {/* KPI 2 : BLs Import à Traiter (RBAC : habilitation Import GUCE requise) */}
+              {canViewImport && (
+                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+                        BLs Import à Traiter
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Connaissements ouverts</p>
+                    </div>
+                    <div className="p-2.5 bg-[#00875A]/10 border border-[#00875A]/25 rounded-xl text-[#00875A]">
+                      <span className="material-symbols-outlined text-xl">description</span>
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-700">
-                    <span className="material-symbols-outlined text-xl">file_present</span>
+                  <div className="flex items-baseline space-x-2.5">
+                    <span className="text-4xl font-black text-[#00875A] font-sans tracking-tight">{pendingImportBlsCount}</span>
+                    <span className="text-[10px] font-bold text-[#00875A] bg-[#ECFDF5] px-2 py-0.5 rounded-md border border-[#00875A]/30">
+                      À Facturer
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-baseline space-x-2.5">
-                  <span className="text-4xl font-black text-[#005DAA] font-sans tracking-tight">{pendingDraftsCount}</span>
-                  <span className="text-xs font-semibold text-zinc-600">Attente validation</span>
-                </div>
-              </div>
+              )}
 
-              {/* KPI 4 : Créances & Solde Dû */}
-              <div 
-                onClick={() => onEnter('facturation_balance')}
-                className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between hover:border-[#005DAA] transition-all cursor-pointer group shadow-xs hover:shadow-md select-none"
-                title="Consulter la Balance Âgée & Suivi des Créances"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 group-hover:text-[#005DAA] transition-colors">
-                      Créances &amp; Solde Dû
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Règlements attendus</p>
+              {/* KPI 3 : Drafts Export Soumis (RBAC : habilitation Export requise) */}
+              {canViewExport && (
+                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+                        Drafts Export Soumis
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Réservations chargeurs</p>
+                    </div>
+                    <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-700">
+                      <span className="material-symbols-outlined text-xl">file_present</span>
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-[#005DAA]/10 border border-[#005DAA]/25 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-xl">payments</span>
+                  <div className="flex items-baseline space-x-2.5">
+                    <span className="text-4xl font-black text-[#005DAA] font-sans tracking-tight">{pendingDraftsCount}</span>
+                    <span className="text-xs font-semibold text-zinc-600">Attente validation</span>
                   </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xl font-black text-zinc-900 font-sans">{totalSoldeDuFcfa.toLocaleString('fr-FR')} FCFA</span>
-                  <span className="text-[11px] text-[#005DAA] font-bold mt-0.5">~{(totalSoldeDuFcfa / exchangeRateUsd).toFixed(0)} USD</span>
+              )}
+
+              {/* KPI 4 : Créances & Solde Dû (RBAC : habilitation Balance Client requise) */}
+              {canViewBalance && (
+                <div
+                  onClick={() => onEnter('facturation_balance')}
+                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between hover:border-[#005DAA] transition-all cursor-pointer group shadow-xs hover:shadow-md select-none"
+                  title="Consulter la Balance Âgée & Suivi des Créances"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 group-hover:text-[#005DAA] transition-colors">
+                        Créances &amp; Solde Dû
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Règlements attendus</p>
+                    </div>
+                    <div className="p-2.5 bg-[#005DAA]/10 border border-[#005DAA]/25 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
+                      <span className="material-symbols-outlined text-xl">payments</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xl font-black text-zinc-900 font-sans">{totalSoldeDuFcfa.toLocaleString('fr-FR')} FCFA</span>
+                    <span className="text-[11px] text-[#005DAA] font-bold mt-0.5">~{(totalSoldeDuFcfa / exchangeRateUsd).toFixed(0)} USD</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
 
             {/* ── SECTION D: 5 BUSINESS PILLARS (CLEAN MINIMAL CARDS) ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mt-8 sm:mt-12 lg:mt-[4cm]">
-              
-              {/* Module 1: Manifestes & Escales */}
-              <div 
-                onClick={() => setViewState('escales')}
-                className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-              >
-                <div>
-                  <div className="mb-5">
-                    <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                      <Layers3 className="w-7 h-7" />
-                    </div>
-                  </div>
-                  <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                    Manifestes & Escales
-                  </h3>
-                  <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                    Parsing automatisé des fichiers XML douaniers, détection des conteneurs SOC/COC, vrac et suivi du registre.
-                  </p>
-                </div>
-                <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
-                  <span>Consulter le Registre</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-                </div>
-              </div>
 
-              {/* Module 2: Drafts & BL Export */}
-              <div 
-                onClick={() => onEnter('export')}
-                className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-              >
-                <div>
-                  <div className="mb-5">
-                    <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                      <Ship className="w-7 h-7" />
+              {/* Module 1: Manifestes & Escales (RBAC : habilitation Escales requise) */}
+              {canViewVessels && (
+                <div
+                  onClick={() => setViewState('escales')}
+                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                >
+                  <div>
+                    <div className="mb-5">
+                      <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
+                        <Layers3 className="w-7 h-7" />
+                      </div>
                     </div>
+                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                      Manifestes & Escales
+                    </h3>
+                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                      Parsing automatisé des fichiers XML douaniers, détection des conteneurs SOC/COC, vrac et suivi du registre.
+                    </p>
                   </div>
-                  <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                    Drafts & BL Export
-                  </h3>
-                  <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                    Saisie des instructions de connaissement (Shipping Instructions), validation armateur et émission des BLs.
-                  </p>
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
+                    <span>Consulter le Registre</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
                 </div>
-                <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
-                  <span>Espace Export</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-                </div>
-              </div>
+              )}
 
-              {/* Module 3: Facturation Maritime */}
-              <div 
-                onClick={() => onEnter('facturation')}
-                className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-              >
-                <div>
-                  <div className="mb-5">
-                    <div className="w-14 h-14 rounded-2xl bg-[#00875A]/10 border border-[#00875A]/20 flex items-center justify-center text-[#00875A] group-hover:bg-[#00875A] group-hover:text-white transition-all shadow-xs">
-                      <Receipt className="w-7 h-7" />
+              {/* Module 2: Drafts & BL Export (RBAC : habilitation Export requise) */}
+              {canViewExport && (
+                <div
+                  onClick={() => onEnter('export')}
+                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                >
+                  <div>
+                    <div className="mb-5">
+                      <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
+                        <Ship className="w-7 h-7" />
+                      </div>
                     </div>
+                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                      Drafts & BL Export
+                    </h3>
+                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                      Saisie des instructions de connaissement (Shipping Instructions), validation armateur et émission des BLs.
+                    </p>
                   </div>
-                  <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                    Facturation Maritime
-                  </h3>
-                  <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                    Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours) et facturation certifiée DGI / FNE sans doublon.
-                  </p>
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
+                    <span>Espace Export</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
                 </div>
-                <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#00875A]">
-                  <span>Facturation & Reçus</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-                </div>
-              </div>
+              )}
 
-              {/* Module 4: Calcul des DMDT (Surestaries & Détentions) */}
-              <div 
-                onClick={() => onEnter('surestarie')}
-                className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white"
-              >
-                <div>
-                  <div className="mb-5">
-                    <div className="w-14 h-14 rounded-2xl bg-[#D94817]/10 border border-[#D94817]/20 flex items-center justify-center text-[#D94817] group-hover:bg-[#D94817] group-hover:text-white transition-all shadow-xs">
-                      <Calculator className="w-7 h-7" />
+              {/* Module 3: Facturation Maritime (RBAC : habilitation Facturation requise) */}
+              {canViewFacturation && (
+                <div
+                  onClick={() => onEnter('facturation')}
+                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                >
+                  <div>
+                    <div className="mb-5">
+                      <div className="w-14 h-14 rounded-2xl bg-[#00875A]/10 border border-[#00875A]/20 flex items-center justify-center text-[#00875A] group-hover:bg-[#00875A] group-hover:text-white transition-all shadow-xs">
+                        <Receipt className="w-7 h-7" />
+                      </div>
                     </div>
+                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                      Facturation Maritime
+                    </h3>
+                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                      Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours) et facturation certifiée DGI / FNE sans doublon.
+                    </p>
                   </div>
-                  <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                    Calcul des DMDT
-                  </h3>
-                  <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                    Calcul dégressif des surestaries &amp; détentions conteneurs, franchises import/export et émission proforma.
-                  </p>
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#00875A]">
+                    <span>Facturation & Reçus</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
                 </div>
-                <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#D94817]">
-                  <span>Calculateur DMDT</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-                </div>
-              </div>
+              )}
 
-              {/* Module 5: Radar AIS & Quai */}
-              <div 
-                onClick={() => onEnter('vessels')}
-                className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-              >
-                <div>
-                  <div className="mb-5">
-                    <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                      <Compass className="w-7 h-7" />
+              {/* Module 4: Calcul des DMDT (RBAC : habilitation DMDT requise) */}
+              {canViewSurestarie && (
+                <div
+                  onClick={() => onEnter('surestarie')}
+                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white"
+                >
+                  <div>
+                    <div className="mb-5">
+                      <div className="w-14 h-14 rounded-2xl bg-[#D94817]/10 border border-[#D94817]/20 flex items-center justify-center text-[#D94817] group-hover:bg-[#D94817] group-hover:text-white transition-all shadow-xs">
+                        <Calculator className="w-7 h-7" />
+                      </div>
                     </div>
+                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                      Calcul des DMDT
+                    </h3>
+                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                      Calcul dégressif des surestaries &amp; détentions conteneurs, franchises import/export et émission proforma.
+                    </p>
                   </div>
-                  <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                    Radar & Quai Vridi
-                  </h3>
-                  <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                    Positionnement des navires en rade, programmation des postes à quai et calendrier officiel des mouvements.
-                  </p>
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#D94817]">
+                    <span>Calculateur DMDT</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
                 </div>
-                <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
-                  <span>Radar Flotte</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+              )}
+
+              {/* Module 5: Radar AIS & Quai (RBAC : habilitation Escales/Radar requise) */}
+              {canViewVessels && (
+                <div
+                  onClick={() => onEnter('vessels')}
+                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                >
+                  <div>
+                    <div className="mb-5">
+                      <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
+                        <Compass className="w-7 h-7" />
+                      </div>
+                    </div>
+                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                      Radar & Quai Vridi
+                    </h3>
+                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                      Positionnement des navires en rade, programmation des postes à quai et calendrier officiel des mouvements.
+                    </p>
+                  </div>
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
+                    <span>Radar Flotte</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
 
@@ -888,7 +921,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <Database className="w-3.5 h-3.5 text-[#005DAA]" />
                   <span>PostgreSQL Neon Cloud Chiffré</span>
                 </div>
-                {userRole === 'ADMIN' && (
+                {hasPermission(permissionSubject, 'admin_rights_assign') && (
                   <>
                     <span className="text-zinc-300">•</span>
                     <button
@@ -916,7 +949,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         ══════════════════════════════════════════════════════════════════ */}
         {viewState === 'escales' && (
           <div className="w-full max-w-[2054px] space-y-8 animate-fade-in mx-auto">
-            
+
             {/* Header bar */}
             <div className="ocean-glass-banner rounded-3xl p-8 sm:p-10 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
               <div>
@@ -946,31 +979,35 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleOpenCreateEscale}
-                  className="h-12 px-6 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
-                >
-                  <PlusCircle className="w-4 h-4 text-white" />
-                  <span className="text-white">Créer une Nouvelle Escale</span>
-                </button>
+                {canManageEscales && (
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateEscale}
+                    className="h-12 px-6 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <PlusCircle className="w-4 h-4 text-white" />
+                    <span className="text-white">Créer une Nouvelle Escale</span>
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const defaultEscale = selectedEscaleId || (escales.length > 0 ? escales[0].id : null);
-                    if (defaultEscale) {
-                      handleOpenUploadForEscale(defaultEscale);
-                    } else {
-                      handleOpenCreateEscale();
-                    }
-                  }}
-                  className="h-12 px-5 bg-white hover:bg-zinc-50 text-[#005DAA] border border-[#005DAA]/40 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95"
-                  title="Charger des manifestes PDF sur une escale existante"
-                >
-                  <Upload className="w-4 h-4 text-[#005DAA]" />
-                  <span>Charger Manifeste PDF</span>
-                </button>
+                {canImportGuce && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaultEscale = selectedEscaleId || (escales.length > 0 ? escales[0].id : null);
+                      if (defaultEscale) {
+                        handleOpenUploadForEscale(defaultEscale);
+                      } else {
+                        handleOpenCreateEscale();
+                      }
+                    }}
+                    className="h-12 px-5 bg-white hover:bg-zinc-50 text-[#005DAA] border border-[#005DAA]/40 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                    title="Charger des manifestes PDF sur une escale existante"
+                  >
+                    <Upload className="w-4 h-4 text-[#005DAA]" />
+                    <span>Charger Manifeste PDF</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1004,11 +1041,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
                         return (
                           <React.Fragment key={esc.id}>
-                            <tr 
+                            <tr
                               onClick={() => handleEscaleClick(esc.id)}
-                              className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${
-                                isExpanded ? 'bg-[#F0F7FF]/60 border-l-4 border-[#005DAA]' : ''
-                              }`}
+                              className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${isExpanded ? 'bg-[#F0F7FF]/60 border-l-4 border-[#005DAA]' : ''
+                                }`}
                             >
                               <td className="px-8 py-5 font-black text-zinc-950">
                                 <button
@@ -1130,13 +1166,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 </div>
                               </td>
                             </tr>
-                            
+
                             {/* Accordion list of BLs */}
                             {isExpanded && (
                               <tr className="bg-zinc-50/80 border-b border-zinc-200">
                                 <td colSpan={8} className="px-8 py-8">
                                   <div className="space-y-5 animate-fade-in">
-                                    
+
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-200 pb-3.5">
                                       <div className="flex flex-wrap items-center gap-3 text-base font-black text-zinc-950">
                                         <div className="flex items-center gap-2">
@@ -1148,7 +1184,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                           <span>Cliquez sur une ligne pour modifier le BL ou sur "Factures &amp; Règlements" pour accéder à sa facturation</span>
                                         </span>
                                       </div>
-                                      
+
                                       <div className="flex flex-wrap items-center gap-2.5">
                                         <button
                                           type="button"
@@ -1236,8 +1272,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                               {escBls.map((bl) => {
                                                 const stats = getBlInvoiceStats(bl);
                                                 return (
-                                                  <tr 
-                                                    key={bl.id} 
+                                                  <tr
+                                                    key={bl.id}
                                                     onClick={(e) => {
                                                       e.stopPropagation();
                                                       setEditingBl(bl);
@@ -1278,7 +1314,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                     <td className="px-5 py-3 font-mono font-black text-[#005DAA] text-right whitespace-nowrap">
                                                       {bl.poidsBrutKg?.toLocaleString('fr-FR')} Kg
                                                     </td>
-                                                    <td 
+                                                    <td
                                                       className="px-5 py-3 text-center whitespace-nowrap cursor-pointer hover:bg-[#F0F7FF] transition-all group/facture relative"
                                                       onClick={(e) => {
                                                         e.stopPropagation();
@@ -1357,7 +1393,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         ══════════════════════════════════════════════════════════════════ */}
         {viewState === 'create-escale' && (
           <div className="w-full max-w-[2054px] space-y-8 animate-fade-in mx-auto">
-            
+
             {/* Header bar */}
             <div className="ocean-glass-banner rounded-3xl p-7 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
               <div>
@@ -1402,7 +1438,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
             {/* Main Form Content in 2 Cards */}
             <form onSubmit={handleSubmitNewEscaleWithBls} className="space-y-6">
-              
+
               {/* Card 1: Paramètres Officiels du Navire & de l'Escale */}
               <div className="ocean-glass-card rounded-3xl p-7 border border-zinc-200 bg-white shadow-sm space-y-5">
                 <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
@@ -1559,11 +1595,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     }
                   }}
                   onClick={() => newEscaleFileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
-                    isNewEscaleDragOver
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${isNewEscaleDragOver
                       ? 'border-[#005DAA] bg-[#F0F7FF]/60 scale-[1.01]'
                       : 'border-zinc-300 hover:border-[#005DAA] bg-zinc-50/60 hover:bg-[#F0F7FF]/20'
-                  }`}
+                    }`}
                 >
                   <div className="w-12 h-12 rounded-2xl bg-[#005DAA]/10 text-[#005DAA] mx-auto flex items-center justify-center mb-3 shadow-xs">
                     <FileText className="w-6 h-6" />
@@ -1647,8 +1682,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                           </thead>
                           <tbody className="divide-y divide-zinc-100 text-zinc-800 font-medium">
                             {newEscaleBls.map((bl) => (
-                              <tr 
-                                key={bl.fileId} 
+                              <tr
+                                key={bl.fileId}
                                 onClick={() => setEditingNewEscaleBl(bl)}
                                 className="h-12 hover:bg-sky-50/50 transition-colors cursor-pointer group"
                                 title="Cliquer pour ouvrir et corriger ce connaissement"
@@ -1734,7 +1769,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       {editingEscale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-fade-in">
           <div className="welcome-dark-modal w-full max-w-xl bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-zinc-900">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-zinc-50">
               <div className="flex items-center gap-3">
@@ -1815,7 +1850,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
+
                 <div>
                   <label className="block text-xs font-black text-zinc-700 mb-1">
                     Nom du Navire *
@@ -1968,7 +2003,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <Database className="w-3.5 h-3.5 text-[#005DAA]" />
               <span>PostgreSQL Neon Cloud Chiffré</span>
             </span>
-            {userRole === 'ADMIN' && (
+            {hasPermission(permissionSubject, 'admin_rights_assign') && (
               <button
                 type="button"
                 onClick={() => onEnter('admin_rights')}

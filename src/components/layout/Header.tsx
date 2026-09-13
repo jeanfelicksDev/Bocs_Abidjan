@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, UserRole } from '../../types';
 import { NavTab } from './Sidebar';
 import { LogOut, LogIn, ShieldCheck, Menu, X, ChevronDown, DollarSign, ArrowLeft } from 'lucide-react';
+import { isTabAllowed, usePermissionsSync } from '../../utils/permissions';
 
 interface HeaderProps {
   currentUser: User;
@@ -54,23 +55,11 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const isAllowed = (tab: NavTab) => {
-    const role = currentUser.role;
-    if (role === 'ADMIN') return true;
-    if (role === 'AGENT_IMPORT') {
-      return ['dashboard', 'vessels', 'import', 'facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'surestarie'].includes(tab);
-    }
-    if (role === 'AGENT_EXPORT') {
-      return ['dashboard', 'vessels', 'export', 'export_saisie', 'export_list', 'export_consolidation', 'facturation'].includes(tab);
-    }
-    if (role === 'COMPTABILITE') {
-      return ['dashboard', 'facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'facturation_balance', 'facturation_config', 'surestarie', 'import', 'export'].includes(tab);
-    }
-    if (role === 'CLIENT_EXPORT') {
-      return ['dashboard', 'export', 'export_saisie', 'export_list'].includes(tab);
-    }
-    return true;
-  };
+  // RBAC : les droits effectifs proviennent désormais de la matrice des habilitations
+  // (bocs_permissions_matrix + overrides par utilisateur) au lieu de listes codées en dur.
+  usePermissionsSync();
+
+  const isAllowed = (tab: NavTab) => isTabAllowed(currentUser, tab);
 
   const isExportActive = ['export', 'export_saisie', 'export_list', 'export_consolidation'].includes(activeTab);
   const isFacturationActive = ['facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'facturation_balance', 'facturation_config', 'surestarie'].includes(activeTab);
@@ -88,10 +77,10 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-zinc-200 sticky top-0 z-50 w-full px-4 md:px-6 py-2.5 transition-all select-none shadow-xs text-zinc-900">
       <div className="w-full flex items-center justify-between gap-4">
-        
+
         {/* Left Section: Brand Logo & Mobile Menu Toggle & Bouton Retour Plateforme */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <button 
+          <button
             onClick={() => setMobileMenuOpen(true)}
             className="lg:hidden p-1.5 text-zinc-700 hover:text-[#005DAA] transition-all cursor-pointer active:scale-95 flex items-center justify-center rounded-lg hover:bg-zinc-100"
             title="Ouvrir le menu"
@@ -115,10 +104,10 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </button>
           )}
-          
+
           <div className="flex items-center gap-2.5">
-            <div 
-              className="py-0.5 shrink-0 cursor-pointer flex items-center group/logo" 
+            <div
+              className="py-0.5 shrink-0 cursor-pointer flex items-center group/logo"
               onClick={() => onReturnToWelcome ? onReturnToWelcome() : onTabChange('dashboard')}
               title="Retour à la plateforme intégrée de gestion et facturation maritime"
             >
@@ -139,20 +128,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Middle Section: Complete Desktop Operational Flow Navigation */}
         <div className="hidden lg:flex items-center gap-1.5 xl:gap-2.5 flex-1 justify-center">
-          
+
           {/* 1. Cockpit / Tableau de Bord */}
           {isAllowed('dashboard') && (
             <button
               onClick={() => onTabChange('dashboard')}
-              className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${
-                activeTab === 'dashboard'
+              className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'dashboard'
                   ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
                   : 'text-zinc-700 hover:text-black hover:bg-zinc-100 border border-transparent'
-              }`}
+                }`}
             >
-              <span className={`material-symbols-outlined text-[18px] transition-colors ${
-                activeTab === 'dashboard' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
-              }`}>grid_view</span>
+              <span className={`material-symbols-outlined text-[18px] transition-colors ${activeTab === 'dashboard' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                }`}>grid_view</span>
               <span>Cockpit</span>
             </button>
           )}
@@ -161,22 +148,19 @@ export const Header: React.FC<HeaderProps> = ({
           {isAllowed('vessels') && (
             <button
               onClick={() => onTabChange('vessels')}
-              className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${
-                activeTab === 'vessels'
+              className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'vessels'
                   ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
                   : 'text-zinc-700 hover:text-black hover:bg-zinc-100 border border-transparent'
-              }`}
+                }`}
             >
-              <span className={`material-symbols-outlined text-[18px] transition-colors ${
-                activeTab === 'vessels' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
-              }`}>radar</span>
+              <span className={`material-symbols-outlined text-[18px] transition-colors ${activeTab === 'vessels' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                }`}>radar</span>
               <span>Escales & Radar</span>
               {counts.escalesCount > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${
-                  activeTab === 'vessels'
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'vessels'
                     ? 'bg-[#005DAA] text-white shadow-xs'
                     : 'bg-zinc-100 border border-zinc-200 text-zinc-700'
-                }`}>
+                  }`}>
                   {counts.escalesCount}
                 </span>
               )}
@@ -187,32 +171,29 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* 4. Facturation & FNE Dropdown */}
           {isAllowed('facturation') && (
-            <div 
+            <div
               className="relative"
               onMouseEnter={() => setActiveDropdown('facturation')}
               onMouseLeave={() => setActiveDropdown(null)}
             >
               <button
-                className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${
-                  isFacturationActive
+                className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isFacturationActive
                     ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
                     : 'text-zinc-700 hover:text-black hover:bg-zinc-100 border border-transparent'
-                }`}
+                  }`}
               >
-                <span className={`material-symbols-outlined text-[18px] transition-colors ${
-                  isFacturationActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
-                }`}>credit_card</span>
+                <span className={`material-symbols-outlined text-[18px] transition-colors ${isFacturationActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                  }`}>credit_card</span>
                 <span>Facturation</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-70" />
                 {counts.facturesCount > 0 && (
-                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${
-                    isFacturationActive ? 'bg-[#005DAA] text-white' : 'bg-zinc-100 border border-zinc-200 text-zinc-700'
-                  }`}>
+                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${isFacturationActive ? 'bg-[#005DAA] text-white' : 'bg-zinc-100 border border-zinc-200 text-zinc-700'
+                    }`}>
                     {counts.facturesCount}
                   </span>
                 )}
               </button>
-              
+
               {activeDropdown === 'facturation' && (
                 <div className="absolute left-0 mt-1 w-64 bg-white border border-zinc-200 rounded-2xl shadow-xl py-2 z-50 animate-fade-in">
                   {isAllowed('facturation') && (
@@ -306,32 +287,29 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* 5. Exportation Dropdown */}
           {isAllowed('export') && (
-            <div 
+            <div
               className="relative"
               onMouseEnter={() => setActiveDropdown('export')}
               onMouseLeave={() => setActiveDropdown(null)}
             >
               <button
-                className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${
-                  isExportActive
+                className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isExportActive
                     ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
                     : 'text-zinc-700 hover:text-black hover:bg-zinc-100 border border-transparent'
-                }`}
+                  }`}
               >
-                <span className={`material-symbols-outlined text-[18px] transition-colors ${
-                  isExportActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
-                }`}>anchor</span>
+                <span className={`material-symbols-outlined text-[18px] transition-colors ${isExportActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                  }`}>anchor</span>
                 <span>Exportation</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-70" />
                 {counts.draftsCount > 0 && (
-                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${
-                    isExportActive ? 'bg-[#005DAA] text-white' : 'bg-zinc-100 border border-zinc-200 text-zinc-700'
-                  }`}>
+                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${isExportActive ? 'bg-[#005DAA] text-white' : 'bg-zinc-100 border border-zinc-200 text-zinc-700'
+                    }`}>
                     {counts.draftsCount}
                   </span>
                 )}
               </button>
-              
+
               {activeDropdown === 'export' && (
                 <div className="absolute left-0 mt-1 w-56 bg-white border border-zinc-200 rounded-2xl shadow-xl py-2 z-50 animate-fade-in">
                   {isAllowed('export_saisie') && (
@@ -377,25 +355,23 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* 6. Administration Dropdown */}
           {isAllowed('admin') && (
-            <div 
+            <div
               className="relative"
               onMouseEnter={() => setActiveDropdown('admin')}
               onMouseLeave={() => setActiveDropdown(null)}
             >
               <button
-                className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${
-                  isAdminActive
+                className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isAdminActive
                     ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
                     : 'text-zinc-700 hover:text-black hover:bg-zinc-100 border border-transparent'
-                }`}
+                  }`}
               >
-                <span className={`material-symbols-outlined text-[18px] transition-colors ${
-                  isAdminActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
-                }`}>settings_suggest</span>
+                <span className={`material-symbols-outlined text-[18px] transition-colors ${isAdminActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                  }`}>settings_suggest</span>
                 <span>Administration</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-70" />
               </button>
-              
+
               {activeDropdown === 'admin' && (
                 <div className="absolute right-0 mt-1 w-60 bg-white border border-zinc-200 rounded-2xl shadow-xl py-2 z-50 animate-fade-in">
                   {isAllowed('admin_users') && (
@@ -472,7 +448,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* User Account summary */}
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
-              
+
               {/* Sélecteur de rôle/compte démo */}
               <select
                 value={currentUser.id}
@@ -530,11 +506,11 @@ export const Header: React.FC<HeaderProps> = ({
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
             onClick={() => setMobileMenuOpen(false)}
           />
-          
+
           {/* Drawer content */}
           <div className="relative flex-grow max-w-xs w-full bg-white text-zinc-900 flex flex-col justify-between p-4 shadow-2xl animate-slide-in overflow-y-auto z-55 border-r border-zinc-200">
             <div>
@@ -546,7 +522,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <text x="282" y="81" fontFamily="'Plus Jakarta Sans', Arial, sans-serif" fontWeight="bold" fontSize="19" fill="#002B49" textAnchor="end">ABIDJAN</text>
                   </svg>
                 </div>
-                <button 
+                <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-1.5 text-zinc-500 hover:text-black rounded-lg hover:bg-zinc-100"
                 >
@@ -571,14 +547,13 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </button>
                 )}
-                
+
                 {/* 1. Tableau de bord */}
                 {isAllowed('dashboard') && (
                   <button
                     onClick={() => { onTabChange('dashboard'); setMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                      activeTab === 'dashboard' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'dashboard' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                      }`}
                   >
                     <span className="material-symbols-outlined text-[18px]">grid_view</span>
                     <span>Cockpit / Dashboard</span>
@@ -589,9 +564,8 @@ export const Header: React.FC<HeaderProps> = ({
                 {isAllowed('vessels') && (
                   <button
                     onClick={() => { onTabChange('vessels'); setMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                      activeTab === 'vessels' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'vessels' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                      }`}
                   >
                     <span className="material-symbols-outlined text-[18px]">radar</span>
                     <div className="flex-1 flex justify-between items-center">
@@ -614,9 +588,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('facturation') && (
                       <button
                         onClick={() => { onTabChange('facturation'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'facturation' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'facturation' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">credit_card</span>
                         <span>Facturation BL par BL</span>
@@ -625,9 +598,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('facturation_journal') && (
                       <button
                         onClick={() => { onTabChange('facturation_journal'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'facturation_journal' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'facturation_journal' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">receipt_long</span>
                         <span>Journal des Factures</span>
@@ -636,9 +608,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('facturation_avoirs') && (
                       <button
                         onClick={() => { onTabChange('facturation_avoirs'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'facturation_avoirs' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'facturation_avoirs' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">assignment_return</span>
                         <span>Notes d'Avoir</span>
@@ -647,9 +618,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('facturation_tarifs') && (
                       <button
                         onClick={() => { onTabChange('facturation_tarifs'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'facturation_tarifs' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'facturation_tarifs' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">payments</span>
                         <span>Grille Tarifs DMDT</span>
@@ -658,9 +628,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('surestarie') && (
                       <button
                         onClick={() => { onTabChange('surestarie'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'surestarie' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'surestarie' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">timer</span>
                         <span>Surestaries & Détentions</span>
@@ -669,9 +638,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('facturation_balance') && (
                       <button
                         onClick={() => { onTabChange('facturation_balance'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'facturation_balance' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'facturation_balance' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">account_balance</span>
                         <span>Balance Client</span>
@@ -687,9 +655,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('export_saisie') && (
                       <button
                         onClick={() => { onTabChange('export_saisie'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'export_saisie' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'export_saisie' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">edit_note</span>
                         <span>Saisie Draft BL</span>
@@ -698,9 +665,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('export_list') && (
                       <button
                         onClick={() => { onTabChange('export_list'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'export_list' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'export_list' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">folder_open</span>
                         <span>Espace Client / Drafts</span>
@@ -709,9 +675,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('export_consolidation') && (
                       <button
                         onClick={() => { onTabChange('export_consolidation'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'export_consolidation' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'export_consolidation' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">inventory</span>
                         <span>Consolidation Manifeste</span>
@@ -727,9 +692,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('admin_users') && (
                       <button
                         onClick={() => { onTabChange('admin_users'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'admin_users' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'admin_users' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">manage_accounts</span>
                         <span>Comptes Utilisateurs</span>
@@ -738,9 +702,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('admin_fne') && (
                       <button
                         onClick={() => { onTabChange('admin_fne'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'admin_fne' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'admin_fne' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">tune</span>
                         <span>Params FNE DGI</span>
@@ -749,9 +712,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAllowed('admin_audit') && (
                       <button
                         onClick={() => { onTabChange('admin_audit'); setMobileMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          activeTab === 'admin_audit' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
-                        }`}
+                        className={`w-full flex items-center gap-3 pl-6 pr-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'admin_audit' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-100'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-[18px] text-[#005DAA]">verified_user</span>
                         <span>Journal d'Audit</span>
@@ -762,7 +724,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               </nav>
             </div>
-            
+
             {/* Mobile Footer */}
             <div className="pt-4 border-t border-zinc-200 space-y-3">
               {currentUser && isAuthenticated && (
@@ -780,7 +742,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
 
-              <button 
+              <button
                 onClick={() => {
                   onLogout();
                   setMobileMenuOpen(false);

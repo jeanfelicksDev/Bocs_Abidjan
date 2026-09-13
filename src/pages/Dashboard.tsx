@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Anchor, 
-  ArrowRight, 
-  Building2, 
-  Clock, 
-  Layers3, 
-  Ship, 
-  Receipt, 
-  Calculator, 
+import {
+  Anchor,
+  ArrowRight,
+  Building2,
+  Clock,
+  Layers3,
+  Ship,
+  Receipt,
+  Calculator,
   Compass,
   ShieldCheck,
   Database
 } from 'lucide-react';
 import { Escale, BL, DraftExport, Invoice, UserRole } from '../types';
 import { NavTab } from '../components/layout/Sidebar';
+import { hasPermission, isTabAllowed, usePermissionsSync } from '../utils/permissions';
 
 interface DashboardProps {
   escales: Escale[];
@@ -21,6 +22,8 @@ interface DashboardProps {
   drafts: DraftExport[];
   invoices: Invoice[];
   userRole: UserRole;
+  /** Utilisateur connecté (permet d'appliquer les overrides individuels en plus de la matrice par rôle). */
+  currentUser?: { id: number; role: UserRole; estActif?: boolean };
   exchangeRateUsd: number;
   onNavigateTab: (tab: NavTab) => void;
   onDeleteEscale?: (id: number) => void;
@@ -32,6 +35,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   drafts,
   invoices,
   userRole,
+  currentUser,
   exchangeRateUsd,
   onNavigateTab,
   onDeleteEscale
@@ -45,22 +49,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // GMT Live Clock
   const [currentTime, setCurrentTime] = useState<string>('');
 
-  const isAllowed = (tab: NavTab) => {
-    if (userRole === 'ADMIN') return true;
-    if (userRole === 'AGENT_IMPORT') {
-      return ['dashboard', 'vessels', 'import', 'facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'surestarie'].includes(tab);
-    }
-    if (userRole === 'AGENT_EXPORT') {
-      return ['dashboard', 'vessels', 'export', 'export_saisie', 'export_list', 'export_consolidation', 'facturation'].includes(tab);
-    }
-    if (userRole === 'COMPTABILITE') {
-      return ['dashboard', 'facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'facturation_balance', 'facturation_config', 'surestarie', 'import', 'export'].includes(tab);
-    }
-    if (userRole === 'CLIENT_EXPORT') {
-      return ['dashboard', 'export', 'export_saisie', 'export_list'].includes(tab);
-    }
-    return true;
-  };
+  // RBAC : les droits effectifs proviennent désormais de la matrice des habilitations
+  // (bocs_permissions_matrix + overrides par utilisateur) au lieu de listes codées en dur.
+  usePermissionsSync();
+
+  const isAllowed = (tab: NavTab) => isTabAllowed(currentUser || { id: -1, role: userRole }, tab);
 
   const handleNavClick = (tab: NavTab) => {
     if (isAllowed(tab)) {
@@ -86,7 +79,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in text-zinc-900 w-full max-w-[2054px] mx-auto font-sans antialiased">
-      
+
       {/* ─── 1. TOP EXECUTIVE CLEAN HEADER (Matching Image 2) ─── */}
       <div className="w-full bg-white border border-zinc-200 rounded-2xl px-6 py-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
         {/* Brand Identity */}
@@ -132,13 +125,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* ─── 3. 4 KPI BENTO CARDS (Centered max-w container as Image 2) ─── */}
       <div className="max-w-5xl xl:max-w-6xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        
+
         {/* KPI 1 : Escales Aux Quais */}
-        <div 
+        <div
           onClick={() => handleNavClick('vessels')}
-          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${
-            isAllowed('vessels') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
-          }`}
+          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${isAllowed('vessels') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
+            }`}
         >
           <div className="flex justify-between items-start mb-3">
             <div>
@@ -161,11 +153,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* KPI 2 : BLs Import à Traiter */}
-        <div 
+        <div
           onClick={() => handleNavClick('import')}
-          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${
-            isAllowed('import') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
-          }`}
+          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${isAllowed('import') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
+            }`}
         >
           <div className="flex justify-between items-start mb-3">
             <div>
@@ -187,11 +178,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* KPI 3 : Drafts Export Soumis */}
-        <div 
+        <div
           onClick={() => handleNavClick('export')}
-          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${
-            isAllowed('export') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
-          }`}
+          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${isAllowed('export') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
+            }`}
         >
           <div className="flex justify-between items-start mb-3">
             <div>
@@ -211,11 +201,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* KPI 4 : Créances & Solde Dû */}
-        <div 
+        <div
           onClick={() => handleNavClick('facturation_balance')}
-          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${
-            isAllowed('facturation_balance') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
-          }`}
+          className={`bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between transition-all select-none ${isAllowed('facturation_balance') ? 'hover:border-[#005DAA] cursor-pointer group shadow-xs hover:shadow-md' : 'opacity-60 cursor-not-allowed'
+            }`}
           title={isAllowed('facturation_balance') ? "Consulter la Balance Âgée & Suivi des Créances" : "Accès réservé à la comptabilité/admin"}
         >
           <div className="flex justify-between items-start mb-3">
@@ -239,15 +228,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* ─── 4. 5 BUSINESS MODULE CARDS (Matching Image 2 bottom row) ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5 pt-4">
-        
+
         {/* Module 1: Manifestes & Escales */}
-        <div 
+        <div
           onClick={() => handleNavClick('vessels')}
-          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${
-            isAllowed('vessels')
+          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${isAllowed('vessels')
               ? 'cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-zinc-200 hover:border-[#005DAA]'
               : 'opacity-50 cursor-not-allowed border-zinc-200'
-          }`}
+            }`}
         >
           <div>
             <div className="mb-5">
@@ -269,13 +257,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Module 2: Drafts & BL Export */}
-        <div 
+        <div
           onClick={() => handleNavClick('export')}
-          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${
-            isAllowed('export')
+          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${isAllowed('export')
               ? 'cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-zinc-200 hover:border-[#005DAA]'
               : 'opacity-50 cursor-not-allowed border-zinc-200'
-          }`}
+            }`}
         >
           <div>
             <div className="mb-5">
@@ -297,13 +284,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Module 3: Facturation Maritime */}
-        <div 
+        <div
           onClick={() => handleNavClick('facturation')}
-          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${
-            isAllowed('facturation')
+          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${isAllowed('facturation')
               ? 'cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-zinc-200 hover:border-[#00875A]'
               : 'opacity-50 cursor-not-allowed border-zinc-200'
-          }`}
+            }`}
         >
           <div>
             <div className="mb-5">
@@ -325,13 +311,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Module 4: Calcul des DMDT (Active/Highlighted card as shown in Image 2) */}
-        <div 
+        <div
           onClick={() => handleNavClick('surestarie')}
-          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none relative bg-white ${
-            isAllowed('surestarie')
+          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none relative bg-white ${isAllowed('surestarie')
               ? 'cursor-pointer group hover:-translate-y-1 shadow-md border-2 border-[#005DAA]'
               : 'opacity-50 cursor-not-allowed border border-zinc-200'
-          }`}
+            }`}
         >
           <div>
             <div className="mb-5">
@@ -353,13 +338,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Module 5: Radar & Quai Vridi */}
-        <div 
+        <div
           onClick={() => handleNavClick('vessels')}
-          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${
-            isAllowed('vessels')
+          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${isAllowed('vessels')
               ? 'cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-zinc-200 hover:border-[#005DAA]'
               : 'opacity-50 cursor-not-allowed border-zinc-200'
-          }`}
+            }`}
         >
           <div>
             <div className="mb-5">
@@ -394,7 +378,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Database className="w-3.5 h-3.5 text-[#005DAA]" />
             <span>PostgreSQL Neon Cloud Chiffré</span>
           </div>
-          {userRole === 'ADMIN' && (
+          {hasPermission(currentUser || { id: -1, role: userRole }, 'admin_rights_assign') && (
             <>
               <span className="text-zinc-300">•</span>
               <button
