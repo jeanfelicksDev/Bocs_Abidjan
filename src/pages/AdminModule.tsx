@@ -735,8 +735,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                             <button
                               onClick={() => onToggleUserStatus(u.id)}
                               className={`px-2.5 py-1 font-bold text-[11px] rounded-lg transition-all cursor-pointer ${u.estActif
-                                  ? 'bg-amber-950/60 text-amber-300 border border-amber-700/50 hover:bg-amber-900/60'
-                                  : 'bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 hover:bg-emerald-900/60'
+                                ? 'bg-amber-950/60 text-amber-300 border border-amber-700/50 hover:bg-amber-900/60'
+                                : 'bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 hover:bg-emerald-900/60'
                                 }`}
                               title={u.estActif ? 'Désactiver le compte' : 'Activer le compte'}
                             >
@@ -947,8 +947,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'AGENT_IMPORT')}
                               className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.AGENT_IMPORT
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
-                                  : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
+                                : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
                               <span className="material-symbols-outlined text-base">
@@ -964,8 +964,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'AGENT_EXPORT')}
                               className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.AGENT_EXPORT
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
-                                  : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
+                                : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
                               <span className="material-symbols-outlined text-base">
@@ -981,8 +981,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'COMPTABILITE')}
                               className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.COMPTABILITE
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
-                                  : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
+                                : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
                               <span className="material-symbols-outlined text-base">
@@ -998,8 +998,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'CLIENT_EXPORT')}
                               className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${perm.roles.CLIENT_EXPORT
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
-                                  : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 font-black'
+                                : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
                               <span className="material-symbols-outlined text-base">
@@ -1114,8 +1114,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                                     type="button"
                                     onClick={() => handleToggleUserOverride(targetUser.id, perm.id, defaultRoleVal)}
                                     className={`px-4 py-2 rounded-xl text-xs font-black transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${effectiveVal
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700'
-                                        : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-950'
+                                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700'
+                                      : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300'
                                       }`}
                                   >
                                     <span className="material-symbols-outlined text-sm">
