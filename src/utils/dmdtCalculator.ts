@@ -31,46 +31,61 @@ export const DEFAULT_FRANCHISES: Record<ContainerType, number> = {
  * Default degressive tariffs per container type (FCFA / day)
  */
 export const DEFAULT_TARIFS: TarifSurestarie[] = [
+  // ================= IMPORT SURESTARIES =================
   // 20' DRY
-  { id: 1, typeConteneur: '20_DRY', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 15000 },
-  { id: 2, typeConteneur: '20_DRY', jourDebut: 16, jourFin: 30, tarifJournalierFcfa: 25000 },
-  { id: 3, typeConteneur: '20_DRY', jourDebut: 31, jourFin: 999, tarifJournalierFcfa: 40000 },
+  { id: 1, typeConteneur: '20_DRY', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 15000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 2, typeConteneur: '20_DRY', jourDebut: 16, jourFin: 30, tarifJournalierFcfa: 25000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 3, typeConteneur: '20_DRY', jourDebut: 31, jourFin: 999, tarifJournalierFcfa: 40000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
   
   // 40' DRY & 40' HC
-  { id: 4, typeConteneur: '40_HC', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 25000 },
-  { id: 5, typeConteneur: '40_HC', jourDebut: 16, jourFin: 30, tarifJournalierFcfa: 45000 },
-  { id: 6, typeConteneur: '40_HC', jourDebut: 31, jourFin: 999, tarifJournalierFcfa: 70000 },
+  { id: 4, typeConteneur: '40_HC', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 25000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 5, typeConteneur: '40_HC', jourDebut: 16, jourFin: 30, tarifJournalierFcfa: 45000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 6, typeConteneur: '40_HC', jourDebut: 31, jourFin: 999, tarifJournalierFcfa: 70000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
 
-  { id: 7, typeConteneur: '40_DRY', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 25000 },
-  { id: 8, typeConteneur: '40_DRY', jourDebut: 16, jourFin: 30, tarifJournalierFcfa: 45000 },
-  { id: 9, typeConteneur: '40_DRY', jourDebut: 31, jourFin: 999, tarifJournalierFcfa: 70000 },
+  { id: 7, typeConteneur: '40_DRY', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 25000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 8, typeConteneur: '40_DRY', jourDebut: 16, jourFin: 30, tarifJournalierFcfa: 45000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 9, typeConteneur: '40_DRY', jourDebut: 31, jourFin: 999, tarifJournalierFcfa: 70000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
 
-  // 40' REEFER (Cold chain - higher rates)
-  { id: 10, typeConteneur: '40_REEFER', jourDebut: 6, jourFin: 10, tarifJournalierFcfa: 45000 },
-  { id: 11, typeConteneur: '40_REEFER', jourDebut: 11, jourFin: 20, tarifJournalierFcfa: 80000 },
-  { id: 12, typeConteneur: '40_REEFER', jourDebut: 21, jourFin: 999, tarifJournalierFcfa: 120000 },
+  // 40' REEFER
+  { id: 10, typeConteneur: '40_REEFER', jourDebut: 6, jourFin: 10, tarifJournalierFcfa: 45000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 11, typeConteneur: '40_REEFER', jourDebut: 11, jourFin: 20, tarifJournalierFcfa: 80000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 12, typeConteneur: '40_REEFER', jourDebut: 21, jourFin: 999, tarifJournalierFcfa: 120000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
 
   // 20' REEFER
-  { id: 13, typeConteneur: '20_REEFER', jourDebut: 6, jourFin: 10, tarifJournalierFcfa: 30000 },
-  { id: 14, typeConteneur: '20_REEFER', jourDebut: 11, jourFin: 20, tarifJournalierFcfa: 55000 },
-  { id: 15, typeConteneur: '20_REEFER', jourDebut: 21, jourFin: 999, tarifJournalierFcfa: 85000 },
+  { id: 13, typeConteneur: '20_REEFER', jourDebut: 6, jourFin: 10, tarifJournalierFcfa: 30000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 14, typeConteneur: '20_REEFER', jourDebut: 11, jourFin: 20, tarifJournalierFcfa: 55000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 15, typeConteneur: '20_REEFER', jourDebut: 21, jourFin: 999, tarifJournalierFcfa: 85000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
 
   // Flat Rack & Open Top
-  { id: 16, typeConteneur: '20_FLAT_RACK', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 20000 },
-  { id: 17, typeConteneur: '20_FLAT_RACK', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 35000 },
-  { id: 18, typeConteneur: '20_OPEN_TOP', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 20000 },
-  { id: 19, typeConteneur: '20_OPEN_TOP', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 35000 },
-  { id: 20, typeConteneur: '40_OPEN_TOP', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 30000 },
-  { id: 21, typeConteneur: '40_OPEN_TOP', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 55000 }
+  { id: 16, typeConteneur: '20_FLAT_RACK', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 20000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 17, typeConteneur: '20_FLAT_RACK', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 35000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 18, typeConteneur: '20_OPEN_TOP', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 20000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 19, typeConteneur: '20_OPEN_TOP', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 35000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 20, typeConteneur: '40_OPEN_TOP', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 30000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+  { id: 21, typeConteneur: '40_OPEN_TOP', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 55000, regime: 'SURESTARIE', typeOperation: 'IMPORT' },
+
+  // ================= IMPORT DETENTIONS =================
+  { id: 101, typeConteneur: '20_DRY', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 10000, regime: 'DETENTION', typeOperation: 'IMPORT' },
+  { id: 102, typeConteneur: '20_DRY', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 18000, regime: 'DETENTION', typeOperation: 'IMPORT' },
+  { id: 103, typeConteneur: '40_HC', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 15000, regime: 'DETENTION', typeOperation: 'IMPORT' },
+  { id: 104, typeConteneur: '40_HC', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 28000, regime: 'DETENTION', typeOperation: 'IMPORT' },
+
+  // ================= EXPORT DETENTIONS =================
+  { id: 201, typeConteneur: '20_DRY', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 12000, regime: 'DETENTION', typeOperation: 'EXPORT' },
+  { id: 202, typeConteneur: '20_DRY', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 22000, regime: 'DETENTION', typeOperation: 'EXPORT' },
+  { id: 203, typeConteneur: '40_HC', jourDebut: 8, jourFin: 15, tarifJournalierFcfa: 20000, regime: 'DETENTION', typeOperation: 'EXPORT' },
+  { id: 204, typeConteneur: '40_HC', jourDebut: 16, jourFin: 999, tarifJournalierFcfa: 35000, regime: 'DETENTION', typeOperation: 'EXPORT' }
 ];
 
 /**
- * Calculates Surestaries (Dmdt) for a container based on stay dates and tariffs
+ * Calculates Surestaries (Dmdt) or Detentions for a container based on stay dates and tariffs
  */
 export function calculateContainerDmdt(
   container: Container,
   tarifsList: TarifSurestarie[] = DEFAULT_TARIFS,
-  franchisesList: FranchiseSurestarie[] = []
+  franchisesList: FranchiseSurestarie[] = [],
+  regime: 'SURESTARIE' | 'DETENTION' = 'SURESTARIE',
+  typeOperation: 'IMPORT' | 'EXPORT' = 'IMPORT'
 ): DmdtCalculationResult {
   const dateEntree = container.dateEntreeParc ? new Date(container.dateEntreeParc) : new Date();
   const dateSortie = container.dateSortieParc ? new Date(container.dateSortieParc) : new Date();
@@ -89,9 +104,11 @@ export function calculateContainerDmdt(
   const detailsCalcul: string[] = [];
 
   if (joursSurestarie > 0) {
-    // Filter matching tariffs for this container type
+    // Filter matching tariffs for this container type, regime & operation
     const matchingTarifs = tarifsList
-      .filter(t => t.typeConteneur === container.typeConteneur)
+      .filter(t => t.typeConteneur === container.typeConteneur &&
+                   (t.regime || 'SURESTARIE') === regime &&
+                   (t.typeOperation || 'IMPORT') === typeOperation)
       .sort((a, b) => a.jourDebut - b.jourDebut);
 
     if (matchingTarifs.length === 0) {
@@ -107,10 +124,10 @@ export function calculateContainerDmdt(
         montantSurestarieFcfa += rate;
       }
       detailsCalcul.push(`Séjour: ${joursSejour} jours (${joursFranchise} jours franchise + ${joursSurestarie} jours facturables)`);
-      detailsCalcul.push(`Total Surestaries: ${montantSurestarieFcfa.toLocaleString('fr-FR')} FCFA`);
+      detailsCalcul.push(`Total ${regime === 'SURESTARIE' ? 'Surestaries' : 'Détention'}: ${montantSurestarieFcfa.toLocaleString('fr-FR')} FCFA`);
     }
   } else {
-    detailsCalcul.push(`Séjour de ${joursSejour} jours au parc ≤ Franchise de ${joursFranchise} jours. Aucune surestarie due.`);
+    detailsCalcul.push(`Séjour de ${joursSejour} jours au parc ≤ Franchise de ${joursFranchise} jours. Aucun frais dû.`);
   }
 
   const cautionInitiale = container.montantCautionFcfa || (container.typeConteneur.includes('20') ? 500000 : 1000000);
@@ -136,12 +153,14 @@ export function calculateContainerDmdt(
 export function calculateTotalDmdt(
   containers: Container[],
   dateReference?: string,
-  tarifsList: TarifSurestarie[] = DEFAULT_TARIFS
+  tarifsList: TarifSurestarie[] = DEFAULT_TARIFS,
+  regime: 'SURESTARIE' | 'DETENTION' = 'SURESTARIE',
+  typeOperation: 'IMPORT' | 'EXPORT' = 'IMPORT'
 ): { totalSurestarieFcfa: number; conteneursCalculated: DmdtCalculationResult[] } {
   let totalSurestarieFcfa = 0;
   const conteneursCalculated = (containers || []).map(ctn => {
     const ctnWithDate = dateReference ? { ...ctn, dateSortieParc: dateReference } : ctn;
-    const res = calculateContainerDmdt(ctnWithDate, tarifsList);
+    const res = calculateContainerDmdt(ctnWithDate, tarifsList, [], regime, typeOperation);
     totalSurestarieFcfa += res.montantSurestarieFcfa;
     return res;
   });

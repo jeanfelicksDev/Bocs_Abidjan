@@ -34,3 +34,7 @@ dist-ssr/
 # Temporary / OS files
 Thumbs.db
 ehthumbs.db
+
+.vercel
+.env*
+pgdata/

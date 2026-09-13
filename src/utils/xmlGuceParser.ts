@@ -129,18 +129,50 @@ export function parseGuceXml(xmlText: string): ParsedManifestResult {
       // Default Caution depending on container size
       const montantCautionFcfa = typeConteneur.includes('20') ? 500000 : 1000000;
 
+      const cVolume = parseFloat(c.getElementsByTagName('volume')[0]?.textContent || (typeConteneur.includes('20') ? '33' : '76'));
+      const netWt = parseFloat(c.getElementsByTagName('net_weight')[0]?.textContent || (goodsWt - emptyWt > 0 ? (goodsWt - emptyWt).toString() : goodsWt.toString()));
+
+      // Detect if container is dangerous based on XML tags, descriptions or keywords
+      const imoClass = c.getElementsByTagName('imo_class')[0]?.textContent || 
+                       c.getElementsByTagName('imdg_class')[0]?.textContent || 
+                       wb.getElementsByTagName('imo_class')[0]?.textContent || 
+                       wb.getElementsByTagName('imdg_class')[0]?.textContent || '';
+      
+      const goodsDesc = (descriptionGoods || '').toUpperCase();
+      const hasDangerousKeywords = goodsDesc.includes('DANGEROUS') || 
+                                   goodsDesc.includes('IMDG') || 
+                                   goodsDesc.includes('HAZARDOUS') || 
+                                   goodsDesc.includes('CHEMICAL') || 
+                                   goodsDesc.includes('CLASSE ') || 
+                                   goodsDesc.includes('UN ') ||
+                                   goodsDesc.includes('ACID') ||
+                                   goodsDesc.includes('EXPLOSIF') ||
+                                   goodsDesc.includes('PRODUITS CHIMIQUES');
+                                   
+      const isDangerous = imoClass !== '' || hasDangerousKeywords;
+
+      // Detect SOC vs COC container:
+      // Typically if marks or goods description contains "SOC"
+      const marks2Str = (c.getElementsByTagName('marks2')[0]?.textContent || '').toUpperCase();
+      const isSoc = marks2Str.includes('SOC') || goodsDesc.includes('SOC') || rawType.toUpperCase().includes('SOC');
+      const socCoc = isSoc ? 'SOC' : 'COC';
+
       conteneurs.push({
-        id: Math.floor(Math.random() * 100000),
+        id: Date.now() + i * 1000 + j * 10 + Math.floor(Math.random() * 9),
         blId: 0, // will be set on persistence
         numeroConteneur,
         typeConteneur,
         numeroScelle,
         poidsKg: goodsWt,
+        poidsNetKg: netWt,
+        volumeM3: cVolume,
         tareKg: emptyWt,
         nombreColis: cPkg,
         montantCautionFcfa,
         statutLivraison: 'AU_PARC',
-        dateEntreeParc: arrivalDate + 'T08:00:00Z'
+        dateEntreeParc: arrivalDate + 'T08:00:00Z',
+        isDangerous,
+        socCoc
       });
 
       totalContainers++;

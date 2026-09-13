@@ -10,11 +10,15 @@ export type NavTab =
   | 'export_list'
   | 'export_consolidation'
   | 'facturation' 
+  | 'facturation_journal'
+  | 'facturation_avoirs'
   | 'facturation_tarifs'
   | 'facturation_balance'
   | 'facturation_config'
+  | 'surestarie'
   | 'admin'
   | 'admin_users' 
+  | 'admin_rights'
   | 'admin_fne' 
   | 'admin_audit';
 
@@ -28,10 +32,13 @@ interface SidebarProps {
   onOpenLogin?: () => void;
   exchangeRateUsd?: number;
   counts: {
+    escalesCount: number;
     blsCount: number;
     draftsCount: number;
     facturesCount: number;
   };
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface NavSection {
@@ -60,18 +67,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onOpenLogin,
   exchangeRateUsd = 600,
-  counts
+  counts,
+  isOpen = false,
+  onClose
 }) => {
   const isAllowed = (tab: NavTab) => {
     if (userRole === 'ADMIN') return true;
     if (userRole === 'AGENT_IMPORT') {
-      return ['dashboard', 'vessels', 'import', 'facturation', 'facturation_tarifs'].includes(tab);
+      return ['dashboard', 'vessels', 'import', 'facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'surestarie'].includes(tab);
     }
     if (userRole === 'AGENT_EXPORT') {
       return ['dashboard', 'vessels', 'export', 'export_saisie', 'export_list', 'export_consolidation', 'facturation'].includes(tab);
     }
     if (userRole === 'COMPTABILITE') {
-      return ['dashboard', 'facturation', 'facturation_tarifs', 'facturation_balance', 'facturation_config', 'import', 'export'].includes(tab);
+      return ['dashboard', 'facturation', 'facturation_journal', 'facturation_avoirs', 'facturation_tarifs', 'facturation_balance', 'facturation_config', 'surestarie', 'import', 'export'].includes(tab);
     }
     if (userRole === 'CLIENT_EXPORT') {
       return ['dashboard', 'export', 'export_saisie', 'export_list'].includes(tab);
@@ -93,17 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'OPÉRATIONS MARITIMES',
       items: [
-        {
-          id: 'vessels',
-          label: 'Fleet Radar & Escales',
-          icon: 'radar',
-          badge: 3
-        },
-        {
-          id: 'import',
-          label: 'Importation & Manifestes',
-          icon: 'input'
-        },
+
         {
           id: 'export',
           label: 'Exportation & Draft BL',
@@ -123,14 +122,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         {
           id: 'facturation',
-          label: 'Billing & Factures FNE',
+          label: 'Facturation BL par BL',
           icon: 'credit_card',
           badge: counts.facturesCount > 0 ? counts.facturesCount : null,
-          colorClass: 'text-orange-500 hover:text-orange-400',
+          colorClass: 'text-blue-400 hover:text-blue-300',
           subItems: [
+            { id: 'facturation', label: 'Facturation BL par BL', icon: 'credit_card' },
+            { id: 'facturation_journal', label: 'Journal des Factures', icon: 'receipt_long' },
+            { id: 'facturation_avoirs', label: 'Notes d\'Avoir & Crédits', icon: 'assignment_return' },
             { id: 'facturation_tarifs', label: 'Tarifs Surestaries', icon: 'payments' },
-            { id: 'facturation_balance', label: 'Balance Âgée Client', icon: 'account_balance' },
-            { id: 'facturation_config', label: 'Configuration Factures', icon: 'settings' }
+            { id: 'facturation_balance', label: 'Balance Client', icon: 'account_balance' },
+            { id: 'facturation_config', label: 'Configuration Factures', icon: 'settings' },
+            { id: 'surestarie', label: 'Surestaries & Détentions', icon: 'timer' }
           ]
         }
       ]
@@ -145,7 +148,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           colorClass: 'text-rose-500 hover:text-rose-400',
           subItems: [
             { id: 'admin_users', label: 'Comptes Utilisateurs', icon: 'manage_accounts' },
-            { id: 'admin_fne', label: 'Params FNE & Devise', icon: 'tune' },
+            { id: 'admin_rights', label: 'Attribution des Droits', icon: 'shield_lock' },
+            { id: 'admin_fne', label: 'Params Factures & Devise', icon: 'tune' },
             { id: 'admin_audit', label: 'Journal d\'Audit', icon: 'verified_user' }
           ]
         }
@@ -154,23 +158,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-[270px] bg-[#0b172a] text-slate-300 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-50 select-none border-r border-slate-800/80 overflow-y-auto">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden transition-opacity duration-300"
+          onClick={onClose}
+        />
+      )}
+      
+      <aside className={`fixed md:sticky top-0 left-0 z-50 w-[270px] bg-[#0b172a] text-slate-300 flex flex-col justify-between shrink-0 h-screen select-none border-r border-slate-800/80 overflow-y-auto transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
       
       {/* Brand Header */}
       <div>
-        <div className="p-5 pb-5 border-b border-slate-800/80 bg-[#070e1b]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#005daa] flex items-center justify-center shadow-lg border border-blue-400/30">
-              <span className="material-symbols-outlined text-white text-2xl">directions_boat</span>
-            </div>
-            <div>
-              <h1 className="font-black text-base tracking-tight text-white leading-none font-heading">
-                BOCS MARITIME
-              </h1>
-              <p className="text-[10px] text-blue-400 font-mono font-extrabold tracking-wider uppercase mt-1">
-                FLEET & LOGISTICS V2.4
-              </p>
-            </div>
+        <div className="p-4 bg-[#a4acb6]">
+          <div className="flex items-center justify-center py-1">
+            <svg className="w-full h-auto max-h-11" viewBox="0 0 350 90" xmlns="http://www.w3.org/2000/svg">
+              <text x="340" y="42" fontFamily="'Arial Black', Arial, sans-serif" fontWeight="900" fontSize="52" fontStyle="italic" fill="#00875A" textAnchor="end" letterSpacing="-2">BOCS</text>
+              <polygon points="0,48 350,48 315,88 290,88 316.25,58 0,58" fill="#002B49" />
+              <text x="282" y="81" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="19" fill="#002B49" textAnchor="end">ABIDJAN</text>
+            </svg>
           </div>
         </div>
 
@@ -199,6 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <button
                         onClick={() => {
                           onTabChange(item.id);
+                          if (onClose) onClose();
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.99] cursor-pointer ${
                           isMainActive
@@ -249,7 +259,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             return (
                               <button
                                 key={sub.id}
-                                onClick={() => onTabChange(sub.id)}
+                                onClick={() => {
+                                  onTabChange(sub.id);
+                                  if (onClose) onClose();
+                                }}
                                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                                   isSubActive
                                     ? 'bg-[#005daa]/40 text-blue-200 font-extrabold border border-blue-400/40'
@@ -300,7 +313,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="space-y-1 text-slate-400 text-xs font-medium">
           {isAuthenticated ? (
             <button 
-              onClick={onLogout}
+              onClick={() => {
+                if (onLogout) onLogout();
+                if (onClose) onClose();
+              }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-rose-400 hover:text-white hover:bg-rose-950/60 transition-all border border-rose-900/30 cursor-pointer active:scale-95"
             >
               <span className="material-symbols-outlined text-base">logout</span>
@@ -308,7 +324,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ) : (
             <button 
-              onClick={onOpenLogin}
+              onClick={() => {
+                if (onOpenLogin) onOpenLogin();
+                if (onClose) onClose();
+              }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-blue-400 hover:text-white hover:bg-blue-950/60 transition-all border border-blue-900/30 cursor-pointer active:scale-95"
             >
               <span className="material-symbols-outlined text-base">login</span>
@@ -319,5 +338,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
     </aside>
+    </>
   );
 };

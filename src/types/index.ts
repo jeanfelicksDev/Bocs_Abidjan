@@ -27,8 +27,10 @@ export interface Escale {
   portChargement: string;
   portDechargement: string;
   dateArrivee: string;
+  dateAccostage?: string;
   dateDepart?: string;
-  statut: 'EN_COURS' | 'CLOTUREE';
+  quai?: string;
+  statut: 'EN_COURS' | 'CLOTUREE' | 'ANNULEE';
   createdBy?: string;
 }
 
@@ -49,12 +51,20 @@ export interface Container {
   typeConteneur: ContainerType;
   numeroScelle: string;
   poidsKg: number;
+  poidsNetKg?: number;
+  volumeM3?: number;
   tareKg: number;
   nombreColis: number;
   dateEntreeParc?: string;
   dateSortieParc?: string;
   montantCautionFcfa: number;
   statutLivraison?: 'AU_PARC' | 'LIVRE' | 'SURESTARIE';
+  isDangerous?: boolean;
+  imoClass?: string;
+  unNumber?: string;
+  flashPoint?: string;
+  packingGroup?: string;
+  socCoc?: 'SOC' | 'COC';
   // Computed fields
   joursSejour?: number;
   joursFranchise?: number;
@@ -89,6 +99,11 @@ export interface BL {
   uniqueCarrierRef?: string;
   marquesEtNumeros?: string;
   conteneurs: Container[];
+  isDangerous?: boolean;
+  imoClass?: string;
+  unNumber?: string;
+  flashPoint?: string;
+  packingGroup?: string;
   cachetAgentAppose?: boolean;
   dateSignature?: string;
   hashSignature?: string;
@@ -100,6 +115,9 @@ export interface TarifSurestarie {
   jourDebut: number;
   jourFin: number; // 999 for infinity
   tarifJournalierFcfa: number;
+  regime?: 'SURESTARIE' | 'DETENTION';
+  typeOperation?: 'IMPORT' | 'EXPORT';
+  joursFranchise?: number;
 }
 
 export interface FranchiseSurestarie {
@@ -111,12 +129,26 @@ export interface FranchiseSurestarie {
 export type DraftStatus = 
   | 'BROUILLON' 
   | 'SOUMIS' 
+  | 'VERROUILLE'
+  | 'DEMANDE_CORRECTION'
+  | 'CORRECTION_AUTORISEE'
   | 'EN_REVUE' 
   | 'DEMANDE_MODIF' 
   | 'VALIDE' 
   | 'REJETE'
   | 'BL_GENERE'
   | 'FACTURE';
+
+export interface DemandeCorrectionDraft {
+  motif: string;
+  dateDemande: string;
+  fraisAcceptes: boolean;
+  montantFrais: number;
+  statut: 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE';
+  validePar?: string;
+  dateValidation?: string;
+  motifRefus?: string;
+}
 
 export interface DraftExport {
   id: number;
@@ -136,16 +168,22 @@ export interface DraftExport {
     nom: string;
     adresse: string;
     pays: string;
+    email?: string;
+    phone?: string;
   };
   consigneeInfo: {
     nom: string;
     adresse: string;
     pays: string;
+    email?: string;
+    phone?: string;
   };
   notifyInfo: {
     nom: string;
     adresse: string;
     pays: string;
+    email?: string;
+    phone?: string;
   };
   marchandisesInfo: {
     description: string;
@@ -160,6 +198,8 @@ export interface DraftExport {
     typeConteneur: ContainerType;
     numeroScelle: string;
     poidsKg: number;
+    poidsNetKg: number;
+    volumeM3: number;
     tareKg: number;
     nombreColis: number;
   }>;
@@ -168,6 +208,12 @@ export interface DraftExport {
   dateCreation: string;
   dateValidation?: string;
   numeroBlGenere?: string;
+  // Règles spécifiques d'amendement & verrouillage ETA
+  dateLimiteTransmission?: string; // 24h avant ETA
+  estDeverrouille?: boolean;
+  demandeCorrection?: DemandeCorrectionDraft;
+  fraisAmendementFactures?: boolean;
+  factureFraisId?: number;
 }
 
 export interface InvoiceItem {
@@ -182,6 +228,7 @@ export interface InvoiceItem {
 
 export type InvoiceType = 'PROFORMA_IMPORT' | 'DEFINITIVE_IMPORT' | 'PROFORMA_EXPORT' | 'DEFINITIVE_EXPORT';
 export type PaymentStatus = 'NON_PAYE' | 'PARTIEL' | 'PAYE';
+export type InvoiceStatus = 'BROUILLON' | 'VALIDEE' | 'ANNULEE' | 'AVOIR';
 
 export interface Invoice {
   id: number;
@@ -202,9 +249,44 @@ export interface Invoice {
   montantTtcFcfa: number;
   soldeDuFcfa: number;
   statutPaiement: PaymentStatus;
+  statutFacture?: InvoiceStatus;
+  motifAnnulation?: string;
+  factureOrigineId?: number;
+  avoirId?: number;
+  createdBy?: string;
+  validatedBy?: string;
+  validatedAt?: string;
+  cancelledAt?: string;
   fneReference?: string;
   fneStatut?: string;
   lignes: InvoiceItem[];
+}
+
+export interface CreditNoteItem {
+  id?: number;
+  creditNoteId?: number;
+  designation: string;
+  typeFrais: 'FRET' | 'ECHANGE' | 'TELEX' | 'TRANSFERT' | 'CAUTION' | 'DMDT_SURESTARIE' | 'AUTRE';
+  quantite: number;
+  prixUnitaireFcfa: number;
+  montantHtFcfa: number;
+  tauxTva: number;
+}
+
+export interface CreditNote {
+  id: number;
+  numeroAvoir: string;
+  factureId: number;
+  numeroFactureOrigine: string;
+  clientNom: string;
+  motif: string;
+  dateEmission: string;
+  montantHtFcfa: number;
+  tvaFcfa: number;
+  montantTtcFcfa: number;
+  statut: 'VALIDE' | 'ANNULE';
+  createdBy?: string;
+  lignes: CreditNoteItem[];
 }
 
 export interface Payment {
@@ -245,9 +327,18 @@ export interface InvoiceTypeConfig {
   description: string;
 }
 
-export type FretCategory = 'CONTENEUR' | 'VRAC' | 'RORO' | 'CONVENTIONNEL';
+export type FretCategory = 'CONTENEUR' | 'CONTENEUR_COC' | 'CONTENEUR_SOC' | 'VRAC' | 'RORO' | 'CONVENTIONNEL';
 
-export type CalculationBase = 'BL' | 'CONTENEUR' | 'POIDS_TONNE';
+export type CalculationBase = 'BL' | 'CONTENEUR' | 'POIDS_TONNE' | 'TEU';
+
+export interface PriceHistoryEntry {
+  id: string;
+  effectiveDate: string; // 'YYYY-MM-DD'
+  amount: number;
+  changedAt: string; // ISO string or formatted string
+  changedBy?: string;
+  note?: string;
+}
 
 export interface RubriqueConfig {
   id: string;
@@ -259,4 +350,5 @@ export interface RubriqueConfig {
   isActive: boolean;
   montantUnitaire: number;
   baseCalcul: CalculationBase;
+  priceHistory?: PriceHistoryEntry[];
 }

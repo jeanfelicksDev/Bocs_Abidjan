@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "prime-agent": {
+      "command": "wsl",
+      "args": [
+        "--exec",
+        "bash",
+        "-c",
+        "/home/hp/.npm-global/bin/prime-agent"
+      ]
+    }
+  }
+}

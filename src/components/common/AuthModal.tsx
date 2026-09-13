@@ -125,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <div className="relative z-10 space-y-3 my-auto py-8">
             <h3 className="font-bold text-2xl text-on-primary leading-tight">
-              Système Certifié de Gestion Logistique & FNE
+              Système de Gestion Logistique & Facturation
             </h3>
             <p className="text-xs text-secondary-fixed-dim leading-relaxed">
               Plateforme unifiée d'échanges documentaires, de suivi d'escales navires, de facturation normalisée et d'administration des comptes.
@@ -259,7 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="p-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded text-emerald-900 font-bold text-left flex items-center gap-1.5 transition-all"
                   >
                     <span className="material-symbols-outlined text-sm">credit_card</span>
-                    <span>Compta FNE</span>
+                    <span>Comptabilité</span>
                   </button>
 
                   <button

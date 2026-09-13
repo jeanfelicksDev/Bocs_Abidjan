@@ -1,4 +1,4 @@
-import { sql } from './db';
+import { sql } from './_db.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
@@ -44,8 +44,8 @@ export default async function handler(req: any, res: any) {
           id, facture_id, facture_numero, client_nom, date_paiement, 
           montant_paye, mode_paiement, reference, caisse_nom, statut
         ) VALUES (
-          ${payment.id}, ${payment.factureId}, ${payment.factureNumero}, ${payment.clientNom}, ${payment.datePaiement},
-          ${payment.montantPayeFcfa}, ${payment.modePaiement}, ${payment.reference || ''}, ${payment.caisseNom}, ${payment.statut}
+          ${payment.id}, ${payment.factureId}, ${payment.factureNumero || payment.numeroFacture || ''}, ${payment.clientNom || 'Client'}, ${payment.datePaiement},
+          ${payment.montantPayeFcfa || payment.montantFcfa || 0}, ${payment.modePaiement}, ${payment.reference || payment.referenceTransaction || ''}, ${payment.caisseNom || payment.saisiPar || 'Caisse'}, ${payment.statut || 'VALIDE'}
         );
       `;
 

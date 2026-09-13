@@ -3,27 +3,41 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bocs-blue: #005DAA;
+    --bocs-blue-hover: #004580;
+    --bocs-blue-light: #F0F7FF;
+    --bocs-green: #00875A;
+    --bocs-green-hover: #006E48;
+    --bocs-green-light: #ECFDF5;
+    --bocs-navy: #002B49;
+    --bocs-black: #09090B;
+    --bocs-dark: #18181B;
+    --bocs-gray-text: #52525B;
+    --bocs-border: #E4E4E7;
+    --bocs-bg: #FFFFFF;
+  }
+
   body {
-    background: 
-      radial-gradient(at 0% 0%, rgba(224, 231, 255, 0.45) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(219, 234, 254, 0.4) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(238, 242, 255, 0.4) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(241, 245, 249, 0.8) 0px, transparent 50%),
-      #e2e8f0;
-    min-height: 100vh;
-    color: #0f172a;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #FFFFFF !important;
+    color: #09090B !important;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
     letter-spacing: -0.01em;
   }
 
+  /* Titles in BOCS Navy Blue */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
-    letter-spacing: -0.02em;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    letter-spacing: -0.025em;
+    color: #002B49 !important;
+    font-weight: 800;
   }
 }
 
+/* Material Symbols alignment */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   display: inline-block;
@@ -31,56 +45,72 @@
   line-height: 1;
 }
 
-/* Page Background Glow Override */
-.bg-background {
-  background: 
-    radial-gradient(at 0% 0%, rgba(224, 231, 255, 0.45) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(219, 234, 254, 0.4) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(238, 242, 255, 0.4) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(241, 245, 249, 0.8) 0px, transparent 50%),
-    #e2e8f0 !important;
+/* ==========================================================================
+   STYLE ÉPURÉ BOCS — BLEU MARINE & VERT MARITIME BOCS
+   Fond blanc pur, titres en bleu marine, accents en vert BOCS
+   ========================================================================== */
+
+/* Editorial serif italic accent font in BOCS Green */
+.font-serif-italic,
+.italic-accent,
+em.title-accent {
+  font-family: 'Playfair Display', Georgia, serif !important;
+  font-style: italic !important;
+  font-weight: 600 !important;
+  color: #00875A !important;
 }
 
-/* Glassmorphism Overrides for White Panels and Cards (Sidebar aside elements are NOT targeted) */
-.bg-white,
-.bg-surface-container-lowest,
-.bocs-card,
+/* Stat numbers bold display in BOCS Blue */
+.stat-number,
+.kpi-display-number {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 900 !important;
+  color: #005DAA !important;
+  letter-spacing: -0.04em !important;
+}
+
+/* Global Cards & Panels — Crisp pure white with fine hairline borders */
 .glass-panel,
-div[class*="bg-white"][class*="border"],
-div[class*="bg-surface-container-lowest"][class*="border"] {
-  background-color: rgba(255, 255, 255, 0.48) !important;
-  backdrop-filter: blur(18px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(120%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.55) !important;
-  box-shadow: 
-    0 4px 30px rgba(15, 23, 42, 0.015),
-    0 10px 30px -10px rgba(15, 23, 42, 0.04),
-    inset 0 1px 1px rgba(255, 255, 255, 0.7) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.bocs-card,
+.ocean-glass-card,
+.ocean-glass-banner {
+  background: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #E4E4E7 !important;
+  color: #09090B !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
+  border-radius: 1rem !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-/* Hover effects for glass panels */
-.bg-white:hover,
+.glass-panel:hover,
 .bocs-card:hover,
-div[class*="bg-white"][class*="border"]:hover {
-  background-color: rgba(255, 255, 255, 0.65) !important;
-  border-color: rgba(255, 255, 255, 0.75) !important;
-  box-shadow: 
-    0 20px 40px -12px rgba(15, 23, 42, 0.08), 
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.8) !important;
+.ocean-glass-card:hover {
+  border-color: #005DAA !important;
+  box-shadow: 0 10px 25px -4px rgba(0, 93, 170, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.02) !important;
 }
 
-/* Header Frosted Banner */
-header,
-header[class*="bg-white"] {
-  background-color: rgba(255, 255, 255, 0.38) !important;
-  backdrop-filter: blur(20px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02) !important;
+/* Secondary Panels / Sub-cards */
+.bg-slate-50,
+.bg-gray-50,
+.bg-slate-100 {
+  background-color: #FAFAFA !important;
+  border: 1px solid #E4E4E7 !important;
+  color: #09090B !important;
 }
 
-/* Input Fields - Frosted Translucent Look */
+/* Form Labels — Bold and dark */
+label,
+.form-label,
+span[class*="uppercase"]:not(button *):not(.badge-text) {
+  color: #18181B !important;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+/* Input Fields — Clean crisp modern form controls */
 input[type="text"],
 input[type="number"],
 input[type="date"],
@@ -88,99 +118,474 @@ input[type="email"],
 input[type="password"],
 select,
 textarea {
-  background-color: rgba(255, 255, 255, 0.35) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #D4D4D8 !important;
+  color: #09090B !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 input[type="text"]:focus,
 input[type="number"]:focus,
 input[type="date"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
 select:focus,
 textarea:focus {
-  background-color: rgba(255, 255, 255, 0.8) !important;
-  border-color: #005daa !important;
-  box-shadow: 0 0 0 3px rgba(0, 93, 170, 0.15) !important;
+  background-color: #FFFFFF !important;
+  border-color: #005DAA !important;
+  box-shadow: 0 0 0 3px rgba(0, 93, 170, 0.16) !important;
+  outline: none !important;
 }
 
-/* Modals Backdrop and Content overlays */
+input::placeholder,
+textarea::placeholder {
+  color: #A1A1AA !important;
+  font-weight: 400 !important;
+}
+
+/* Tables Global Clean White & Subtle Neutral Lines */
+table thead tr {
+  background-color: #F4F4F5 !important;
+  border-bottom: 1.5px solid #E4E4E7 !important;
+}
+
+table thead th {
+  color: #18181B !important;
+  font-weight: 800 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+}
+
+table tbody tr {
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #F4F4F5 !important;
+  color: #09090B !important;
+  font-weight: 500 !important;
+  transition: background-color 0.15s ease !important;
+}
+
+table tbody tr:hover {
+  background-color: #F0F7FF !important;
+}
+
+table tbody td {
+  color: #09090B;
+}
+
+/* Modals Backdrop and Clean White Dialog Container */
 div[class*="fixed"][class*="z-50"] {
-  background-color: rgba(0, 24, 47, 0.45) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  background-color: rgba(9, 9, 11, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
 }
 
 div[class*="fixed"][class*="z-50"] > div {
-  background-color: rgba(255, 255, 255, 0.78) !important;
-  backdrop-filter: blur(30px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(120%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.65) !important;
-  box-shadow: 0 25px 60px -15px rgba(0, 15, 30, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.75) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E4E4E7 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+  color: #09090B !important;
+  max-height: calc(100vh - 2rem) !important;
+  overflow-y: auto !important;
+  border-radius: 1.25rem !important;
 }
 
-/* Translucent Tables Styling */
-thead tr {
-  background-color: rgba(241, 245, 249, 0.35) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+/* Buttons — BOCS Blue Primary & Clean White Secondary */
+.premium-btn-primary,
+button.btn-primary-orange,
+button.btn-primary-blue,
+.btn-primary {
+  background: #005DAA !important;
+  box-shadow: 0 4px 14px rgba(0, 93, 170, 0.3) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  font-weight: 800 !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s ease !important;
 }
 
-tbody tr {
-  background-color: transparent !important;
-  transition: background-color 0.2s ease;
+.premium-btn-primary:hover,
+button.btn-primary-orange:hover,
+button.btn-primary-blue:hover,
+.btn-primary:hover {
+  background: #004580 !important;
+  box-shadow: 0 6px 18px rgba(0, 93, 170, 0.4) !important;
+  transform: translateY(-1px);
 }
 
-tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
+/* BOCS Green Button Variant */
+.premium-btn-green,
+button.btn-primary-green {
+  background: #00875A !important;
+  box-shadow: 0 4px 14px rgba(0, 135, 90, 0.3) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  font-weight: 800 !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s ease !important;
 }
 
-/* Scrollbars styling to match fluid UI */
+.premium-btn-green:hover,
+button.btn-primary-green:hover {
+  background: #006E48 !important;
+  box-shadow: 0 6px 18px rgba(0, 135, 90, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.premium-btn-primary *,
+.premium-btn-primary span,
+.premium-btn-green *,
+.premium-btn-green span {
+  color: #FFFFFF !important;
+}
+
+.premium-btn-secondary {
+  background: #FFFFFF !important;
+  border: 1px solid #E4E4E7 !important;
+  color: #09090B !important;
+  border-radius: 0.75rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.2s ease !important;
+}
+
+.premium-btn-secondary:hover {
+  background: #F4F4F5 !important;
+  border-color: #18181B !important;
+  color: #000000 !important;
+  transform: translateY(-1px);
+}
+
+/* Primary colored buttons — BOCS Blue & Green */
+button[class*="bg-[#005DAA]"],
+button[class*="bg-[#004580]"],
+button[class*="bg-[#00875A]"],
+button[class*="bg-[#006E48]"],
+button[class*="bg-[#002B49]"] {
+  color: #FFFFFF !important;
+}
+
+button[class*="bg-[#005DAA]"] *,
+button[class*="bg-[#004580]"] *,
+button[class*="bg-[#00875A]"] *,
+button[class*="bg-[#006E48]"] *,
+button[class*="bg-[#002B49]"] * {
+  color: #FFFFFF !important;
+}
+
+/* Global Text Colors mapping to avoid white-on-white from legacy classes */
+.ocean-glass-card .text-white:not(button):not(button *):not(.bg-primary *):not([class*="bg-emerald"] *):not([class*="bg-rose"] *):not([class*="bg-teal"] *),
+.ocean-glass-banner .text-white:not(button):not(button *):not(.bg-primary *),
+.glass-panel .text-white:not(button):not(button *):not(.bg-primary *),
+.bocs-card .text-white:not(button):not(button *):not(.bg-primary *),
+div[class*="fixed"][class*="z-50"] .text-white:not(button):not(button *):not(.bg-primary *) {
+  color: #09090B !important;
+}
+
+/* Secondary muted text - strictly excluding buttons and interactive controls */
+.ocean-glass-card .text-slate-400:not(button):not(button *),
+.ocean-glass-banner .text-slate-400:not(button):not(button *),
+.glass-panel .text-slate-400:not(button):not(button *),
+.bocs-card .text-slate-400:not(button):not(button *),
+.ocean-glass-card .text-slate-300:not(button):not(button *),
+.ocean-glass-banner .text-slate-300:not(button):not(button *),
+.glass-panel .text-slate-300:not(button):not(button *),
+.bocs-card .text-slate-300:not(button):not(button *),
+.ocean-glass-card .text-slate-200:not(button):not(button *),
+.ocean-glass-banner .text-slate-200:not(button):not(button *),
+.glass-panel .text-slate-200:not(button):not(button *),
+.bocs-card .text-slate-200:not(button):not(button *),
+.ocean-glass-card .text-slate-100:not(button):not(button *),
+.ocean-glass-banner .text-slate-100:not(button):not(button *),
+.glass-panel .text-slate-100:not(button):not(button *),
+.bocs-card .text-slate-100:not(button):not(button *) {
+  color: #52525B !important;
+}
+
+/* Ultra-Legible Dark Buttons & Navigation Pills */
+button[class*="bg-[#07172c]"],
+button[class*="bg-[#07192d]"],
+button[class*="bg-[#081d33]"],
+button[class*="bg-[#040e1b]"],
+button[class*="bg-[#051424]"],
+button[class*="bg-[#0c2444]"],
+button[class*="bg-[#0c182b]"],
+button[class*="bg-[#0F172A]"],
+button[class*="bg-slate-800"],
+button[class*="bg-slate-900"],
+button[class*="bg-zinc-900"],
+button[class*="bg-[#18181B]"] {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  border: 1px solid #334155 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.015em;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
+}
+
+button[class*="bg-[#07172c]"] *,
+button[class*="bg-[#07192d]"] *,
+button[class*="bg-[#081d33]"] *,
+button[class*="bg-[#040e1b]"] *,
+button[class*="bg-[#051424]"] *,
+button[class*="bg-[#0c2444]"] *,
+button[class*="bg-[#0c182b]"] *,
+button[class*="bg-[#0F172A]"] *,
+button[class*="bg-slate-800"] *,
+button[class*="bg-slate-900"] *,
+button[class*="bg-zinc-900"] *,
+button[class*="bg-[#18181B]"] * {
+  color: #F8FAFC !important;
+  font-weight: 700 !important;
+}
+
+button[class*="bg-[#07172c]"] .material-symbols-outlined,
+button[class*="bg-[#07192d]"] .material-symbols-outlined,
+button[class*="bg-[#081d33]"] .material-symbols-outlined,
+button[class*="bg-[#040e1b]"] .material-symbols-outlined,
+button[class*="bg-[#0F172A]"] .material-symbols-outlined,
+button[class*="bg-slate-800"] .material-symbols-outlined,
+button[class*="bg-slate-900"] .material-symbols-outlined,
+button[class*="bg-[#18181B]"] .material-symbols-outlined,
+button[class*="bg-[#07172c]"] svg,
+button[class*="bg-[#07192d]"] svg,
+button[class*="bg-[#0F172A]"] svg,
+button[class*="bg-slate-800"] svg {
+  color: #CBD5E1 !important;
+}
+
+/* Hover state for dark buttons */
+button[class*="bg-[#07172c]"]:hover,
+button[class*="bg-[#07192d]"]:hover,
+button[class*="bg-[#081d33]"]:hover,
+button[class*="bg-[#040e1b]"]:hover,
+button[class*="bg-[#051424]"]:hover,
+button[class*="bg-[#0c2444]"]:hover,
+button[class*="bg-[#0F172A]"]:hover,
+button[class*="bg-slate-800"]:hover,
+button[class*="bg-slate-900"]:hover,
+button[class*="bg-zinc-900"]:hover,
+button[class*="bg-[#18181B]"]:hover {
+  background-color: #1E293B !important;
+  border-color: #005DAA !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(0, 93, 170, 0.2) !important;
+}
+
+button[class*="bg-[#07172c]"]:hover *,
+button[class*="bg-[#07192d]"]:hover *,
+button[class*="bg-[#081d33]"]:hover *,
+button[class*="bg-[#040e1b]"]:hover *,
+button[class*="bg-[#051424]"]:hover *,
+button[class*="bg-[#0c2444]"]:hover *,
+button[class*="bg-[#0F172A]"]:hover *,
+button[class*="bg-slate-800"]:hover *,
+button[class*="bg-slate-900"]:hover *,
+button[class*="bg-zinc-900"]:hover *,
+button[class*="bg-[#18181B]"]:hover * {
+  color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   PALETTE DE COULEURS BOCS MARITIME
+   ========================================================================== */
+
+/* High-contrast maritime Cyan / Ocean Blue on light backgrounds */
+.ocean-glass-card .text-cyan-400:not(button *),
+.ocean-glass-banner .text-cyan-400:not(button *),
+.glass-panel .text-cyan-400:not(button *),
+.bocs-card .text-cyan-400:not(button *),
+.ocean-glass-card .text-cyan-300:not(button *),
+.ocean-glass-banner .text-cyan-300:not(button *),
+.glass-panel .text-cyan-300:not(button *),
+.bocs-card .text-cyan-300:not(button *),
+table td.text-cyan-300,
+table td.text-cyan-400 {
+  color: #005DAA !important;
+  font-weight: 700 !important;
+}
+
+/* Maritime background tints on light cards */
+.ocean-glass-card .bg-cyan-500\/10,
+.ocean-glass-banner .bg-cyan-500\/10,
+.glass-panel .bg-cyan-500\/10,
+.bocs-card .bg-cyan-500\/10,
+.ocean-glass-card .bg-cyan-500\/20,
+.glass-panel .bg-cyan-500\/20,
+.bocs-card .bg-cyan-500\/20 {
+  background-color: #F0F7FF !important;
+  border-color: #BAE6FD !important;
+  color: #005DAA !important;
+}
+
+/* Semantic Badges & Pills */
+.badge-conteneur,
+[class*="bg-blue-50"] {
+  background-color: #EFF6FF !important;
+  color: #1E40AF !important;
+  border-color: #BFDBFE !important;
+}
+
+.badge-vrac,
+[class*="bg-amber-50"] {
+  background-color: #FFFBEB !important;
+  color: #92400E !important;
+  border-color: #FDE68A !important;
+}
+
+.badge-roro,
+[class*="bg-emerald-50"] {
+  background-color: #ECFDF5 !important;
+  color: #065F46 !important;
+  border-color: #A7F3D0 !important;
+}
+
+.badge-danger,
+[class*="bg-rose-50"] {
+  background-color: #FFF1F2 !important;
+  color: #9F1239 !important;
+  border-color: #FECDD3 !important;
+}
+
+/* Universal Dark Hex to Minimal Light Theme Mapping */
+[class*="bg-[#040e1b]"],
+[class*="bg-[#051120]"],
+[class*="bg-[#030914]"],
+[class*="bg-[#081d33]"],
+[class*="bg-[#06182a]"],
+[class*="bg-[#07192d]"],
+[class*="bg-[#051424]"],
+[class*="bg-[#0a233c]"],
+[class*="bg-[#081b2e]"],
+[class*="bg-[#051322]"],
+[class*="bg-[#040d1a]"],
+[class*="bg-[#061424]"],
+[class*="bg-[#07101d]"],
+[class*="bg-[#0c182b]"],
+[class*="bg-[#0e2c4c]"],
+[class*="bg-[#050e1a]"],
+[class*="bg-[#071322]"] {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border-color: #E4E4E7 !important;
+}
+
+/* Headers or subtle alternating stripes inside dark containers */
+thead tr[class*="bg-[#0"],
+[class*="bg-[#030914]"],
+[class*="bg-[#06182a]"],
+[class*="bg-[#07101d]"] {
+  background-color: #F4F4F5 !important;
+  color: #18181B !important;
+}
+
+/* Hover on table rows */
+tr[class*="hover:bg-[#0a233c]"]:hover,
+tr[class*="hover:bg-emerald-950"]:hover,
+tr[class*="hover:bg-sky-950"]:hover {
+  background-color: #F0F7FF !important;
+}
+
+/* Automatic conversion of any residual orange hexes to BOCS Blue */
+.bg-\[\#D94817\],
+.bg-\[\#d94817\],
+[class*="bg-[#D94817]"],
+[class*="bg-[#d94817]"] {
+  background-color: #005DAA !important;
+}
+
+.text-\[\#D94817\],
+.text-\[\#d94817\],
+[class*="text-[#D94817]"],
+[class*="text-[#d94817]"] {
+  color: #005DAA !important;
+}
+
+.border-\[\#D94817\],
+.border-\[\#d94817\],
+[class*="border-[#D94817]"],
+[class*="border-[#d94817]"] {
+  border-color: #005DAA !important;
+}
+
+.bg-\[\#FFF3ED\],
+.bg-\[\#fff3ed\],
+[class*="bg-[#FFF3ED]"],
+[class*="bg-[#fff3ed]"] {
+  background-color: #F0F7FF !important;
+}
+
+.bg-\[\#FFE8DC\],
+.bg-\[\#ffe8dc\],
+[class*="bg-[#FFE8DC]"],
+[class*="bg-[#ffe8dc]"] {
+  background-color: #E0F2FE !important;
+}
+
+.text-\[\#C23E12\],
+.text-\[\#c23e12\],
+.text-\[\#C23D12\],
+[class*="text-[#C23E12]"],
+[class*="text-[#c23e12]"],
+[class*="text-[#C23D12]"] {
+  color: #004580 !important;
+}
+
+.bg-\[\#C23E12\],
+.bg-\[\#c23e12\],
+.bg-\[\#C23D12\],
+[class*="bg-[#C23E12]"],
+[class*="bg-[#c23e12]"],
+[class*="bg-[#C23D12]"] {
+  background-color: #004580 !important;
+}
+
+/* Clean Minimalist Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #F4F4F5;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.15);
+  background: #D4D4D8;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 42, 0.35);
+  background: #005DAA;
 }
 
-/* Premium Visible Scrollbar (Ascenseur) */
-.bocs-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.bocs-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-}
-.bocs-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.25);
-  border-radius: 8px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-}
-.bocs-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #005daa;
+.welcome-scrollbar,
+.bocs-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #D4D4D8 #F4F4F5;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Print Styles for Invoices and Original BL */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Print Styles */
 @media print {
   body {
     background: white !important;
@@ -192,10 +597,11 @@ tbody tr:hover {
   .print-only {
     display: block !important;
   }
-  .bocs-card, .bg-white, div[class*="bg-white"] {
+  .bocs-card, .glass-panel {
     background: white !important;
     border: 1px solid #ccc !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
+    color: black !important;
   }
 }
