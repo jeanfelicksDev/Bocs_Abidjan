@@ -1217,9 +1217,13 @@ export function App() {
   }
 
   // ─── Porte 2 : Écran d'accueil / Plateforme intégrée (après connexion) ─
+  // Le nom de la personne connectée s'affiche dans l'en-tête (nom + rôle,
+  // sélecteur de compte, accès profil, déconnexion) ; les autres pages
+  // l'affichent via le Header unifié (avatar + nom + rôle).
   if (showWelcome || activeTab === 'dashboard') {
     return (
-      <WelcomeScreen
+      <>
+        <WelcomeScreen
         escales={escales}
         bls={bls}
         drafts={drafts}
@@ -1229,6 +1233,10 @@ export function App() {
         exchangeRateUsd={exchangeRateUsd}
         userRole={currentUser.role}
         currentUser={currentUser}
+        allUsers={allUsers}
+        onSwitchUser={handleSwitchUser}
+        onOpenProfile={() => setShowProfileModal(true)}
+        onLogout={handleLogout}
         onEnter={(targetTab, targetBlId) => {
           // RBAC : refus immédiat si l'habilitation requise est absente de la matrice des droits
           if (targetTab && !isTabAllowed(currentUser, targetTab)) {
@@ -1254,6 +1262,9 @@ export function App() {
         onAddPayment={handleAddPayment}
         onLogAudit={logAuditAction}
       />
+        {/* Notifications globales (toasts succès/erreur également sur la plateforme) */}
+        <ToastContainer />
+      </>
     );
   }
 

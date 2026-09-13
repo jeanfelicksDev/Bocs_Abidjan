@@ -11,6 +11,7 @@ import {
   Upload,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   FileText,
   Database,
   Search,
@@ -41,7 +42,9 @@ import {
   Trash2,
   Loader2,
   Plus,
-  Printer
+  Printer,
+  LogOut,
+  UserRound
 } from 'lucide-react';
 import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User } from '../types';
 import { parseGuceXml } from '../utils/xmlGuceParser';
@@ -71,6 +74,10 @@ interface WelcomeScreenProps {
   exchangeRateUsd?: number;
   userRole?: UserRole;
   currentUser?: User;
+  allUsers?: User[];
+  onSwitchUser?: (user: User) => void;
+  onOpenProfile?: () => void;
+  onLogout?: () => void;
   onEnter: (targetTab?: any, targetBlId?: number) => void;
   onImportManifest: (escale: Escale, newBls: BL[]) => void;
   onUpdateEscale?: (updatedEscale: Escale) => void;
@@ -96,6 +103,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   exchangeRateUsd = 600,
   userRole = 'ADMIN',
   currentUser,
+  allUsers = [],
+  onSwitchUser,
+  onOpenProfile,
+  onLogout,
   onEnter,
   onImportManifest,
   onUpdateEscale,
@@ -119,6 +130,25 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const canViewSurestarie = isTabAllowed(permissionSubject, 'surestarie');
   const canManageEscales = hasPermission(permissionSubject, 'manage_escales');
   const canImportGuce = hasPermission(permissionSubject, 'import_guce_xml');
+
+  // Identité de la personne connectée (nom + rôle lisible), affichée dans l'en-tête
+  const connectedUser: User | null = currentUser || null;
+  const userInitials = (connectedUser?.nomComplet || '')
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '••';
+  const getConnectedRoleLabel = (role?: UserRole) => {
+    switch (role) {
+      case 'ADMIN': return 'Administrateur';
+      case 'AGENT_IMPORT': return 'Agent Import';
+      case 'AGENT_EXPORT': return 'Agent Export';
+      case 'COMPTABILITE': return 'Comptabilité';
+      case 'CLIENT_EXPORT': return 'Client Export';
+      default: return userRole;
+    }
+  };
 
   const [viewState, setViewState] = useState<ViewState>('welcome');
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | null>(null);
@@ -612,8 +642,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </div>
 
           {/* Right Authority & Actions */}
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="hidden lg:flex items-center gap-3 text-xs">
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-700 font-bold">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 <Building2 className="w-4 h-4 text-[#005DAA]" />
@@ -624,6 +654,68 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <span>{currentTime || '00:00:00 GMT'}</span>
               </div>
             </div>
+
+            {/* Personne connectée : nom + rôle, sélecteur de compte, profil, déconnexion */}
+            {connectedUser ? (
+              <div className="flex items-center gap-2">
+                {allUsers.length > 0 && onSwitchUser && (
+                  <div className="relative hidden md:block">
+                    <select
+                      value={connectedUser.id}
+                      onChange={(e) => {
+                        const target = allUsers.find(u => u.id === Number(e.target.value));
+                        if (target) onSwitchUser(target);
+                      }}
+                      className="appearance-none bg-zinc-50 border border-zinc-200 rounded-xl pl-2.5 pr-8 py-2 text-xs font-bold text-zinc-800 focus:outline-none focus:border-[#005DAA] cursor-pointer hover:border-zinc-300 transition-all max-w-[190px] truncate"
+                      title="Changer de compte (Rôle Opérationnel)"
+                    >
+                      {allUsers.map(u => (
+                        <option key={u.id} value={u.id} className="bg-white text-zinc-900 font-medium text-xs">
+                          {u.nomComplet} ({u.role.replace('AGENT_', '')})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onOpenProfile}
+                  className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 pl-1.5 pr-3 py-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 shadow-2xs transition-all cursor-pointer group active:scale-95 text-zinc-900"
+                  title="Mon Profil — Paramètres & mot de passe"
+                >
+                  <div className="w-7 h-7 rounded-full bg-[#005DAA] text-white font-black text-xs flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                    {userInitials}
+                  </div>
+                  <div className="text-left hidden sm:block max-w-[150px]">
+                    <span className="text-xs font-extrabold text-zinc-900 block leading-none truncate group-hover:text-[#005DAA] transition-colors">{connectedUser.nomComplet}</span>
+                    <span className="text-[10px] text-[#005DAA] font-mono font-bold leading-none mt-1 block truncate">{getConnectedRoleLabel(connectedUser.role)}</span>
+                  </div>
+                </button>
+
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-200 transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                    title={`Se déconnecter (${connectedUser.nomComplet})`}
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700" title="Aucun utilisateur connecté">
+                <div className="w-7 h-7 rounded-full bg-zinc-300 text-zinc-600 flex items-center justify-center shrink-0">
+                  <UserRound className="w-4 h-4" />
+                </div>
+                <div className="text-left hidden sm:block">
+                  <span className="text-xs font-extrabold block leading-none">Non connecté</span>
+                  <span className="text-[10px] font-mono font-bold leading-none mt-1 block">{getConnectedRoleLabel(undefined)}</span>
+                </div>
+              </div>
+            )}
 
             {viewState === 'create-escale' ? (
               <button
