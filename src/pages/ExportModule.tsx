@@ -91,9 +91,47 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     return userRole === 'CLIENT_EXPORT' ? 'ESPACE_CLIENT' : 'ESPACE_CLIENT';
   });
 
-  useEffect(() => {
-    if (initialSubTab) setActiveSubTab(initialSubTab);
-  }, [initialSubTab]);
+  // ── Isolation client export : chaque client ne voit que SES propres drafts ──
+  // Rattachement par identifiants stables (id, email, société, nom) — sans repli générique.
+  const normalizeToken = (v?: string) =>
+    (v || '').trim().toLowerCase().replace(/[\s_.-]+/g, '');
+  const isClientExport = userRole === 'CLIENT_EXPORT';
+  const displayedDrafts = drafts.filter(d => {
+    if (!isClientExport) return true;
+    const userId = Number(currentUser.id);
+    const userEmail = (currentUser.email || '').trim().toLowerCase();
+    const userSociete = normalizeToken(currentUser.nomSociete);
+    const userName = normalizeToken(currentUser.nomComplet);
+    if (Number(d.clientId) === userId) return true;
+    if (d.clientEmail && d.clientEmail.trim().toLowerCase() === userEmail && userEmail) return true;
+    if (userSociete) {
+      const candidates = [
+        normalizeToken(d.clientSociete),
+        normalizeToken(d.clientNom),
+        normalizeToken(d.shipperInfo?.nom),
+      ].filter(Boolean);
+      if (candidates.some(c => c === userSociete)) return true;
+    }
+    if (userName) {
+      const candidates = [
+        normalizeToken(d.clientNom),
+        normalizeToken(d.clientEmail),
+        normalizeToken(d.shipperInfo?.nom),
+        normalizeToken(d.shipperInfo?.email),
+      ].filter(Boolean);
+      if (candidates.some(c => c === userName)) return true;
+    }
+    return false;
+  });
+
+  // Garde : un client export ne doit jamais voir le manifeste consolidé
+  // (ni l'atteindre par navigation directe) — réservé aux agents/admins.
+  const canViewConsolidation = userRole !== 'CLIENT_EXPORT';
+  // Sécurité : un client export ne peut agir que sur SES propres drafts
+  // (la liste affichée étant déjà strictement filtrée, toute action
+  // hors liste est refusée).
+  const isOwnDraft = (draft: DraftExport) =>
+    displayedDrafts.some(d => d.id === draft.id);
 
   // Liste des escales disponibles (avec repli sur BOCS BREMEN si aucune escale enregistrée)
   const activeEscales: Escale[] = escales && escales.length > 0 ? escales : [
@@ -311,6 +349,10 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
   // Chargement d'un draft pour correction ou consultation
   const handleEditDraft = (draft: DraftExport) => {
+    if (isClientExport && !isOwnDraft(draft)) {
+      toastError('Accès refusé : ce draft appartient à un autre compte client.');
+      return;
+    }
     const deadlineInfo = getDraftDeadlineInfo(draft);
     if (deadlineInfo.isLocked) {
       toastError(`Ce draft est verrouillé. Veuillez soumettre une demande de correction.`);
@@ -485,6 +527,10 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
   // Ouverture de la modale de demande de correction
   const handleOpenCorrectionModal = (draft: DraftExport) => {
+    if (isClientExport && !isOwnDraft(draft)) {
+      toastError('Accès refusé : ce draft appartient à un autre compte client.');
+      return;
+    }
     setTargetDraftForCorrection(draft);
     setMotifCorrection('');
     setFraisAcceptes(false);
@@ -494,6 +540,10 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   // Confirmation de la demande de correction avec acceptation des frais
   const handleSubmitCorrectionRequest = () => {
     if (!targetDraftForCorrection) return;
+    if (isClientExport && !isOwnDraft(targetDraftForCorrection)) {
+      toastError('Accès refusé : ce draft appartient à un autre compte client.');
+      return;
+    }
     if (!motifCorrection.trim()) {
       toastError('Veuillez préciser le motif de la correction demandée.');
       return;
@@ -660,15 +710,26 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     onLogAudit('IMPRESSION_BL_PAPIER_ENTETE', 'BLOriginal', `Édition papier à en-tête du BL ${draft.numeroBlGenere || draft.numeroDraft}`);
   };
 
-  // Filtrage des drafts selon le rôle connecté
-  const displayedDrafts = drafts.filter(d => {
-    if (userRole === 'CLIENT_EXPORT') {
-      return d.clientId === currentUser.id || d.clientEmail === currentUser.email || d.shipperInfo.nom.toLowerCase().includes(currentUser.nomSociete?.toLowerCase() || 'agro');
+  useEffect(() => {
+    if (initialSubTab) {
+      // Sécurité : un client export arrivant sur CONSOLIDATION (lien direct)
+      // est ramené vers son espace — il n'a pas accès au manifeste.
+      if (initialSubTab === 'CONSOLIDATION' && userRole === 'CLIENT_EXPORT') {
+        setActiveSubTab('ESPACE_CLIENT');
+      } else {
+        setActiveSubTab(initialSubTab);
+      }
     }
-    return true;
-  });
+  }, [initialSubTab, userRole]);
+
+  useEffect(() => {
+    if (isClientExport && activeSubTab === 'CONSOLIDATION') {
+      setActiveSubTab('ESPACE_CLIENT');
+    }
+  }, [isClientExport, activeSubTab]);
 
   // Liste des drafts validés pour l'escale sélectionnée dans l'onglet Manifeste
+  // (onglet réservé agents/admins — jamais rendu pour un client export).
   const validatedDraftsForManifest = drafts.filter(d => {
     const isThisEscale = d.escaleId === selectedEscale.id || d.numeroVoyage === selectedEscale.numeroVoyage || d.navireNom === selectedEscale.nomNavire;
     return isThisEscale && (d.statut === 'VALIDE' || d.statut === 'BL_GENERE');
@@ -723,6 +784,9 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
             <span>Saisie du Draft de BL</span>
           </button>
 
+          {/* Onglet Manifeste Export (Consolidation) — agents & admins uniquement.
+              Le client export ne voit que ses propres drafts et n'a pas accès au manifeste. */}
+          {canViewConsolidation && (
           <button
             onClick={() => setActiveSubTab('CONSOLIDATION')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
@@ -741,6 +805,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
               </span>
             )}
           </button>
+          )}
 
         </div>
 
@@ -1735,8 +1800,9 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
       {/* ══════════════════════════════════════════════════════════════════
           ONGLET 3 : MANIFESTE EXPORT (CONSOLIDATION DE L'ESCALE)
+          Réservé aux agents & admins — le client export n'y a jamais accès.
       ══════════════════════════════════════════════════════════════════ */}
-      {activeSubTab === 'CONSOLIDATION' && (
+      {activeSubTab === 'CONSOLIDATION' && canViewConsolidation && (
         <div className="space-y-6">
           
           {/* Header Consolidation */}
