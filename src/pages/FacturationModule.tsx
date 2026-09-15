@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toastSuccess, toastError, toastWarning, toastInfo } from '../components/common/Toast';
 import { exportInvoicesCsv, exportPaymentsCsv } from '../utils/exportCsv';
-import { BL, Escale, Invoice, CreditNote, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry } from '../types';
+import { BL, Escale, Invoice, CreditNote, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry, TimbreBracket, TaxeAdditionnelleConfig } from '../types';
+import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, normalizeTaxeAdditionnelleConfig, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel, getTaxeAdditionnelleModeLabel } from '../utils/taxeAdditionnelle';
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf, generateDoBadPdf, generateCreditNotePdf } from '../utils/pdfGenerator';
 import { BlBillingModule } from './BlBillingModule';
@@ -33,6 +34,12 @@ interface FacturationModuleProps {
   onGenerateInvoice?: (invoice: Invoice) => void;
   onUpdateInvoice?: (invoice: Invoice) => void;
   onUpdateBl?: (updatedBl: BL) => void;
+  /** Tranches de timbre fiscal (paramétrage comptable). */
+  timbreBrackets?: TimbreBracket[];
+  onUpdateTimbreBrackets?: (brackets: TimbreBracket[]) => void;
+  /** Taxe additionnelle exceptionnelle : assiette montant TTC, valeur modifiable. */
+  taxeAdditionnelleConfig?: TaxeAdditionnelleConfig;
+  onUpdateTaxeAdditionnelle?: (config: TaxeAdditionnelleConfig) => void;
 }
 
 
@@ -165,13 +172,93 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   onDeleteInvoiceTypeConfig,
   onGenerateInvoice,
   onUpdateInvoice,
-  onUpdateBl
+  onUpdateBl,
+  taxeAdditionnelleConfig = DEFAULT_TAXE_ADDITIONNELLE_CONFIG,
+  onUpdateTaxeAdditionnelle,
+  /** Tranches de timbre fiscal d'État (assiette HT). */
+  timbreBrackets = [],
+  onUpdateTimbreBrackets
 }) => {
   const [activeTab, setActiveTab] = useState<'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG'>(initialSubTab);
 
   React.useEffect(() => {
     if (initialSubTab) setActiveTab(initialSubTab);
   }, [initialSubTab]);
+
+  // ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
+  // Brouillon local : la valeur n'est publiée qu'au clic sur « Enregistrer la taxe ».
+  const [taxeAdditionnelleDraft, setTaxeAdditionnelleDraft] = useState<TaxeAdditionnelleConfig>(taxeAdditionnelleConfig);
+  const [taxeSimulationTtc, setTaxeSimulationTtc] = useState<number>(1000000);
+  const [taxeSimulationType, setTaxeSimulationType] = useState<'IMPORT' | 'EXPORT'>('IMPORT');
+
+  React.useEffect(() => {
+    setTaxeAdditionnelleDraft(taxeAdditionnelleConfig);
+  }, [taxeAdditionnelleConfig]);
+
+  // Simulation en direct : applique la taxe en cours de saisie sur un TTC donné.
+  const taxeSimulation = computeTaxeAdditionnelle(
+    taxeAdditionnelleDraft,
+    taxeSimulationTtc,
+    taxeSimulationType === 'IMPORT' ? 'PROFORMA_IMPORT' : 'PROFORMA_EXPORT'
+  );
+
+  // ── Timbre fiscal d'État (assiette : montant HT, par tranches) ──
+  // Brouillon local : les tranches ne sont publiées qu'au clic sur « Enregistrer le timbre ».
+  const [timbreDraft, setTimbreDraft] = useState<TimbreBracket[]>(timbreBrackets);
+
+  React.useEffect(() => {
+    setTimbreDraft(timbreBrackets);
+  }, [timbreBrackets]);
+
+  const updateTimbreBracket = (index: number, patch: Partial<TimbreBracket>) =>
+    setTimbreDraft(prev => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+
+  const addTimbreBracket = () =>
+    setTimbreDraft(prev => [...prev, {
+      id: `timbre-${Date.now()}`,
+      libelle: 'Nouvelle tranche (montant HT)',
+      montantHtMin: 0,
+      montantHtMax: 999999999,
+      montantTimbreFcfa: 100,
+      estActif: true
+    } as TimbreBracket]);
+
+  const removeTimbreBracket = (index: number) =>
+    setTimbreDraft(prev => prev.filter((_, i) => i !== index));
+
+  const handleSaveTimbreBrackets = () => {
+    const cleaned = timbreDraft
+      .map(b => ({
+        ...b,
+        libelle: (b.libelle || '').trim() || 'Tranche de timbre fiscal',
+        montantHtMin: Math.max(0, Number(b.montantHtMin) || 0),
+        montantHtMax: Math.max(0, Number(b.montantHtMax) || 0),
+        montantTimbreFcfa: Math.max(0, Math.round(Number(b.montantTimbreFcfa) || 0)),
+        estActif: b.estActif !== false
+      }))
+      .sort((a, b) => a.montantHtMin - b.montantHtMin);
+    if (onUpdateTimbreBrackets) {
+      onUpdateTimbreBrackets(cleaned);
+      toastSuccess('Tranches du timbre fiscal enregistrées.');
+    } else {
+      toastWarning('Enregistrement indisponible : référence de mise à jour manquante.');
+    }
+  };
+
+  const handleSaveTaxeAdditionnelle = () => {
+    const normalized = normalizeTaxeAdditionnelleConfig(taxeAdditionnelleDraft);
+    if (normalized.estActif && normalized.valeur <= 0) {
+      toastWarning('Valeur de taxe requise : renseignez un taux (%) ou un montant (FCFA) supérieur à 0.');
+      return;
+    }
+    if (normalized.estActif && !normalized.appliquerImport && !normalized.appliquerExport) {
+      toastWarning('Sélectionnez au moins un périmètre (Import ou Export) pour une taxe active.');
+      return;
+    }
+    onUpdateTaxeAdditionnelle?.(normalized);
+    setTaxeAdditionnelleDraft(normalized);
+    toastSuccess(`Taxe additionnelle « ${normalized.libelle} » enregistrée : ${getTaxeAdditionnelleValeurLabel(normalized.mode, normalized.valeur)}${normalized.estActif ? '' : ' (inactive)'}.`);
+  };
 
   React.useEffect(() => {
     if (selectedBlId) {
@@ -1084,6 +1171,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
           onAddPayment={onAddPayment}
           onLogAudit={onLogAudit}
           onUpdateBl={onUpdateBl}
+          taxeAdditionnelleConfig={taxeAdditionnelleConfig}
+          timbreBrackets={timbreBrackets}
         />
       )}
 
@@ -2274,6 +2363,365 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <span className="material-symbols-outlined text-sm font-bold">add</span>
               <span>Nouveau Type de Facture</span>
             </button>
+          </div>
+
+          {/* ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ── */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">receipt_long</span>
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <span>Taxe additionnelle exceptionnelle</span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      {taxeAdditionnelleDraft.estActif ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Assiette : <strong className="text-slate-700">montant TTC</strong> de la facture. La valeur est modifiable à tout moment ;
+                    les factures déjà émises conservent la valeur appliquée lors de leur émission.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTaxeAdditionnelleDraft(normalizeTaxeAdditionnelleConfig(undefined))}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                >
+                  Réinitialiser
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTaxeAdditionnelle}
+                  className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-sm font-black">save</span>
+                  <span>Enregistrer la taxe</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+              {/* Libellé */}
+              <div className="lg:col-span-5">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  Libellé imprimé sur la facture
+                </label>
+                <input
+                  type="text"
+                  value={taxeAdditionnelleDraft.libelle}
+                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, libelle: e.target.value }))}
+                  placeholder="Ex. Taxe additionnelle exceptionnelle"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* Activation */}
+              <div className="lg:col-span-3">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Application</label>
+                <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={taxeAdditionnelleDraft.estActif}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estActif: e.target.checked }))}
+                    className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-slate-800">Activer la taxe</span>
+                </label>
+              </div>
+
+              {/* Nature */}
+              <div className="lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Nature</label>
+                <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={taxeAdditionnelleDraft.estExceptionnelle}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estExceptionnelle: e.target.checked }))}
+                    className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-slate-800">Taxe exceptionnelle (ponctuelle)</span>
+                </label>
+              </div>
+              {/* Mode de calcul */}
+              <div className="lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Mode de calcul</label>
+                <select
+                  value={taxeAdditionnelleDraft.mode}
+                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, mode: e.target.value === 'MONTANT_FIXE' ? 'MONTANT_FIXE' : 'POURCENTAGE' }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
+                >
+                  <option value="POURCENTAGE">Pourcentage du TTC (%)</option>
+                  <option value="MONTANT_FIXE">Montant fixe (FCFA)</option>
+                </select>
+              </div>
+
+              {/* Valeur (mise à jour) */}
+              <div className="lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  {taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 'Taux applicable au TTC (%)' : 'Montant forfaitaire (FCFA)'}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 0.1 : 100}
+                  value={taxeAdditionnelleDraft.valeur}
+                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, valeur: Math.max(0, Number(e.target.value) || 0) }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* Seuil d'assiette */}
+              <div className="lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  Seuil d'assiette : TTC minimum (FCFA)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={taxeAdditionnelleDraft.seuilMinTtcFcfa ?? 0}
+                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, seuilMinTtcFcfa: Math.max(0, Number(e.target.value) || 0) }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">0 = taxe appliquée quel que soit le montant.</p>
+              </div>
+
+              {/* Plafond de taxe */}
+              <div className="lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  Plafond de la taxe (FCFA)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={taxeAdditionnelleDraft.plafondFcfa ?? 0}
+                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, plafondFcfa: Math.max(0, Number(e.target.value) || 0) }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">0 = aucun plafond.</p>
+              </div>
+              {/* Périmètre */}
+              <div className="lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Périmètre d'application</label>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={taxeAdditionnelleDraft.appliquerImport}
+                      onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerImport: e.target.checked }))}
+                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-800">Factures Import (TVA 18 %)</span>
+                  </label>
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={taxeAdditionnelleDraft.appliquerExport}
+                      onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerExport: e.target.checked }))}
+                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-800">Factures Export (TVA 0 %)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Simulation */}
+              <div className="lg:col-span-8 bg-slate-50/60 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Simulation en direct (assiette TTC)
+                  </div>
+                  <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
+                    {(['IMPORT', 'EXPORT'] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTaxeSimulationType(t)}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all cursor-pointer ${taxeSimulationType === t ? 'bg-[#005DAA] text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Montant TTC simulé (FCFA)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10000}
+                      value={taxeSimulationTtc}
+                      onChange={e => setTaxeSimulationTtc(Math.max(0, Number(e.target.value) || 0))}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Taxe additionnelle</label>
+                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-black ${taxeSimulation.appliquee ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-400'}`}>
+                      {taxeSimulation.montantFcfa.toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Net à payer (TTC + taxe)</label>
+                    <div className="px-3 py-1.5 rounded-lg border border-[#005DAA]/30 bg-[#F0F7FF] text-xs font-mono font-black text-[#005DAA]">
+                      {(taxeSimulation.baseTtcFcfa + taxeSimulation.montantFcfa).toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {taxeSimulation.appliquee
+                    ? `Mode « ${getTaxeAdditionnelleModeLabel(taxeSimulation.mode)} » — ${getTaxeAdditionnelleValeurLabel(taxeSimulation.mode, taxeSimulation.valeur)} appliqué au TTC.`
+                    : `Non appliquée : ${taxeSimulation.motif || 'conditions non remplies'}.`}
+                </p>
+              </div>
+
+              <div className="lg:col-span-12 text-[11px] text-slate-500 bg-slate-50/60 border border-slate-200 rounded-lg px-3 py-2">
+                <strong className="text-slate-700">Traçabilité :</strong> le libellé, le mode et la valeur appliqués sont figés sur chaque facture émise
+                (champs <span className="font-mono">taxeAdditionnelle*</span>) ; une modification de la valeur ci-dessus ne s'applique qu'aux
+                factures émises ensuite. La proforma en cours peut être régénérée pour adopter la nouvelle valeur.
+              </div>
+            </div>
+          </div>
+
+          {/* ── Timbre fiscal d'État (assiette : montant HT, par tranches) ── */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">approval</span>
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <span>Timbre fiscal d'État</span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'AUCUNE TRANCHE ACTIVE'}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Assiette : <strong className="text-slate-700">montant HT</strong> de la facture, par tranches paramétrables.
+                    Le timbre s'ajoute au Net à Payer <strong className="text-slate-700">quel que soit le mode de règlement</strong> (comptant, virement, chèque, à terme…) ;
+                    les factures déjà émises conservent le timbre appliqué lors de leur émission.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTimbreDraft(timbreBrackets.map(b => ({ ...b })))}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                >
+                  Réinitialiser
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTimbreBrackets}
+                  className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-sm font-black">save</span>
+                  <span>Enregistrer le timbre</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-3">
+              {/* En-têtes de colonnes */}
+              <div className="hidden lg:grid grid-cols-12 gap-3 px-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <div className="col-span-4">Tranche (montant HT)</div>
+                <div className="col-span-2">Min HT (FCFA)</div>
+                <div className="col-span-2">Max HT (FCFA)</div>
+                <div className="col-span-2">Timbre (FCFA)</div>
+                <div className="col-span-1 text-center">Active</div>
+                <div className="col-span-1 text-right">Suppr.</div>
+              </div>
+
+              {timbreDraft.map((bracket, index) => (
+                <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-slate-50/60 border border-slate-200 rounded-xl p-3">
+                  <div className="lg:col-span-4">
+                    <input
+                      type="text"
+                      value={bracket.libelle}
+                      onChange={e => updateTimbreBracket(index, { libelle: e.target.value })}
+                      placeholder="Libellé de la tranche"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={bracket.montantHtMin}
+                      onChange={e => updateTimbreBracket(index, { montantHtMin: Math.max(0, Number(e.target.value) || 0) })}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={bracket.montantHtMax}
+                      title="Valeur très élevée (ex. 999999999) = pas de maximum"
+                      onChange={e => updateTimbreBracket(index, { montantHtMax: Math.max(0, Number(e.target.value) || 0) })}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={bracket.montantTimbreFcfa}
+                      onChange={e => updateTimbreBracket(index, { montantTimbreFcfa: Math.max(0, Number(e.target.value) || 0) })}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div className="lg:col-span-1 flex justify-center">
+                    <input
+                      type="checkbox"
+                      checked={bracket.estActif !== false}
+                      onChange={e => updateTimbreBracket(index, { estActif: e.target.checked })}
+                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                    />
+                  </div>
+                  <div className="lg:col-span-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => removeTimbreBracket(index)}
+                      title="Supprimer la tranche"
+                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <button
+                  type="button"
+                  onClick={addTimbreBracket}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-sm font-black">add</span>
+                  <span>Ajouter une tranche</span>
+                </button>
+              </div>
+
+              <div className="lg:col-span-12 text-[11px] text-slate-500 bg-slate-50/60 border border-slate-200 rounded-lg px-3 py-2">
+                <strong className="text-slate-700">Traçabilité :</strong> le montant du timbre appliqué est figé sur chaque facture émise
+                (champ <span className="font-mono">timbreFiscalFcfa</span>) ; une modification des tranches ci-dessus ne s'applique qu'aux
+                factures émises ensuite. Le timbre est inclus dans le « Net à payer » de l'aperçu et de la facture imprimée.
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-slate-900">

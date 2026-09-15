@@ -10,9 +10,26 @@ import {
   FranchiseSurestarie, 
   AuditLog,
   InvoiceTypeConfig,
-  RubriqueConfig
+  RubriqueConfig,
+  Vessel,
+  TimbreBracket
 } from '../types';
 import { DEFAULT_FRANCHISES, DEFAULT_TARIFS } from '../utils/dmdtCalculator';
+
+export const INITIAL_VESSELS: Vessel[] = [
+  { id: 1, nom: 'BOCS BREMEN', callsign: 'IMO 948201', pavillon: 'Liberia', armateur: 'BOCS Line', typeNavire: 'Porte-conteneurs', capaciteTeu: 1800 },
+  { id: 2, nom: 'BOCS HAMBURG', callsign: 'IMO 948202', pavillon: 'Liberia', armateur: 'BOCS Line', typeNavire: 'Cargo Polyvalent', capaciteTeu: 1650 },
+  { id: 3, nom: 'BOCS VISION', callsign: 'IMO 948203', pavillon: 'Liberia', armateur: 'BOCS Line', typeNavire: 'Porte-conteneurs', capaciteTeu: 2100 },
+  { id: 4, nom: 'BOCS SPIRIT', callsign: 'IMO 948204', pavillon: 'Antigua & Barbuda', armateur: 'BOCS Line', typeNavire: 'Ro-Ro / Cargo', capaciteTeu: 1400 },
+  { id: 5, nom: 'BOCS ABIDJAN', callsign: 'IMO 948205', pavillon: 'Liberia', armateur: 'BOCS Line', typeNavire: 'Porte-conteneurs', capaciteTeu: 2200 },
+  { id: 6, nom: 'BOCS COTONOU', callsign: 'IMO 948206', pavillon: 'Liberia', armateur: 'BOCS Line', typeNavire: 'Cargo Polyvalent', capaciteTeu: 1500 }
+];
+
+export const INITIAL_TIMBRE_BRACKETS: TimbreBracket[] = [
+  { id: '1', libelle: 'Tranche de base (0 à 500.000 FCFA HT)', montantHtMin: 0, montantHtMax: 500000, montantTimbreFcfa: 100, estActif: true },
+  { id: '2', libelle: 'Tranche intermédiaire (500.001 à 2.000.000 FCFA HT)', montantHtMin: 500001, montantHtMax: 2000000, montantTimbreFcfa: 100, estActif: true },
+  { id: '3', libelle: 'Tranche supérieure (> 2.000.000 FCFA HT)', montantHtMin: 2000001, montantHtMax: 999999999, montantTimbreFcfa: 500, estActif: true }
+];
 
 export const INITIAL_USERS: User[] = [
   { id: 1, nomComplet: 'Jean-Marc KOFFI', email: 'admin@bocs.ci', role: 'ADMIN', telephone: '+225 07 08 09 10 11', nomSociete: 'BOCS CI Agency', estActif: true },

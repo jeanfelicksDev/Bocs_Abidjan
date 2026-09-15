@@ -95,6 +95,16 @@ export default async function handler(req: any, res: any) {
       await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS validated_by VARCHAR(255);`;
       await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS validated_at VARCHAR(50);`;
       await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cancelled_at VARCHAR(50);`;
+      // Taxe additionnelle exceptionnelle (assiette : montant TTC) — historique figé à l'émission
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS montant_ttc_avant_taxe BIGINT;`;
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS taxe_additionnelle BIGINT DEFAULT 0;`;
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS taxe_additionnelle_libelle VARCHAR(255);`;
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS taxe_additionnelle_mode VARCHAR(30);`;
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS taxe_additionnelle_valeur NUMERIC;`;
+      // Timbre fiscal d'État (assiette : montant HT, par tranches) + mode de règlement
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS timbre_fiscal BIGINT DEFAULT 0;`;
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS is_comptant BOOLEAN;`;
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS mode_reglement VARCHAR(30);`;
       await sql`ALTER TABLE rubrique_configs ALTER COLUMN montant_unitaire TYPE BIGINT;`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(100);`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry VARCHAR(50);`;

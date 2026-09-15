@@ -10,7 +10,7 @@ import {
   Clock, 
   CreditCard 
 } from 'lucide-react';
-import { BL, Escale, Invoice, RubriqueConfig, InvoiceTypeConfig, UserRole, Payment } from '../../types';
+import { BL, Escale, Invoice, RubriqueConfig, InvoiceTypeConfig, UserRole, Payment, TimbreBracket } from '../../types';
 import { BlBillingModule } from '../../pages/BlBillingModule';
 
 export interface BlBillingModalProps {
@@ -30,6 +30,8 @@ export interface BlBillingModalProps {
   onAddPayment?: (payment: Payment) => void;
   onLogAudit?: (action: string, entite: string, details: string) => void;
   onUpdateBl?: (updatedBl: BL) => void;
+  /** Tranches de timbre fiscal d'État (assiette HT) — transmises au module de facturation. */
+  timbreBrackets?: TimbreBracket[];
 }
 
 export const BlBillingModal: React.FC<BlBillingModalProps> = ({
@@ -48,7 +50,8 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
   onDeleteInvoice,
   onAddPayment = () => {},
   onLogAudit = () => {},
-  onUpdateBl
+  onUpdateBl,
+  timbreBrackets
 }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -148,6 +151,7 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
             onAddPayment={onAddPayment}
             onLogAudit={onLogAudit}
             onUpdateBl={onUpdateBl}
+            timbreBrackets={timbreBrackets}
           />
         </div>
 

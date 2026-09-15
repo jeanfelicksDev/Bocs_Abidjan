@@ -29,7 +29,15 @@ export default async function handler(req: any, res: any) {
           created_by as "createdBy",
           validated_by as "validatedBy",
           validated_at as "validatedAt",
-          cancelled_at as "cancelledAt"
+          cancelled_at as "cancelledAt",
+          montant_ttc_avant_taxe as "montantTtcAvantTaxeFcfa",
+          taxe_additionnelle as "taxeAdditionnelleFcfa",
+          taxe_additionnelle_libelle as "taxeAdditionnelleLibelle",
+          taxe_additionnelle_mode as "taxeAdditionnelleMode",
+          taxe_additionnelle_valeur as "taxeAdditionnelleValeur",
+          timbre_fiscal as "timbreFiscalFcfa",
+          is_comptant as "isComptant",
+          mode_reglement as "modeReglement"
         FROM invoices 
         ORDER BY id DESC;
       `;
@@ -108,7 +116,10 @@ export default async function handler(req: any, res: any) {
           numero_facture, date_facture, date_echeance, devise, 
           taux_change_usd, montant_ht, tva, montant_ttc, solde_du, statut_paiement, invoice_type_id,
           statut_facture, motif_annulation, facture_origine_id, avoir_id,
-          created_by, validated_by, validated_at, cancelled_at
+          created_by, validated_by, validated_at, cancelled_at,
+          montant_ttc_avant_taxe, taxe_additionnelle, taxe_additionnelle_libelle,
+          taxe_additionnelle_mode, taxe_additionnelle_valeur,
+          timbre_fiscal, is_comptant, mode_reglement
         ) VALUES (
           ${invoice.id}, ${invoice.blId || 0}, ${invoice.numeroBL || ''}, ${invoice.clientNom}, ${invoice.escaleInfo || ''}, ${invoice.typeFacture},
           ${invoice.numeroFacture}, ${invoice.dateFacture}, ${invoice.dateEcheance}, ${invoice.devise || 'FCFA'},
@@ -117,7 +128,11 @@ export default async function handler(req: any, res: any) {
           ${statutFacture}, ${invoice.motifAnnulation || null},
           ${invoice.factureOrigineId || null}, ${invoice.avoirId || null},
           ${invoice.createdBy || null}, ${invoice.validatedBy || null},
-          ${invoice.validatedAt || null}, ${invoice.cancelledAt || null}
+          ${invoice.validatedAt || null}, ${invoice.cancelledAt || null},
+          ${invoice.montantTtcAvantTaxeFcfa ?? null}, ${invoice.taxeAdditionnelleFcfa || 0},
+          ${invoice.taxeAdditionnelleLibelle || null}, ${invoice.taxeAdditionnelleMode || null},
+          ${invoice.taxeAdditionnelleValeur ?? null},
+          ${invoice.timbreFiscalFcfa || 0}, ${invoice.isComptant === true}, ${invoice.modeReglement || null}
         );
       `;
 

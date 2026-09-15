@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Escale, UserRole } from '../types';
+import { Escale, UserRole, Vessel } from '../types';
 import { PortAccostageMap } from '../components/fleet/PortAccostageMap';
 import { NavTab } from '../components/layout/Sidebar';
 import { generateImportManifestPdf } from '../utils/pdfGenerator';
@@ -10,6 +10,9 @@ interface VesselTrackingModuleProps {
   bls?: any[];
   invoices?: any[];
   payments?: any[];
+  vessels?: Vessel[];
+  onAddVessel?: (vessel: Vessel) => void;
+  onDeleteVessel?: (vesselId: number) => void;
   userRole: UserRole;
   onAddEscale?: (escale: Escale) => void;
   onImportManifest?: (escale: Escale, bls: any[]) => void;
@@ -22,6 +25,9 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
   bls = [],
   invoices = [],
   payments = [],
+  vessels = [],
+  onAddVessel,
+  onDeleteVessel,
   userRole,
   onAddEscale,
   onImportManifest,
@@ -35,14 +41,66 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showMultiPdfModal, setShowMultiPdfModal] = useState(false);
   const [targetUploadEscaleId, setTargetUploadEscaleId] = useState<number | null>(null);
+  const [showVesselsModal, setShowVesselsModal] = useState(false);
+  const [showAddVesselModal, setShowAddVesselModal] = useState(false);
 
   // New Escale form state
+  const [selectedVesselId, setSelectedVesselId] = useState<string>('');
   const [nomNavire, setNomNavire] = useState('');
   const [callsign, setCallsign] = useState('');
   const [numeroVoyage, setNumeroVoyage] = useState('');
   const [portChargement, setPortChargement] = useState('Abidjan (CIABJ)');
   const [portDechargement, setPortDechargement] = useState('Antwerpen (BEANT)');
   const [dateArrivee, setDateArrivee] = useState(new Date().toISOString().split('T')[0]);
+
+  // New Vessel Form State
+  const [newVesselNom, setNewVesselNom] = useState('');
+  const [newVesselCallsign, setNewVesselCallsign] = useState('');
+  const [newVesselPavillon, setNewVesselPavillon] = useState('Liberia');
+  const [newVesselTypeNavire, setNewVesselTypeNavire] = useState('Porte-conteneurs');
+  const [newVesselArmateur, setNewVesselArmateur] = useState('BOCS Line');
+  const [newVesselCapaciteTeu, setNewVesselCapaciteTeu] = useState<number>(1800);
+
+  const handleVesselSelectChange = (vesselIdStr: string) => {
+    setSelectedVesselId(vesselIdStr);
+    if (vesselIdStr === 'NEW') {
+      setShowAddVesselModal(true);
+      return;
+    }
+    const found = vessels.find(v => String(v.id) === vesselIdStr);
+    if (found) {
+      setNomNavire(found.nom);
+      setCallsign(found.callsign || '');
+    }
+  };
+
+  const handleCreateVesselSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVesselNom.trim()) return;
+
+    const newVessel: Vessel = {
+      id: Date.now(),
+      nom: newVesselNom.trim().toUpperCase(),
+      callsign: newVesselCallsign.trim() || `IMO ${Math.floor(900000 + Math.random() * 99999)}`,
+      pavillon: newVesselPavillon,
+      typeNavire: newVesselTypeNavire,
+      armateur: newVesselArmateur,
+      capaciteTeu: Number(newVesselCapaciteTeu) || 1800,
+      dateCreation: new Date().toISOString().split('T')[0]
+    };
+
+    if (onAddVessel) onAddVessel(newVessel);
+    
+    // Auto select the newly created vessel
+    setSelectedVesselId(String(newVessel.id));
+    setNomNavire(newVessel.nom);
+    setCallsign(newVessel.callsign);
+    
+    // Reset and close modal
+    setNewVesselNom('');
+    setNewVesselCallsign('');
+    setShowAddVesselModal(false);
+  };
 
   const filteredEscales = escales.filter(e => {
     const matchesSearch = e.nomNavire.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -102,7 +160,23 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
           </p>
         </div>
 
-        <div className="relative z-10 flex items-center gap-3">
+        <div className="relative z-10 flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setShowVesselsModal(true)}
+            className="px-3.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer border border-zinc-200"
+          >
+            <span className="material-symbols-outlined text-base text-[#005DAA]">directions_boat</span>
+            <span>Registre Flotte ({vessels.length})</span>
+          </button>
+
+          <button
+            onClick={() => setShowAddVesselModal(true)}
+            className="px-3.5 py-2.5 bg-[#005DAA]/10 hover:bg-[#005DAA]/20 text-[#005DAA] font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-[#005DAA]/30"
+          >
+            <span className="material-symbols-outlined text-base">add</span>
+            <span>Nouveau Navire</span>
+          </button>
+
           <button
             onClick={() => setShowAddModal(true)}
             className="px-4 py-2.5 premium-btn-primary text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
@@ -502,14 +576,41 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
             <form onSubmit={handleAddSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-zinc-700 uppercase mb-1">Nom du Navire</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-zinc-700 uppercase">Sélectionner le Navire</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddVesselModal(true)}
+                    className="text-[11px] font-bold text-[#005DAA] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">add_circle</span>
+                    <span>Nouveau Navire</span>
+                  </button>
+                </div>
+                <select
+                  value={selectedVesselId}
+                  onChange={e => handleVesselSelectChange(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA] bg-zinc-50 font-bold text-zinc-900 cursor-pointer"
+                >
+                  <option value="">-- Choisir un navire de la flotte --</option>
+                  {vessels.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.nom} ({v.callsign || 'Sans IMO'}) — {v.typeNavire || 'Cargo'}
+                    </option>
+                  ))}
+                  <option value="NEW">+ Créer un nouveau navire dans le système...</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-zinc-700 uppercase mb-1">Nom du Navire (Confirmation / Personnalisé)</label>
                 <input
                   type="text"
                   required
                   value={nomNavire}
                   onChange={e => setNomNavire(e.target.value)}
                   placeholder="ex: BOCS BREMEN"
-                  className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA]"
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA] font-semibold"
                 />
               </div>
 
@@ -584,6 +685,197 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Création de Navire */}
+      {showAddVesselModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 text-zinc-900 border border-zinc-200 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h3 className="font-black text-lg text-[#002B49] flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#005DAA]">directions_boat</span>
+                <span>Créer un Nouveau Navire</span>
+              </h3>
+              <button onClick={() => setShowAddVesselModal(false)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateVesselSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-zinc-700 uppercase mb-1">Nom du Navire *</label>
+                <input
+                  type="text"
+                  required
+                  value={newVesselNom}
+                  onChange={e => setNewVesselNom(e.target.value)}
+                  placeholder="ex: BOCS DAKAR"
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA] font-bold uppercase"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase mb-1">Indicatif / N° IMO</label>
+                  <input
+                    type="text"
+                    value={newVesselCallsign}
+                    onChange={e => setNewVesselCallsign(e.target.value)}
+                    placeholder="ex: IMO 998877"
+                    className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase mb-1">Pavillon (Pays)</label>
+                  <input
+                    type="text"
+                    value={newVesselPavillon}
+                    onChange={e => setNewVesselPavillon(e.target.value)}
+                    placeholder="Liberia, Panama..."
+                    className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase mb-1">Type de Navire</label>
+                  <select
+                    value={newVesselTypeNavire}
+                    onChange={e => setNewVesselTypeNavire(e.target.value)}
+                    className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA] bg-white font-medium"
+                  >
+                    <option value="Porte-conteneurs">Porte-conteneurs</option>
+                    <option value="Cargo Polyvalent">Cargo Polyvalent</option>
+                    <option value="Ro-Ro / Roulier">Ro-Ro / Roulier</option>
+                    <option value="Vraquier">Vraquier</option>
+                    <option value="Pétrolier / Chimiquier">Pétrolier / Chimiquier</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase mb-1">Capacité (TEU)</label>
+                  <input
+                    type="number"
+                    value={newVesselCapaciteTeu}
+                    onChange={e => setNewVesselCapaciteTeu(Number(e.target.value))}
+                    placeholder="1800"
+                    className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-zinc-700 uppercase mb-1">Armateur / Compagnie</label>
+                <input
+                  type="text"
+                  value={newVesselArmateur}
+                  onChange={e => setNewVesselArmateur(e.target.value)}
+                  placeholder="BOCS Line"
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-200 focus:outline-hidden focus:border-[#005DAA]"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddVesselModal(false)}
+                  className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-xl font-bold text-zinc-700 cursor-pointer transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 premium-btn-primary text-white font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-base">check</span>
+                  <span>Créer le Navire</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registre de la Flotte */}
+      {showVesselsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-4 text-zinc-900 border border-zinc-200 animate-fade-in max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#005DAA]/10 text-[#005DAA] flex items-center justify-center font-bold">
+                  <span className="material-symbols-outlined">directions_boat</span>
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-[#002B49]">Registre des Navires Enregistrés</h3>
+                  <p className="text-xs text-zinc-500 font-medium">{vessels.length} navire(s) disponibles pour programmation d'escale</p>
+                </div>
+              </div>
+              <button onClick={() => setShowVesselsModal(false)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="flex justify-between items-center shrink-0">
+              <span className="text-xs font-bold text-zinc-600 uppercase">Liste officielle de la flotte</span>
+              <button
+                onClick={() => setShowAddVesselModal(true)}
+                className="px-3 py-1.5 bg-[#005DAA] hover:bg-[#004884] text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>Ajouter un Navire</span>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-grow border border-zinc-200 rounded-xl">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 font-bold uppercase text-[11px] sticky top-0">
+                  <tr>
+                    <th className="p-3">Navire</th>
+                    <th className="p-3">Callsign / IMO</th>
+                    <th className="p-3">Type</th>
+                    <th className="p-3">Pavillon</th>
+                    <th className="p-3 text-right">Capacité (TEU)</th>
+                    <th className="p-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 font-medium">
+                  {vessels.map(v => (
+                    <tr key={v.id} className="hover:bg-zinc-50 transition-colors">
+                      <td className="p-3 font-extrabold text-[#002B49] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#005DAA] text-base">sailing</span>
+                        <span>{v.nom}</span>
+                      </td>
+                      <td className="p-3 font-mono font-bold text-zinc-700">{v.callsign || '-'}</td>
+                      <td className="p-3 text-zinc-600">{v.typeNavire || 'Cargo'}</td>
+                      <td className="p-3 text-zinc-600">{v.pavillon || 'N/A'}</td>
+                      <td className="p-3 text-right font-mono font-bold text-zinc-800">{v.capaciteTeu?.toLocaleString('fr-FR') || '-'}</td>
+                      <td className="p-3 text-center">
+                        {onDeleteVessel && (
+                          <button
+                            onClick={() => onDeleteVessel(v.id)}
+                            className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors cursor-pointer"
+                            title="Supprimer du registre"
+                          >
+                            <span className="material-symbols-outlined text-base">delete</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="pt-3 border-t border-zinc-100 flex justify-end shrink-0">
+              <button
+                onClick={() => setShowVesselsModal(false)}
+                className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -46,7 +46,7 @@ import {
   LogOut,
   UserRound
 } from 'lucide-react';
-import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User } from '../types';
+import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User, TimbreBracket } from '../types';
 import { filterDraftsForUser } from '../utils/draftOwnership';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { buildBocsBremenBls } from '../utils/manifestParser';
@@ -90,6 +90,8 @@ interface WelcomeScreenProps {
   onDeleteInvoice?: (invoiceId: number) => void;
   onAddPayment?: (payment: Payment) => void;
   onLogAudit?: (action: string, entite: string, details: string) => void;
+  /** Tranches de timbre fiscal d'État (assiette HT) — pour la facturation depuis l'accueil. */
+  timbreBrackets?: TimbreBracket[];
 }
 
 type ViewState = 'welcome' | 'escales' | 'create-escale';
@@ -118,7 +120,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onValidateInvoice,
   onDeleteInvoice,
   onAddPayment = () => { },
-  onLogAudit = () => { }
+  onLogAudit = () => { },
+  timbreBrackets
 }) => {
   // RBAC : droits effectifs issus de la matrice des habilitations (source unique de vérité)
   usePermissionsSync();
@@ -2181,6 +2184,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         onAddPayment={onAddPayment}
         onLogAudit={onLogAudit}
         onUpdateBl={onUpdateBl}
+        timbreBrackets={timbreBrackets}
       />
 
     </div>

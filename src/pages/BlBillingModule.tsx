@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BL, Escale, Invoice, UserRole, InvoiceTypeConfig, RubriqueConfig, Container, FretCategory, Payment } from '../types';
+import { BL, Escale, Invoice, UserRole, InvoiceTypeConfig, RubriqueConfig, Container, FretCategory, Payment, TaxeAdditionnelleConfig, TimbreBracket } from '../types';
+import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel } from '../utils/taxeAdditionnelle';
+import { computeTimbreFiscal, getNetAPayerFcfa, getModeReglementLabel, MODES_REGLEMENT } from '../utils/timbreFiscal';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { generateProformaPdf, generateDoBadPdf } from '../utils/pdfGenerator';
 import { 
@@ -45,6 +47,10 @@ interface BlBillingModuleProps {
   onAddPayment: (payment: Payment) => void;
   onLogAudit: (action: string, entite: string, details: string) => void;
   onUpdateBl?: (updatedBl: BL) => void;
+  /** Taxe additionnelle exceptionnelle (assiette TTC) — affichée dans l'aperçu avant émission. */
+  taxeAdditionnelleConfig?: TaxeAdditionnelleConfig;
+  /** Tranches de timbre fiscal d'État (assiette HT) — appliquées à l'émission et à l'aperçu. */
+  timbreBrackets?: TimbreBracket[];
 }
 
 export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
@@ -63,7 +69,9 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   onDeleteInvoice,
   onAddPayment,
   onLogAudit,
-  onUpdateBl
+  onUpdateBl,
+  taxeAdditionnelleConfig = DEFAULT_TAXE_ADDITIONNELLE_CONFIG,
+  timbreBrackets = []
 }) => {
   // Search state (supports BL number or Shipper name)
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +96,10 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   const [paymentMontant, setPaymentMontant] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState<'VIREMENT' | 'CHEQUE' | 'ESPECES' | 'MOBILE_MONEY'>('VIREMENT');
   const [paymentRef, setPaymentRef] = useState('');
+
+  // Mode de règlement sélectionné pour l'émission de la proforma
+  // (COMPTANT / ESPECES => isComptant ; le timbre s'applique quel que soit le mode).
+  const [printReglement, setPrintReglement] = useState<(typeof MODES_REGLEMENT)[number]>('A_TERME');
 
   // Print preview modal state
   const [printPreviewData, setPrintPreviewData] = useState<{
@@ -2209,6 +2221,11 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     <div className="w-72 space-y-1 text-[11px] text-right font-medium">
                       {(() => {
                         const invoice = calculateProformaData(printPreviewData.bl, printPreviewData.typeConfig, printPreviewData.existingInvoice);
+                        // Taxe additionnelle (assiette TTC) puis timbre fiscal d'État (assiette HT) — aperçu avant émission
+                        const taxe = computeTaxeAdditionnelle(taxeAdditionnelleConfig, invoice.montantTtcFcfa, invoice.typeFacture);
+                        const ttcHorsTaxe = taxe.baseTtcFcfa;
+                        const timbreFiscal = computeTimbreFiscal(timbreBrackets, invoice.montantHtFcfa);
+                        const netAPayer = ttcHorsTaxe + taxe.montantFcfa + timbreFiscal;
                         return (
                           <>
                             <div className="flex justify-between text-slate-500">
@@ -2223,16 +2240,28 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                               <span>AIRSI (0.5%) :</span>
                               <span className="font-mono text-slate-800">0 CFA</span>
                             </div>
+                            {taxe.appliquee && (
+                              <div className="flex justify-between text-amber-700">
+                                <span>{taxe.libelle} ({getTaxeAdditionnelleValeurLabel(taxe.mode, taxe.valeur)}) :</span>
+                                <span className="font-mono font-bold">{taxe.montantFcfa.toLocaleString()} CFA</span>
+                              </div>
+                            )}
+                            {timbreFiscal > 0 && (
+                              <div className="flex justify-between text-emerald-700">
+                                <span>Timbre fiscal d'État :</span>
+                                <span className="font-mono font-bold">{timbreFiscal.toLocaleString()} CFA</span>
+                              </div>
+                            )}
                             <div className="flex justify-between font-black text-slate-900 border-t border-slate-200 pt-1 text-xs uppercase tracking-tight">
                               <span>Total TTC :</span>
-                              <span className="font-mono">{invoice.montantTtcFcfa?.toLocaleString()} CFA</span>
+                              <span className="font-mono">{ttcHorsTaxe.toLocaleString()} CFA</span>
                             </div>
                             <div className="flex justify-between font-black text-slate-950 text-sm border-t border-double border-slate-400 pt-1">
                               <span>Net à payer :</span>
-                              <span className="font-mono text-[#005daa]">{invoice.montantTtcFcfa?.toLocaleString()} CFA</span>
+                              <span className="font-mono text-[#005daa]">{netAPayer.toLocaleString()} CFA</span>
                             </div>
                             <div className="text-[9px] text-slate-400 font-bold font-mono">
-                              Equivalent : {(invoice.montantTtcFcfa / 655.957).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} EUR
+                              Equivalent : {(netAPayer / 655.957).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} EUR
                             </div>
                           </>
                         );
@@ -2260,6 +2289,21 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                 </div>
 
                 <div className="space-y-4">
+                  {/* Mode de règlement (le timbre fiscal d'État s'applique quel que soit le mode) */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-500">Mode de règlement</label>
+                    <select
+                      value={printReglement}
+                      onChange={e => setPrintReglement(e.target.value as (typeof MODES_REGLEMENT)[number])}
+                      className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-sky-500 cursor-pointer"
+                    >
+                      {MODES_REGLEMENT.map(m => (
+                        <option key={m} value={m}>{getModeReglementLabel(m)}</option>
+                      ))}
+                    </select>
+                    <p className="text-[9px] text-neutral-500 font-bold">Le timbre fiscal d'État est inclus au Net à payer quel que soit le mode.</p>
+                  </div>
+
                   {/* Destination */}
                   <div className="space-y-1">
                     <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-500">Destination</label>
@@ -2310,6 +2354,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   type="button"
                   onClick={() => {
                     const calculatedPayload = calculateProformaData(printPreviewData.bl, printPreviewData.typeConfig, printPreviewData.existingInvoice);
+                    calculatedPayload.modeReglement = printReglement;
+                    calculatedPayload.isComptant = printReglement === 'COMPTANT' || printReglement === 'ESPECES';
                     
                     if (printPreviewData.existingInvoice && onUpdateInvoice) {
                       onUpdateInvoice(calculatedPayload);

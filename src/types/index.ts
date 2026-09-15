@@ -19,6 +19,18 @@ export interface User {
   dernierAcces?: string;
 }
 
+export interface Vessel {
+  id: number;
+  nom: string;
+  callsign: string;
+  pavillon?: string;
+  typeNavire?: string;
+  armateur?: string;
+  capaciteTeu?: number;
+  dwt?: number;
+  dateCreation?: string;
+}
+
 export interface Escale {
   id: number;
   nomNavire: string;
@@ -260,7 +272,64 @@ export interface Invoice {
   cancelledAt?: string;
   fneReference?: string;
   fneStatut?: string;
+  isComptant?: boolean;
+  timbreFiscalFcfa?: number;
+  modeReglement?: 'COMPTANT' | 'A_TERME' | 'VIREMENT' | 'CHEQUE' | 'ESPECES';
+  // ─── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
+  /** TTC hors taxe additionnelle : assiette de calcul (permet un recalcul idempotent). */
+  montantTtcAvantTaxeFcfa?: number;
+  /** Montant de taxe additionnelle effectivement appliqué (0 si non applicable). */
+  taxeAdditionnelleFcfa?: number;
+  /** Libellé figé au moment de l'émission. */
+  taxeAdditionnelleLibelle?: string;
+  /** Mode de calcul retenu à l'émission. */
+  taxeAdditionnelleMode?: TaxeAdditionnelleMode;
+  /** Valeur (taux % ou montant FCFA) appliquée à l'émission — historique. */
+  taxeAdditionnelleValeur?: number;
   lignes: InvoiceItem[];
+}
+
+export interface TimbreBracket {
+  id: string;
+  libelle: string;
+  montantHtMin: number;
+  montantHtMax: number;
+  montantTimbreFcfa: number;
+  estActif: boolean;
+}
+
+/** Mode de calcul de la taxe additionnelle exceptionnelle. */
+export type TaxeAdditionnelleMode = 'POURCENTAGE' | 'MONTANT_FIXE';
+
+/**
+ * Taxe additionnelle exceptionnelle.
+ * Règle métier : la taxe est assise sur le MONTANT TTC de la facture
+ * (base = montantTtcFcfa hors taxe additionnelle) et s'ajoute à celui-ci.
+ * Sa valeur est modifiable à tout moment par la comptabilité : les factures
+ * déjà émises conservent la valeur appliquée au moment de leur émission.
+ */
+export interface TaxeAdditionnelleConfig {
+  id: string;
+  /** Libellé imprimé sur la facture (ex. « Taxe additionnelle exceptionnelle »). */
+  libelle: string;
+  /** POURCENTAGE : taux appliqué au TTC — MONTANT_FIXE : montant forfaitaire en FCFA. */
+  mode: TaxeAdditionnelleMode;
+  /** Valeur courante : taux en % (mode POURCENTAGE) ou montant en FCFA (mode MONTANT_FIXE). */
+  valeur: number;
+  /** Active / désactive l'application de la taxe. */
+  estActif: boolean;
+  /** Marque la taxe comme exceptionnelle (ponctuelle, non structurelle). */
+  estExceptionnelle: boolean;
+  /** Périmètre : factures Import (Proforma/Définitive). */
+  appliquerImport: boolean;
+  /** Périmètre : factures Export (Proforma/Définitive) — TVA 0 %. */
+  appliquerExport: boolean;
+  /** Seuil d'assiette : la taxe n'est appliquée qu'à partir de ce TTC (0 = aucun seuil). */
+  seuilMinTtcFcfa?: number;
+  /** Plafond du montant de taxe en FCFA (0 ou absent = aucun plafond). */
+  plafondFcfa?: number;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface CreditNoteItem {

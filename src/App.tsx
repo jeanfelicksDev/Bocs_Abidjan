@@ -11,7 +11,9 @@ import {
   INITIAL_FNE_PARAMS,
   INITIAL_AUDIT_LOGS,
   INITIAL_INVOICE_TYPE_CONFIGS,
-  INITIAL_RUBRIQUE_CONFIGS
+  INITIAL_RUBRIQUE_CONFIGS,
+  INITIAL_VESSELS,
+  INITIAL_TIMBRE_BRACKETS
 } from './data/initialData';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -38,8 +40,18 @@ import {
   CreditNote,
   Payment,
   FneParam,
-  AuditLog
+  AuditLog,
+  Vessel,
+  TimbreBracket,
+  TaxeAdditionnelleConfig
 } from './types';
+import {
+  loadTaxeAdditionnelleConfig,
+  saveTaxeAdditionnelleConfig,
+  applyTaxeAdditionnelleToInvoice,
+  getTaxeAdditionnelleValeurLabel
+} from './utils/taxeAdditionnelle';
+import { applyTimbreFiscalToInvoice } from './utils/timbreFiscal';
 
 export function App() {
   // Global Application & Auth State
@@ -128,6 +140,16 @@ export function App() {
       tvaFcfa: Number(inv.tvaFcfa || 0),
       montantTtcFcfa,
       soldeDuFcfa,
+      // Taxe additionnelle exceptionnelle (assiette TTC) — historique figé à l'émission
+      montantTtcAvantTaxeFcfa: inv.montantTtcAvantTaxeFcfa !== undefined && inv.montantTtcAvantTaxeFcfa !== null
+        ? Number(inv.montantTtcAvantTaxeFcfa)
+        : undefined,
+      taxeAdditionnelleFcfa: Number(inv.taxeAdditionnelleFcfa || 0),
+      taxeAdditionnelleLibelle: inv.taxeAdditionnelleLibelle || undefined,
+      taxeAdditionnelleMode: inv.taxeAdditionnelleMode || undefined,
+      taxeAdditionnelleValeur: inv.taxeAdditionnelleValeur !== undefined && inv.taxeAdditionnelleValeur !== null
+        ? Number(inv.taxeAdditionnelleValeur)
+        : undefined,
       invoiceTypeId: inv.invoiceTypeId ? String(inv.invoiceTypeId) : undefined,
       statutFacture,
       lignes: (inv.lignes || []).map(line => ({
@@ -220,10 +242,82 @@ export function App() {
     return INITIAL_RUBRIQUE_CONFIGS;
   });
 
+  const [vessels, setVessels] = useState<Vessel[]>(() => {
+    const saved = localStorage.getItem('bocs_vessels');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) { console.error('Erreur chargement navires local', e); }
+    }
+    return INITIAL_VESSELS;
+  });
+
+  const [timbreBrackets, setTimbreBrackets] = useState<TimbreBracket[]>(() => {
+    const saved = localStorage.getItem('bocs_timbre_brackets');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) { console.error('Erreur chargement timbre_brackets local', e); }
+    }
+    return INITIAL_TIMBRE_BRACKETS;
+  });
+
+  // ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
+  // Valeur modifiable à tout moment par la comptabilité (onglet Configuration Factures).
+  const [taxeAdditionnelleConfig, setTaxeAdditionnelleConfig] = useState<TaxeAdditionnelleConfig>(
+    () => loadTaxeAdditionnelleConfig()
+  );
+
   // Sauvegarde automatique en temps réel dans localStorage
+  useEffect(() => {
+    localStorage.setItem('bocs_vessels', JSON.stringify(vessels));
+  }, [vessels]);
+
+  useEffect(() => {
+    localStorage.setItem('bocs_timbre_brackets', JSON.stringify(timbreBrackets));
+  }, [timbreBrackets]);
+
+  useEffect(() => {
+    saveTaxeAdditionnelleConfig(taxeAdditionnelleConfig);
+  }, [taxeAdditionnelleConfig]);
+
   useEffect(() => {
     localStorage.setItem('bocs_invoice_types', JSON.stringify(invoiceTypeConfigs));
   }, [invoiceTypeConfigs]);
+
+  const handleAddVessel = (vessel: Vessel) => {
+    setVessels(prev => {
+      const exists = prev.some(v => v.nom.trim().toLowerCase() === vessel.nom.trim().toLowerCase());
+      if (exists) return prev;
+      return [vessel, ...prev];
+    });
+    logAuditAction('CRÉATION_NAVIRE', 'VESSEL', vessel.nom);
+  };
+
+  const handleDeleteVessel = (vesselId: number) => {
+    setVessels(prev => prev.filter(v => v.id !== vesselId));
+    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', `ID: ${vesselId}`);
+  };
+
+  const handleUpdateTimbreBrackets = (brackets: TimbreBracket[]) => {
+    setTimbreBrackets(brackets);
+    logAuditAction('MISE_A_JOUR_TIMBRE', 'CONFIG', 'Modification des tranches de timbre fiscal');
+  };
+
+  // Mise à jour de la taxe additionnelle (valeur, mode, périmètre, activation)
+  const handleUpdateTaxeAdditionnelle = (config: TaxeAdditionnelleConfig) => {
+    const previous = taxeAdditionnelleConfig;
+    setTaxeAdditionnelleConfig(config);
+    logAuditAction(
+      'MISE_A_JOUR_TAXE_ADDITIONNELLE',
+      'CONFIG',
+      `Taxe additionnelle « ${config.libelle} » : ${config.estActif ? 'ACTIVE' : 'INACTIVE'} — ${getTaxeAdditionnelleValeurLabel(config.mode, config.valeur)} ` +
+      `(périmètre : Import ${config.appliquerImport ? 'oui' : 'non'} / Export ${config.appliquerExport ? 'oui' : 'non'}) — ` +
+      `ancienne valeur : ${getTaxeAdditionnelleValeurLabel(previous.mode, previous.valeur)}`
+    );
+  };
 
   useEffect(() => {
     localStorage.setItem('bocs_rubriques', JSON.stringify(rubriqueConfigs));
@@ -729,16 +823,21 @@ export function App() {
 
   // Generate Invoice
   const handleGenerateInvoice = async (invoice: Invoice) => {
-    setInvoices(prev => [invoice, ...prev]);
-    setBls(prev => prev.map(b => b.numeroBL === invoice.numeroBL ? { ...b, statutImport: 'FACTURE' } : b));
+    // Taxe additionnelle exceptionnelle (assiette : TTC) puis timbre fiscal d'État
+    // (assiette : HT, par tranches) — appliqués ici, au point de passage unique de
+    // toutes les émissions (BL Import/Export, DMDT, amendements Export).
+    const withTaxe = applyTaxeAdditionnelleToInvoice(invoice, taxeAdditionnelleConfig);
+    const finalInvoice = applyTimbreFiscalToInvoice(withTaxe, timbreBrackets);
+    setInvoices(prev => [finalInvoice, ...prev]);
+    setBls(prev => prev.map(b => b.numeroBL === finalInvoice.numeroBL ? { ...b, statutImport: 'FACTURE' } : b));
     try {
       await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(invoice)
+        body: JSON.stringify(finalInvoice)
       });
 
-      const targetBl = bls.find(b => b.numeroBL === invoice.numeroBL);
+      const targetBl = bls.find(b => b.numeroBL === finalInvoice.numeroBL);
       if (targetBl) {
         const updatedBl = { ...targetBl, statutImport: 'FACTURE' as const };
         await fetch('/api/bls', {
@@ -754,12 +853,16 @@ export function App() {
 
   // Update Invoice
   const handleUpdateInvoice = async (invoice: Invoice) => {
-    setInvoices(prev => prev.map(inv => inv.id === invoice.id ? invoice : inv));
+    // La taxe additionnelle est recalculée sur le TTC de base (idempotent),
+    // puis le timbre fiscal est recalculé sur le HT selon les tranches courantes.
+    const withTaxe = applyTaxeAdditionnelleToInvoice(invoice, taxeAdditionnelleConfig);
+    const finalInvoice = applyTimbreFiscalToInvoice(withTaxe, timbreBrackets);
+    setInvoices(prev => prev.map(inv => inv.id === finalInvoice.id ? finalInvoice : inv));
     try {
       await fetch('/api/invoices', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(invoice)
+        body: JSON.stringify(finalInvoice)
       });
     } catch (e) {
       console.error("Erreur lors de la mise à jour de la facture sur Neon", e);
@@ -1041,7 +1144,7 @@ export function App() {
     const origTypeName = invoiceTypeConfigs.find(t => t.id === originalInvoice.invoiceTypeId)?.name || '';
     const newInvoiceNumber = getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, origTypeName);
 
-    const newInvoice: Invoice = {
+    const newInvoice: Invoice = applyTaxeAdditionnelleToInvoice({
       ...originalInvoice,
       id: newId,
       numeroFacture: newInvoiceNumber,
@@ -1064,7 +1167,7 @@ export function App() {
         ...line,
         id: idx + 1
       }))
-    };
+    }, taxeAdditionnelleConfig);
 
     setInvoices(prev => [newInvoice, ...prev]);
 
@@ -1261,6 +1364,7 @@ export function App() {
         onDeleteInvoice={handleDeleteInvoice}
         onAddPayment={handleAddPayment}
         onLogAudit={logAuditAction}
+        timbreBrackets={timbreBrackets}
       />
         {/* Notifications globales (toasts succès/erreur également sur la plateforme) */}
         <ToastContainer />
@@ -1320,6 +1424,9 @@ export function App() {
               bls={bls}
               invoices={invoices}
               payments={payments}
+              vessels={vessels}
+              onAddVessel={handleAddVessel}
+              onDeleteVessel={handleDeleteVessel}
               userRole={currentUser.role}
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
@@ -1403,6 +1510,10 @@ export function App() {
               onDeleteInvoiceTypeConfig={handleDeleteInvoiceTypeConfig}
               onGenerateInvoice={handleGenerateInvoice}
               onUpdateBl={handleUpdateBl}
+              timbreBrackets={timbreBrackets}
+              onUpdateTimbreBrackets={handleUpdateTimbreBrackets}
+              taxeAdditionnelleConfig={taxeAdditionnelleConfig}
+              onUpdateTaxeAdditionnelle={handleUpdateTaxeAdditionnelle}
             />
           )}
 

@@ -206,7 +206,9 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
       return n.toString();
   }
 
-  const montantEnLettres = numberToLetters(invoice.montantTtcFcfa);
+  // Le montant arrêté en lettres correspond au Net à payer : TTC + timbre fiscal d'État.
+  const netAPayerPdf = Number(invoice.montantTtcFcfa) + Number(invoice.timbreFiscalFcfa || 0);
+  const montantEnLettres = numberToLetters(netAPayerPdf);
   const montantEnLettresCapitalized = montantEnLettres.charAt(0).toUpperCase() + montantEnLettres.slice(1) + " Francs CFA";
 
   const blNavire = invoice.escaleInfo?.split('V.')[0]?.trim() || "BOCS VISION";
@@ -221,7 +223,35 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
     : (bl ? '' : '05x40\' HC COC, STC 48 REELS - KLB KRAFTLINER BROWN, WTKL ROYAL WHITE');
 
   const titleText = isPaid ? 'FACTURE' : 'PROFORMA';
-  
+
+  // ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
+  // Bloc imprimé uniquement si la taxe a été appliquée à l'émission de la facture.
+  const taxeAdditionnelleAppliquee = Number(invoice.taxeAdditionnelleFcfa) > 0;
+  const montantTtcHorsTaxe = Number(invoice.montantTtcAvantTaxeFcfa ?? invoice.montantTtcFcfa) || 0;
+  const taxeAdditionnelleLabel = invoice.taxeAdditionnelleLibelle || 'Taxe additionnelle exceptionnelle';
+  const taxeAdditionnelleDetail = invoice.taxeAdditionnelleMode === 'MONTANT_FIXE'
+    ? 'montant fixe'
+    : `${Number(invoice.taxeAdditionnelleValeur || 0).toLocaleString('fr-FR')} % du TTC`;
+  const taxeAdditionnelleHtml = taxeAdditionnelleAppliquee
+    ? `
+            <div class="totals-right-row">
+              <span>${taxeAdditionnelleLabel} (${taxeAdditionnelleDetail}) :</span>
+              <span>${Number(invoice.taxeAdditionnelleFcfa).toLocaleString('fr-FR')} CFA</span>
+            </div>`
+    : '';
+
+  // ── Timbre fiscal d'État (assiette : montant HT, par tranches) ──
+  // Montant figé à l'émission (invoice.timbreFiscalFcfa) ; le timbre s'applique
+  // quel que soit le mode de règlement et s'ajoute au Net à payer.
+  const timbreFiscalMontant = Math.max(0, Number(invoice.timbreFiscalFcfa) || 0);
+  const timbreFiscalHtml = timbreFiscalMontant > 0
+    ? `
+            <div class="totals-right-row">
+              <span>Timbre fiscal d'État :</span>
+              <span>${timbreFiscalMontant.toLocaleString('fr-FR')} CFA</span>
+            </div>`
+    : '';
+
   const filteredLignes = (invoice.lignes || []).filter(l => Number(l.quantite) > 0 && Number(l.montantHtFcfa) > 0);
   let totalQuantite = 0;
   
@@ -400,7 +430,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
               <td style="border-bottom: 1px solid #cbd5e1; border-top: none;"></td>
               <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${invoice.montantHtFcfa.toLocaleString('fr-FR')} CFA</td>
               <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${invoice.tvaFcfa.toLocaleString('fr-FR')} CFA</td>
-              <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-right: none; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a; padding: 6px; border-right: none; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">${montantTtcHorsTaxe.toLocaleString('fr-FR')} CFA</td>
             </tr>
           </tbody>
         </table>
@@ -418,8 +448,8 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
             </div>
             
             <div class="timbre">
-              Pour un règlement en espèces, prévoir le montant du timbre d'état de 1000 Fancs CFA . Le montant à régler est alors de : 
-              <span class="timbre-total">${(invoice.montantTtcFcfa + 1000).toLocaleString('fr-FR')} CFA</span>
+              Pour un règlement en espèces, prévoir le montant du timbre d'état de ${timbreFiscalMontant.toLocaleString('fr-FR')} Francs CFA . Le montant à régler est alors de : 
+              <span class="timbre-total">${(invoice.montantTtcFcfa + timbreFiscalMontant).toLocaleString('fr-FR')} CFA</span>
             </div>
           </div>
           
@@ -435,14 +465,14 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
             <div class="totals-right-row">
               <span>AIRSI (0-5%) :</span>
               <span>0 CFA</span>
-            </div>
+            </div>${taxeAdditionnelleHtml}
             <div class="totals-right-row">
               <span>Total TTC :</span>
-              <span>${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</span>
-            </div>
+              <span>${montantTtcHorsTaxe.toLocaleString('fr-FR')} CFA</span>
+            </div>${timbreFiscalHtml}
             <div class="totals-right-row grand" style="margin-top: 10px;">
               <span>Net à payer :</span>
-              <span>${invoice.montantTtcFcfa.toLocaleString('fr-FR')} CFA</span>
+              <span>${(Number(invoice.montantTtcFcfa) + timbreFiscalMontant).toLocaleString('fr-FR')} CFA</span>
             </div>
             <div class="totals-right-row grand" style="background-color: #e5e7eb; padding: 4px 10px; margin-top: 5px;">
               <span></span>
