@@ -132,6 +132,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const canManageEscales = hasPermission(permissionSubject, 'manage_escales');
   const canImportGuce = hasPermission(permissionSubject, 'import_guce_xml');
 
+  // ── Centrage adaptatif du cockpit (VIEW 1) ─────────────────────────────────
+  // Le nombre de cartes réellement affichées dépend du profil connecté (habilitations
+  // effectives de la matrice RBAC). Les grilles à nombre de colonnes fixe laissaient une
+  // colonne vide quand une carte était masquée : les cartes se retrouvaient tassées à
+  // gauche. On utilise donc des rangées flex centrées dont les cartes gardent une largeur
+  // standard par breakpoint (tolérance de 1 à 2px pour absorber les arrondis de pourcentage
+  // sans provoquer de rupture de ligne).
+  const COCKPIT_KPI_CARD = 'w-full sm:w-[calc(50%_-_9px)] lg:w-[calc(25%_-_13px)]';
+  const COCKPIT_PILLAR_CARD = 'w-full sm:w-[calc(50%_-_11px)] md:w-[calc(33.333%_-_15px)] xl:w-[calc(20%_-_17px)]';
+
   // Identité de la personne connectée (nom + rôle lisible), affichée dans l'en-tête
   const connectedUser: User | null = currentUser || null;
   const userInitials = (connectedUser?.nomComplet || '')
@@ -773,11 +783,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
 
             {/* ── SECTION B: 4 KPI BENTO CARDS ── */}
-            <div className="max-w-5xl xl:max-w-6xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            <div className="max-w-5xl xl:max-w-6xl mx-auto w-full flex flex-wrap justify-center gap-4 mt-6">
 
               {/* KPI 1 : Escales Actives (RBAC : habilitation Escales/Radar requise) */}
               {canViewVessels && (
-                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
+                <div className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none`}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
@@ -801,7 +811,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
               {/* KPI 2 : BLs Import à Traiter (RBAC : habilitation Import GUCE requise) */}
               {canViewImport && (
-                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
+                <div className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none`}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
@@ -824,7 +834,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
               {/* KPI 3 : Drafts Export Soumis (RBAC : habilitation Export requise) */}
               {canViewExport && (
-                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none">
+                <div className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none`}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
@@ -847,7 +857,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewBalance && (
                 <div
                   onClick={() => onEnter('facturation_balance')}
-                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between hover:border-[#005DAA] transition-all cursor-pointer group shadow-xs hover:shadow-md select-none"
+                  className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between hover:border-[#005DAA] transition-all cursor-pointer group shadow-xs hover:shadow-md select-none`}
                   title="Consulter la Balance Âgée & Suivi des Créances"
                 >
                   <div className="flex justify-between items-start mb-3">
@@ -871,13 +881,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
 
             {/* ── SECTION D: 5 BUSINESS PILLARS (CLEAN MINIMAL CARDS) ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mt-8 sm:mt-12 lg:mt-[4cm]">
+            <div className="flex flex-wrap justify-center gap-5 mt-8 sm:mt-12 lg:mt-[4cm]">
 
               {/* Module 1: Manifestes & Escales (RBAC : habilitation Escales requise) */}
               {canViewVessels && (
                 <div
                   onClick={() => setViewState('escales')}
-                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
                 >
                   <div>
                     <div className="mb-5">
@@ -903,7 +913,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewExport && (
                 <div
                   onClick={() => onEnter('export')}
-                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
                 >
                   <div>
                     <div className="mb-5">
@@ -929,7 +939,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewFacturation && (
                 <div
                   onClick={() => onEnter('facturation')}
-                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
                 >
                   <div>
                     <div className="mb-5">
@@ -955,7 +965,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewSurestarie && (
                 <div
                   onClick={() => onEnter('surestarie')}
-                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white"
+                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white`}
                 >
                   <div>
                     <div className="mb-5">
@@ -981,7 +991,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewVessels && (
                 <div
                   onClick={() => onEnter('vessels')}
-                  className="ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
+                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
                 >
                   <div>
                     <div className="mb-5">
