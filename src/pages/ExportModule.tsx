@@ -26,7 +26,9 @@ import {
   DollarSign, 
   Calendar,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Search,
+  X
 } from 'lucide-react';
 
 const PAYS_ONU = [
@@ -98,10 +100,48 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   // Règle d'appartenance partagée (src/utils/draftOwnership.ts) : rattachement
   // par identifiants stables (id, email, société, nom) — sans repli générique.
   const isClientExport = userRole === 'CLIENT_EXPORT';
-  const displayedDrafts = useMemo(
+  const userDrafts = useMemo(
     () => filterDraftsForUser(drafts, currentUser, userRole),
     [drafts, currentUser, userRole]
   );
+
+  // État de recherche & filtre par statut pour les drafts
+  const [draftSearchTerm, setDraftSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  // Montants de frais d'amendement personnalisables (Frais Agence & Frais Douane)
+  const [fraisAgenceAmount, setFraisAgenceAmount] = useState<number>(50000);
+  const [fraisDouaneAmount, setFraisDouaneAmount] = useState<number>(25000);
+
+  // Filtrage combiné (Recherche + Statut)
+  const displayedDrafts = useMemo(() => {
+    return userDrafts.filter(draft => {
+      // 1. Filtre par statut
+      if (statusFilter) {
+        if (statusFilter === 'DEVERROUILLE' || statusFilter === 'CORRECTION_AUTORISEE') {
+          if (!draft.estDeverrouille && draft.statut !== 'CORRECTION_AUTORISEE') return false;
+        } else if (draft.statut !== statusFilter) {
+          return false;
+        }
+      }
+
+      // 2. Filtre par terme de recherche
+      if (!draftSearchTerm.trim()) return true;
+      const q = draftSearchTerm.toLowerCase().trim();
+      const numDraft = (draft.numeroDraft || '').toLowerCase();
+      const numBl = (draft.numeroBlGenere || '').toLowerCase();
+      const bkg = (draft.bookingRef || '').toLowerCase();
+      const shipper = (draft.shipperInfo?.nom || '').toLowerCase();
+      const consignee = (draft.consigneeInfo?.nom || '').toLowerCase();
+      const navire = (draft.navireNom || '').toLowerCase();
+      const voyage = (draft.numeroVoyage || '').toLowerCase();
+      const desc = (draft.marchandisesInfo?.description || '').toLowerCase();
+
+      return numDraft.includes(q) || numBl.includes(q) || bkg.includes(q) ||
+        shipper.includes(q) || consignee.includes(q) || navire.includes(q) ||
+        voyage.includes(q) || desc.includes(q);
+    });
+  }, [userDrafts, statusFilter, draftSearchTerm]);
 
   // Garde : un client export ne doit jamais voir le manifeste consolidé
   // (ni l'atteindre par navigation directe) — réservé aux agents/admins.
@@ -238,21 +278,26 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   const getDraftDeadlineInfo = (draft: DraftExport, escale?: Escale) => {
     const targetEscale = escale || activeEscales.find(e => e.id === draft.escaleId || e.numeroVoyage === draft.numeroVoyage) || activeEscales[0];
     
-    if (!targetEscale?.dateArrivee) {
+    // Référence temporelle : ETD (départ du navire) si renseignée, sinon ETA (arrivée)
+    const refDateIso = targetEscale?.dateDepart || targetEscale?.dateArrivee;
+    const refLabel = targetEscale?.dateDepart ? 'ETD' : 'ETA';
+
+    if (!refDateIso) {
       return {
         targetEscale,
         deadlineDate: null,
         isLocked: false,
         isPastDeadline: false,
+        isOkToPrint: false,
         hoursRemaining: 999,
         badgeText: 'Délai non défini',
         badgeColor: 'bg-zinc-100 text-zinc-700 border-zinc-200'
       };
     }
 
-    const eta = new Date(targetEscale.dateArrivee).getTime();
-    // 24 heures avant l'ETA
-    const deadline = eta - 24 * 3600 * 1000;
+    const refTime = new Date(refDateIso).getTime();
+    // 24 heures avant l'ETD (fallback ETA)
+    const deadline = refTime - 24 * 3600 * 1000;
     const now = Date.now();
     const isPastDeadline = now >= deadline;
     const hoursRemaining = Math.round((deadline - now) / (1000 * 3600));
@@ -266,6 +311,13 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     // Verrouillé si deadline dépassée ou statut verrouillé, hors déverrouillage agent et validation
     const isLocked = !isAlreadyValidated && !isUnlockedByAgent && draft.statut !== 'BROUILLON' && (isPastDeadline || draft.statut === 'VERROUILLE');
 
+    // « OK To Print » : contenu gelé et bon pour impression BL + intégration manifeste.
+    // Posé par retransmission client (bouton OK To Print) ou verrouillage auto 24h avant ETD.
+    const isOkToPrint = !isAlreadyValidated
+      && draft.statut !== 'DEMANDE_CORRECTION'
+      && !isUnlockedByAgent
+      && (draft.okToPrint === true || (isPastDeadline && (draft.statut === 'SOUMIS' || draft.statut === 'VERROUILLE')));
+
     let badgeText = '';
     let badgeColor = '';
 
@@ -278,17 +330,23 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     } else if (isUnlockedByAgent) {
       badgeText = 'Déverrouillé pour correction';
       badgeColor = 'bg-teal-50 text-teal-700 border-teal-300 font-bold animate-pulse';
+    } else if (isOkToPrint && isLocked) {
+      badgeText = `OK To Print (Verrouillé — 24h avant ${refLabel} écoulées)`;
+      badgeColor = 'bg-sky-50 text-sky-700 border-sky-400 font-black';
     } else if (isLocked) {
-      badgeText = 'Verrouillé (Délai 24h avant ETA dépassé)';
+      badgeText = `Verrouillé (Délai 24h avant ${refLabel} dépassé)`;
       badgeColor = 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
+    } else if (draft.okToPrint === true) {
+      badgeText = 'OK To Print — Transmis par le client';
+      badgeColor = 'bg-sky-50 text-sky-700 border-sky-400 font-bold';
     } else if (hoursRemaining > 0 && hoursRemaining <= 24) {
-      badgeText = `${hoursRemaining}h restantes avant verrouillage`;
+      badgeText = `${hoursRemaining}h restantes avant verrouillage auto (OK To Print)`;
       badgeColor = 'bg-amber-50 text-amber-800 border-amber-400 font-bold';
     } else if (hoursRemaining > 24) {
-      badgeText = `Délai respecté (${Math.round(hoursRemaining / 24)}j restants)`;
+      badgeText = `Délai respecté (${Math.round(hoursRemaining / 24)}j restants avant ${refLabel})`;
       badgeColor = 'bg-blue-50 text-blue-700 border-blue-300 font-bold';
     } else {
-      badgeText = 'Verrouillé (ETA dépassée)';
+      badgeText = `Verrouillé (${refLabel} dépassée)`;
       badgeColor = 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
     }
 
@@ -297,6 +355,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       deadlineDate: new Date(deadline),
       isLocked,
       isPastDeadline,
+      isOkToPrint,
       hoursRemaining,
       badgeText,
       badgeColor
@@ -556,10 +615,12 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   const handleApproveCorrection = () => {
     if (!targetDraftForApproval) return;
 
-    // Calcul des montants selon le type de frais choisi
+    // Calcul des montants selon le type de frais choisi et les valeurs saisies par l'agent
     // Règle BOCS : les factures Export ne sont PAS assujetties à la TVA (0 %) — TTC = HT.
     const isFraisDouane = correctionFeeType === 'AGENCE_DOUANE';
-    const montantHt = isFraisDouane ? 75000 : 50000;  // 50 000 agence + 25 000 douane
+    const montantAgence = Number(fraisAgenceAmount || 50000);
+    const montantDouane = Number(fraisDouaneAmount || 25000);
+    const montantHt = isFraisDouane ? (montantAgence + montantDouane) : montantAgence;
     const tva = 0;
     const montantTtc = montantHt;
 
@@ -571,6 +632,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       demandeCorrection: {
         ...targetDraftForApproval.demandeCorrection!,
         statut: 'ACCEPTEE',
+        montantFrais: montantHt,
         validePar: currentUser.nomComplet,
         dateValidation: new Date().toISOString().replace('T', ' ').substring(0, 19)
       }
@@ -587,8 +649,8 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
         typeFrais: 'AUTRE',
         designation: `Frais d'agence — amendement/révision BL Export après ETA (${targetDraftForApproval.numeroBlGenere || targetDraftForApproval.numeroDraft})`,
         quantite: 1,
-        prixUnitaireFcfa: 50000,
-        montantHtFcfa: 50000,
+        prixUnitaireFcfa: montantAgence,
+        montantHtFcfa: montantAgence,
         tauxTva: 0
       }
     ];
@@ -598,8 +660,8 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
         typeFrais: 'AUTRE',
         designation: `Frais de douane — rectification déclaration export (${targetDraftForApproval.numeroBlGenere || targetDraftForApproval.numeroDraft})`,
         quantite: 1,
-        prixUnitaireFcfa: 25000,
-        montantHtFcfa: 25000,
+        prixUnitaireFcfa: montantDouane,
+        montantHtFcfa: montantDouane,
         tauxTva: 0
       });
     }
@@ -632,7 +694,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
     onGenerateInvoice(invoice);
 
-    const typeLabel = isFraisDouane ? 'Frais Agence + Frais Douane (75 000 FCFA)' : 'Frais Agence (50 000 FCFA)';
+    const typeLabel = isFraisDouane ? `Frais Agence (${montantAgence.toLocaleString('fr-FR')} F) + Douane (${montantDouane.toLocaleString('fr-FR')} F) = ${montantHt.toLocaleString('fr-FR')} FCFA` : `Frais Agence (${montantAgence.toLocaleString('fr-FR')} FCFA)`;
     onLogAudit('APPROBATION_AMENDEMENT_DRAFT', 'DraftExport', `Approbation amendement ${targetDraftForApproval.numeroDraft} — Facture ${invoiceNumber} émise — ${typeLabel}`);
     toastSuccess(`Demande acceptée ! Draft déverrouillé. Facture ${invoiceNumber} (${typeLabel}) rattachée au BL ${targetDraftForApproval.numeroBlGenere || targetDraftForApproval.numeroDraft}.`);
     setAgentApprovalModalOpen(false);
@@ -925,34 +987,99 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 </span>
               ) : (
                 <span className="text-zinc-700 font-medium">
-                  <strong>Vue Agent :</strong> Tous les drafts clients sont listés ci-dessous (brouillons, soumis, verrouillés, validés). Les demandes de correction sont facturées : <strong>Frais d'agence 50 000 FCFA HT</strong> ou <strong>Frais d'agence + Frais douane 75 000 FCFA HT</strong>.
+                  <strong>Vue Agent :</strong> Tous les drafts clients sont listés ci-dessous (brouillons, soumis, verrouillés, validés). Les demandes de correction sont facturées : <strong>Frais d'agence {fraisAgenceAmount.toLocaleString('fr-FR')} FCFA HT</strong> ou <strong>Frais d'agence + Frais douane {(fraisAgenceAmount + fraisDouaneAmount).toLocaleString('fr-FR')} FCFA HT</strong>.
                 </span>
               )}
             </div>
             <span className="text-[11px] font-black text-[#005DAA] shrink-0 font-mono">Délai : 24h avant ETA</span>
           </div>
 
-          {/* Tableau des Drafts — titre selon le rôle */}
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-black text-zinc-600 uppercase tracking-wider">
-              {userRole === 'CLIENT_EXPORT' ? 'Mes Drafts & Connaissements' : `Tous les Drafts Clients (${displayedDrafts.length})`}
-            </h3>
-            {(userRole === 'AGENT_EXPORT' || userRole === 'ADMIN') && (
-              <div className="flex gap-2 text-[10px]">
-                {['BROUILLON','SOUMIS','VERROUILLE','DEMANDE_CORRECTION','CORRECTION_AUTORISEE','VALIDE','BL_GENERE'].map(s => {
-                  const count = displayedDrafts.filter(d => d.statut === s).length;
-                  return count > 0 ? (
-                    <span key={s} className="px-2 py-0.5 rounded-full border font-bold bg-zinc-100 border-zinc-300 text-zinc-700">
-                      {s === 'BROUILLON' ? 'Brouillons' : s === 'SOUMIS' ? 'Soumis' : s === 'VERROUILLE' ? 'Verrouillés' : s === 'DEMANDE_CORRECTION' ? 'Corrections' : s === 'CORRECTION_AUTORISEE' ? 'Déverrouillés' : s === 'VALIDE' ? 'Validés' : 'BL Générés'}: {count}
-                    </span>
-                  ) : null;
-                })}
+          {/* Barre de Recherche & Boutons de Filtres par Statuts Cliquables */}
+          <div className="space-y-3 mb-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <h3 className="text-xs font-black text-zinc-600 uppercase tracking-wider shrink-0">
+                {userRole === 'CLIENT_EXPORT' ? 'Mes Drafts & Connaissements' : `Tous les Drafts Clients (${displayedDrafts.length})`}
+              </h3>
+
+              {/* Champ de Recherche */}
+              <div className="relative flex-1 min-w-[240px] max-w-md w-full">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={draftSearchTerm}
+                  onChange={e => setDraftSearchTerm(e.target.value)}
+                  placeholder="Rechercher par N° Draft, BL, Navire, Expéditeur, Destinataire..."
+                  className="w-full pl-9 pr-8 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-[#005DAA] shadow-2xs"
+                />
+                {draftSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setDraftSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-zinc-400 hover:text-zinc-700 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Boutons de Filtre par Statut Cliquables */}
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setStatusFilter(null)}
+                className={`px-3 py-1 rounded-full border font-bold transition-all cursor-pointer ${
+                  statusFilter === null
+                    ? 'bg-[#005DAA] text-white border-[#005DAA] shadow-xs font-black'
+                    : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-700'
+                }`}
+              >
+                Tous ({userDrafts.length})
+              </button>
+
+              {['BROUILLON', 'SOUMIS', 'VERROUILLE', 'DEMANDE_CORRECTION', 'CORRECTION_AUTORISEE', 'VALIDE', 'BL_GENERE'].map(s => {
+                const count = userDrafts.filter(d => d.statut === s || (s === 'CORRECTION_AUTORISEE' && d.estDeverrouille)).length;
+                if (count === 0) return null;
+
+                const label = s === 'BROUILLON' ? 'Brouillons'
+                  : s === 'SOUMIS' ? 'Soumis'
+                  : s === 'VERROUILLE' ? 'Verrouillés'
+                  : s === 'DEMANDE_CORRECTION' ? 'Corrections en attente'
+                  : s === 'CORRECTION_AUTORISEE' ? 'Déverrouillés'
+                  : s === 'VALIDE' ? 'Validés'
+                  : 'BL Générés';
+
+                const isSelected = statusFilter === s;
+
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatusFilter(isSelected ? null : s)}
+                    className={`px-2.5 py-1 rounded-full border font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-[#005DAA] text-white border-[#005DAA] shadow-xs font-black'
+                        : s === 'BROUILLON'
+                          ? 'bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-800'
+                          : s === 'CORRECTION_AUTORISEE'
+                            ? 'bg-teal-50 hover:bg-teal-100 border-teal-300 text-teal-800 font-extrabold'
+                            : s === 'VERROUILLE'
+                              ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-800'
+                              : s === 'DEMANDE_CORRECTION'
+                                ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800 font-bold'
+                                : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800'
+                    }`}
+                  >
+                    <span>{label}:</span>
+                    <span className="font-mono font-black">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="overflow-x-auto border border-zinc-200 rounded-xl">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] min-h-[420px] bocs-scrollbar relative border border-zinc-200 rounded-xl">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
+              <thead className="sticky top-0 bg-zinc-50 z-10 shadow-2xs">
                 <tr className="bg-zinc-50 text-[10px] font-black uppercase text-zinc-500 border-b border-zinc-200 tracking-wider">
                   <th className="p-3.5">N° Draft / BL</th>
                   <th className="p-3.5">Navire &amp; Escale</th>
@@ -1914,9 +2041,9 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] min-h-[380px] bocs-scrollbar relative">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
+                <thead className="sticky top-0 bg-zinc-100 z-10 shadow-2xs">
                   <tr className="bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 border-b border-zinc-200">
                     <th className="p-3">N° B/L BOCS</th>
                     <th className="p-3">Chargeur (Shipper)</th>
@@ -2148,6 +2275,33 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 </label>
               </div>
 
+              {/* Personnalisation / Ajustement des montants de frais */}
+              <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+                <div className="text-[10px] uppercase font-black text-zinc-600 tracking-wider">Ajuster / Modifier les montants de frais HT (FCFA) :</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-zinc-700 mb-1">Frais d'Agence HT</label>
+                    <input
+                      type="number"
+                      value={fraisAgenceAmount}
+                      onChange={e => setFraisAgenceAmount(Math.max(0, Number(e.target.value)))}
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    />
+                  </div>
+                  {correctionFeeType === 'AGENCE_DOUANE' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-700 mb-1">Frais Douane HT</label>
+                      <input
+                        type="number"
+                        value={fraisDouaneAmount}
+                        onChange={e => setFraisDouaneAmount(Math.max(0, Number(e.target.value)))}
+                        className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Récapitulatif */}
               <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between">
                 <div>
@@ -2155,7 +2309,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                   <div className="text-[11px] text-emerald-800">Rattachée au BL {targetDraftForApproval.numeroBlGenere || targetDraftForApproval.numeroDraft}</div>
                 </div>
                 <span className="text-sm font-black font-mono text-emerald-800 bg-white px-3 py-1.5 rounded-lg border border-emerald-300">
-                  {correctionFeeType === 'AGENCE_DOUANE' ? '75 000 FCFA HT' : '50 000 FCFA HT'}
+                  {(correctionFeeType === 'AGENCE_DOUANE' ? (fraisAgenceAmount + fraisDouaneAmount) : fraisAgenceAmount).toLocaleString('fr-FR')} FCFA HT
                 </span>
               </div>
 

@@ -19,7 +19,9 @@ export const INITIAL_USERS: User[] = [
   { id: 2, nomComplet: 'Marie-Claire ADOU', email: 'import@bocs.ci', role: 'AGENT_IMPORT', telephone: '+225 05 06 07 08 09', nomSociete: 'BOCS CI Agency', estActif: true },
   { id: 3, nomComplet: 'Kouassi PATRICE', email: 'export@bocs.ci', role: 'AGENT_EXPORT', telephone: '+225 01 02 03 04 05', nomSociete: 'BOCS CI Agency', estActif: true },
   { id: 4, nomComplet: 'Awa DIABATE', email: 'compta@bocs.ci', role: 'COMPTABILITE', telephone: '+225 07 11 22 33 44', nomSociete: 'BOCS CI Agency', estActif: true },
-  { id: 5, nomComplet: 'Moussa TRAORE', email: 'client@agro-export.ci', role: 'CLIENT_EXPORT', telephone: '+225 07 45 67 89 01', nomSociete: 'Agro Export SA', estActif: true }
+  { id: 5, nomComplet: 'Moussa TRAORE', email: 'client@agro-export.ci', role: 'CLIENT_EXPORT', telephone: '+225 07 45 67 89 01', nomSociete: 'Agro Export SA', estActif: true },
+  { id: 6, nomComplet: 'ZIAGOUE Jean-Félix', email: 'client.sifca@bocs.ci', role: 'CLIENT_EXPORT', telephone: '+225 07 00 11 22 33', nomSociete: 'SIFCA Cacao SA', estActif: true },
+  { id: 7, nomComplet: 'Fatoumata KONE', email: 'client.tropica@bocs.ci', role: 'CLIENT_EXPORT', telephone: '+225 05 44 55 66 77', nomSociete: 'Tropica Trading CI', estActif: true }
 ];
 
 export const INITIAL_ESCALES: Escale[] = [];
@@ -219,6 +221,133 @@ export const INITIAL_DRAFTS_EXPORT: DraftExport[] = [
       statut: 'EN_ATTENTE'
     },
     dateCreation: '2026-04-06'
+  },
+  {
+    id: 104,
+    clientId: 6,
+    clientNom: 'ZIAGOUE Jean-Félix',
+    clientSociete: 'SIFCA Cacao SA',
+    clientEmail: 'client.sifca@bocs.ci',
+    escaleId: 25586,
+    numeroDraft: 'BOCS-EXP-DRF-7837',
+    bookingRef: 'BKG-ABJ-23409-793',
+    navireNom: 'EA CENTAURUS',
+    numeroVoyage: '23409',
+    portChargementCode: 'CIABJ',
+    portDechargementCode: 'CIVID',
+    portDechargementNom: 'Côte d\'Ivoire',
+    shipperInfo: {
+      nom: 'SIFCA Cacao SA',
+      adresse: 'Zone Industrielle Vridi, Abidjan',
+      pays: 'Côte d\'Ivoire',
+      email: 'contact@sifca.ci',
+      phone: '+225 27 21 00 11 22'
+    },
+    consigneeInfo: {
+      nom: 'ZIAGOUE Jean-Félix',
+      adresse: 'Zone Portuaire, Abidjan',
+      pays: 'Côte d\'Ivoire',
+      email: 'jf.ziagoue@sifca.ci',
+      phone: '+225 07 00 11 22 33'
+    },
+    notifyInfo: {
+      nom: 'ZIAGOUE Jean-Félix',
+      adresse: 'Zone Portuaire, Abidjan',
+      pays: 'Côte d\'Ivoire',
+      email: 'jf.ziagoue@sifca.ci',
+      phone: '+225 07 00 11 22 33'
+    },
+    marchandisesInfo: {
+      description: 'FEVES DE CACAO EN CARTONS - RECOLTE 2026',
+      poidsBrutKg: 50400,
+      volumeM3: 68.5,
+      nombreColis: 800,
+      typeEmballage: 'CARTONS',
+      hsCode: '1801.00.00'
+    },
+    conteneursInfo: [
+      {
+        numeroConteneur: 'BOCU-994120-1',
+        typeConteneur: '20_DRY',
+        numeroScelle: 'SC-CI-7711',
+        poidsKg: 25200,
+        poidsNetKg: 23000,
+        volumeM3: 34.2,
+        tareKg: 2200,
+        nombreColis: 400
+      },
+      {
+        numeroConteneur: 'BOCU-994121-6',
+        typeConteneur: '20_DRY',
+        numeroScelle: 'SC-CI-7712',
+        poidsKg: 25200,
+        poidsNetKg: 23000,
+        volumeM3: 34.3,
+        tareKg: 2200,
+        nombreColis: 400
+      }
+    ],
+    statut: 'CORRECTION_AUTORISEE',
+    estDeverrouille: true,
+    dateCreation: '2026-04-12'
+  },
+  {
+    id: 105,
+    clientId: 7,
+    clientNom: 'Fatoumata KONE',
+    clientSociete: 'Tropica Trading CI',
+    clientEmail: 'client.tropica@bocs.ci',
+    escaleId: 25586,
+    numeroDraft: 'BOCS-EXP-DRF-5412',
+    bookingRef: 'BKG-ABJ-23409-541',
+    navireNom: 'EA CENTAURUS',
+    numeroVoyage: '23409',
+    portChargementCode: 'CIABJ',
+    portDechargementCode: 'DEBRE',
+    portDechargementNom: 'Bremen',
+    shipperInfo: {
+      nom: 'Tropica Trading CI',
+      adresse: 'Boulevard de Marseille, Abidjan',
+      pays: 'Côte d\'Ivoire',
+      email: 'ops@tropicatrading.ci',
+      phone: '+225 27 21 44 55 66'
+    },
+    consigneeInfo: {
+      nom: 'Tropica Europe GmbH',
+      adresse: 'Hafenstrasse 12, Bremen',
+      pays: 'Allemagne',
+      email: 'import@tropica.de',
+      phone: '+49 421 88990'
+    },
+    notifyInfo: {
+      nom: 'Tropica Europe GmbH',
+      adresse: 'Hafenstrasse 12, Bremen',
+      pays: 'Allemagne',
+      email: 'import@tropica.de',
+      phone: '+49 421 88990'
+    },
+    marchandisesInfo: {
+      description: 'BEURRE DE CACAO BIOLOGIQUE EN CARTONS',
+      poidsBrutKg: 24000,
+      volumeM3: 35.0,
+      nombreColis: 600,
+      typeEmballage: 'CARTONS',
+      hsCode: '1804.00.00'
+    },
+    conteneursInfo: [
+      {
+        numeroConteneur: 'BOCU-112044-8',
+        typeConteneur: '20_DRY',
+        numeroScelle: 'SC-CI-3344',
+        poidsKg: 24000,
+        poidsNetKg: 21800,
+        volumeM3: 35.0,
+        tareKg: 2200,
+        nombreColis: 600
+      }
+    ],
+    statut: 'BROUILLON',
+    dateCreation: '2026-04-14'
   }
 ];
 

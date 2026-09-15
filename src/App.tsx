@@ -1297,7 +1297,7 @@ export function App() {
       />
 
       {/* Main Workspace Layout */}
-      <div className="flex-1 flex flex-col overflow-hidden max-w-[1664px] mx-auto w-full">
+      <div className="flex-1 flex flex-col overflow-hidden max-w-[1996px] mx-auto w-full">
 
         {/* Content Main Panel */}
         <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">

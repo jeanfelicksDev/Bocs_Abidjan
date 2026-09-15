@@ -78,7 +78,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, []);
 
   return (
-    <div className="space-y-6 animate-fade-in text-zinc-900 w-full max-w-[2054px] mx-auto font-sans antialiased">
+    <div className="space-y-6 animate-fade-in text-zinc-900 w-full max-w-[2465px] mx-auto font-sans antialiased">
 
       {/* ─── 1. TOP EXECUTIVE CLEAN HEADER (Matching Image 2) ─── */}
       <div className="w-full bg-white border border-zinc-200 rounded-2xl px-6 py-4 shadow-xs flex flex-wrap items-center justify-between gap-4">

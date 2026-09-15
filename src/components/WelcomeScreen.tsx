@@ -627,7 +627,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       {/* ─── 1. TOP EXECUTIVE CLEAN HEADER ─── */}
       <header className="w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md z-30 relative shrink-0 shadow-xs">
-        <div className="max-w-[2054px] mx-auto px-6 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="max-w-[2465px] mx-auto px-6 sm:px-8 py-3.5 flex items-center justify-between">
 
           {/* Brand Identity */}
           <div className="flex items-center gap-4">
@@ -749,7 +749,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </header>
 
       {/* ─── 2. MAIN EXECUTIVE WORKSPACE ─── */}
-      <main className="w-full max-w-[2054px] mx-auto px-6 sm:px-8 pt-6 sm:pt-8 pb-12 flex-1 flex flex-col justify-start z-20 relative">
+      <main className="w-full max-w-[2465px] mx-auto px-6 sm:px-8 pt-6 sm:pt-8 pb-12 flex-1 flex flex-col justify-start z-20 relative">
 
         {/* ══════════════════════════════════════════════════════════════════
             VIEW 1: GRAND CLEAN EDITORIAL COCKPIT PORTAL

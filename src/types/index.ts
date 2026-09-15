@@ -208,9 +208,10 @@ export interface DraftExport {
   dateCreation: string;
   dateValidation?: string;
   numeroBlGenere?: string;
-  // Règles spécifiques d'amendement & verrouillage ETA
-  dateLimiteTransmission?: string; // 24h avant ETA
+  // Règles spécifiques d'amendement & verrouillage ETD
+  dateLimiteTransmission?: string; // Échéance 24h avant ETD (fallback ETA)
   estDeverrouille?: boolean;
+  okToPrint?: boolean; // Contenu confirmé par le client : bon pour impression BL & intégration manifeste
   demandeCorrection?: DemandeCorrectionDraft;
   fraisAmendementFactures?: boolean;
   factureFraisId?: number;
