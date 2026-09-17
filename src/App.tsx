@@ -1478,6 +1478,7 @@ export function App() {
               creditNotes={creditNotes}
               payments={payments}
               bls={bls}
+              drafts={drafts}
               escales={escales}
               selectedBlId={selectedBlIdForBilling}
               onSelectBl={setSelectedBlIdForBilling}

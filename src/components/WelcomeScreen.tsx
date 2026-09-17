@@ -2144,6 +2144,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         onClose={() => setSelectedBlForBillingModal(null)}
         escales={escales}
         bls={bls}
+        drafts={drafts}
         invoices={invoices}
         rubriqueConfigs={rubriqueConfigs}
         invoiceTypeConfigs={invoiceTypeConfigs}

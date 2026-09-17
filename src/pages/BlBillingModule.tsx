@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BL, Escale, Invoice, UserRole, InvoiceTypeConfig, RubriqueConfig, Container, FretCategory, Payment, TaxeAdditionnelleConfig, TimbreBracket } from '../types';
+import { BL, Escale, Invoice, UserRole, InvoiceTypeConfig, RubriqueConfig, Container, FretCategory, Payment, TaxeAdditionnelleConfig, TimbreBracket, DraftExport } from '../types';
+import { isValidatedExportDraft, mapDraftToExportBl } from '../utils/exportBlMapper';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel } from '../utils/taxeAdditionnelle';
 import { computeTimbreFiscal, getNetAPayerFcfa, getModeReglementLabel, MODES_REGLEMENT } from '../utils/timbreFiscal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
@@ -33,6 +34,8 @@ import {
 
 interface BlBillingModuleProps {
   bls: BL[];
+  /** Drafts export : les connaissements validés y matérialisent les BL export réels. */
+  drafts?: DraftExport[];
   escales: Escale[];
   invoices: Invoice[];
   rubriqueConfigs: RubriqueConfig[];
@@ -56,6 +59,7 @@ interface BlBillingModuleProps {
 
 export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   bls,
+  drafts = [],
   escales,
   invoices,
   rubriqueConfigs = [],
@@ -177,10 +181,20 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   useEscapeClose(Boolean(calculationModalData), () => setCalculationModalData(null));
   useEscapeClose(Boolean(printPreviewData), () => setPrintPreviewData(null));
 
+  // ─── BLs d'export réels : connaissements émis depuis les drafts export validés ───
+  // (les manifestes importés créent des BL import ; les connaissements export
+  // existent sous forme de drafts validés portant un numéro BL généré).
+  const exportBls = useMemo(
+    () => drafts.filter(isValidatedExportDraft).map(mapDraftToExportBl),
+    [drafts]
+  );
+  // Périmètre complet = BLs import (manifestes) + BLs export (connaissements validés).
+  const allBls = useMemo(() => [...bls, ...exportBls], [bls, exportBls]);
+
   // Filter BLs matching search query (by BL number, Shipper name, or Consignee) + type d'opération
   const matchingBls = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return bls.filter(bl => {
+    return allBls.filter(bl => {
       if (selectedEscaleFilter !== 'ALL' && bl.escaleId !== selectedEscaleFilter) {
         return false;
       }
@@ -194,24 +208,25 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       const containerMatch = (bl.conteneurs || []).some(c => (c.numeroConteneur || '').toLowerCase().includes(q));
       return numMatch || shipperMatch || consigneeMatch || containerMatch;
     });
-  }, [bls, searchQuery, selectedEscaleFilter, typeFilter]);
+  }, [allBls, searchQuery, selectedEscaleFilter, typeFilter]);
 
-  // Compteurs par type d'opération (dans le périmètre de l'escale sélectionnée)
+  // Compteurs par type d'opération (dans le périmètre de l'escale sélectionnée) —
+  // reflet de la réalité : import (manifestes) + export (connaissements validés).
   const typeCounts = useMemo(() => {
-    const scope = selectedEscaleFilter === 'ALL' ? bls : bls.filter(b => b.escaleId === selectedEscaleFilter);
+    const scope = selectedEscaleFilter === 'ALL' ? allBls : allBls.filter(b => b.escaleId === selectedEscaleFilter);
     return {
       ALL: scope.length,
       IMPORT: scope.filter(b => b.typeOperation === 'IMPORT').length,
       EXPORT: scope.filter(b => b.typeOperation === 'EXPORT').length
     };
-  }, [bls, selectedEscaleFilter]);
+  }, [allBls, selectedEscaleFilter]);
 
   // Currently active BL object — toujours dans le périmètre des filtres actifs
   const activeBl = useMemo(() => {
-    const found = activeBlId ? bls.find(b => b.id === activeBlId) : null;
+    const found = activeBlId ? allBls.find(b => b.id === activeBlId) : null;
     if (found && matchingBls.some(b => b.id === found.id)) return found;
     return matchingBls.length > 0 ? matchingBls[0] : null;
-  }, [bls, activeBlId, matchingBls]);
+  }, [allBls, activeBlId, matchingBls]);
 
   // Active Escale for active BL
   const activeEscale = useMemo(() => {

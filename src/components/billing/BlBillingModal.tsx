@@ -10,7 +10,7 @@ import {
   Clock, 
   CreditCard 
 } from 'lucide-react';
-import { BL, Escale, Invoice, RubriqueConfig, InvoiceTypeConfig, UserRole, Payment, TimbreBracket } from '../../types';
+import { BL, Escale, Invoice, RubriqueConfig, InvoiceTypeConfig, UserRole, Payment, TimbreBracket, DraftExport } from '../../types';
 import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 import { BlBillingModule } from '../../pages/BlBillingModule';
 
@@ -20,6 +20,8 @@ export interface BlBillingModalProps {
   onClose: () => void;
   escales: Escale[];
   bls: BL[];
+  /** Drafts export : les connaissements validés y matérialisent les BL export réels. */
+  drafts?: DraftExport[];
   invoices: Invoice[];
   rubriqueConfigs: RubriqueConfig[];
   invoiceTypeConfigs: InvoiceTypeConfig[];
@@ -41,6 +43,7 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
   onClose,
   escales,
   bls,
+  drafts = [],
   invoices,
   rubriqueConfigs = [],
   invoiceTypeConfigs = [],
@@ -134,6 +137,7 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-900/5 welcome-scrollbar">
           <BlBillingModule
             bls={bls}
+            drafts={drafts}
             escales={escales}
             invoices={invoices}
             rubriqueConfigs={rubriqueConfigs}

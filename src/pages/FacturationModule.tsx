@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toastSuccess, toastError, toastWarning, toastInfo } from '../components/common/Toast';
 import { exportInvoicesCsv, exportPaymentsCsv } from '../utils/exportCsv';
-import { BL, Escale, Invoice, CreditNote, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry, TimbreBracket, TaxeAdditionnelleConfig } from '../types';
+import { BL, Escale, Invoice, CreditNote, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry, TimbreBracket, TaxeAdditionnelleConfig, DraftExport } from '../types';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, normalizeTaxeAdditionnelleConfig, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel, getTaxeAdditionnelleModeLabel } from '../utils/taxeAdditionnelle';
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf, generateDoBadPdf, generateCreditNotePdf } from '../utils/pdfGenerator';
@@ -14,6 +14,8 @@ interface FacturationModuleProps {
   creditNotes?: CreditNote[];
   payments: Payment[];
   bls?: BL[];
+  /** Drafts export : les connaissements validés y matérialisent les BL export réels. */
+  drafts?: DraftExport[];
   escales?: Escale[];
   selectedBlId?: number | null;
   onSelectBl?: (blId: number) => void;
@@ -153,6 +155,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   creditNotes = [],
   payments,
   bls = [],
+  drafts = [],
   escales = [],
   selectedBlId = null,
   onSelectBl,
@@ -1174,6 +1177,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       {activeTab === 'FACTURATION_BL' && (
         <BlBillingModule
           bls={bls}
+          drafts={drafts}
           escales={escales}
           invoices={invoices}
           rubriqueConfigs={rubriqueConfigs}
