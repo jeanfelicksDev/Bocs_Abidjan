@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Anchor,
   ArrowRight,
-  Building2,
   Clock,
   Layers3,
   Ship,
@@ -90,9 +89,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <div className="flex items-center gap-2.5">
               <span className="text-xl font-black tracking-wider text-zinc-900 font-sans">BOCS CI</span>
-              <span className="text-[11px] font-black uppercase px-3 py-0.5 rounded-full bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30 tracking-wider shadow-2xs">
-                ABIDJAN TERMINAL
-              </span>
             </div>
             <p className="text-xs text-zinc-500 font-bold mt-0.5">Bremen Overseas Chartering Shipping • Agence Consignataire</p>
           </div>
@@ -100,10 +96,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Right Info Badges */}
         <div className="flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-700 font-bold">
-            <Building2 className="w-4 h-4 text-[#005DAA]" />
-            <span>Port Autonome d'Abidjan (CIABJ) • Quai Vridi</span>
-          </div>
           <div className="flex items-center gap-2 font-mono text-[#005DAA] bg-[#F0F7FF] px-3.5 py-2 rounded-xl border border-[#005DAA]/25 font-black">
             <Clock className="w-4 h-4 text-[#005DAA]" />
             <span>{currentTime || '08:32:01 GMT'}</span>
@@ -118,7 +110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             Plateforme Intégrée de <span className="text-[#00875A] font-serif italic font-normal">Gestion & Facturation Maritime</span>
           </h1>
           <p className="text-sm sm:text-base text-zinc-600 font-medium leading-relaxed max-w-4xl">
-            Supervision des escales à Abidjan, dédouanement automatisé XML GUCE & ALIS, émission certifiée des connaissements et facturation électronique unifiée (Multi-Fret & DGI/FNE).
+            Gestion des escales, suivi des Bls, consolidation des Manifeste et facturation des prestations.
           </p>
         </div>
       </div>
@@ -320,7 +312,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         >
           <div>
             <div className="mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-[#005DAA] text-white flex items-center justify-center transition-all shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
                 <Calculator className="w-6 h-6" />
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../../types';
 import { isTabAllowed, usePermissionsSync } from '../../utils/permissions';
+import { useEscapeClose } from '../../hooks/useEscapeClose';
 
 export type NavTab =
   | 'dashboard'
@@ -75,6 +76,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // RBAC : les droits effectifs proviennent désormais de la matrice des habilitations
   // (bocs_permissions_matrix + overrides par utilisateur) au lieu de listes codées en dur.
   usePermissionsSync();
+
+  // Audit UX : fermeture clavier du drawer mobile via Échap.
+  useEscapeClose(isOpen, onClose);
 
   const isAllowed = (tab: NavTab) => isTabAllowed(currentUser || { id: -1, role: userRole }, tab);
 

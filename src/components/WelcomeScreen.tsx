@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import { BocsLogo } from './BocsLogo';
 import {
-  Anchor,
   ArrowRight,
   Layers,
   Ship,
@@ -11,7 +12,6 @@ import {
   Upload,
   ChevronDown,
   ChevronUp,
-  ChevronsUpDown,
   FileText,
   Database,
   Search,
@@ -31,7 +31,6 @@ import {
   Radio,
   BarChart3,
   Globe2,
-  Building2,
   CheckCircle2,
   Navigation,
   Sparkles,
@@ -75,8 +74,6 @@ interface WelcomeScreenProps {
   exchangeRateUsd?: number;
   userRole?: UserRole;
   currentUser?: User;
-  allUsers?: User[];
-  onSwitchUser?: (user: User) => void;
   onOpenProfile?: () => void;
   onLogout?: () => void;
   onEnter: (targetTab?: any, targetBlId?: number) => void;
@@ -106,8 +103,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   exchangeRateUsd = 600,
   userRole = 'ADMIN',
   currentUser,
-  allUsers = [],
-  onSwitchUser,
   onOpenProfile,
   onLogout,
   onEnter,
@@ -287,6 +282,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   // Modal d'édition des informations du navire / escale
   const [editingEscale, setEditingEscale] = useState<Escale | null>(null);
   const [escaleFormData, setEscaleFormData] = useState<Partial<Escale>>({});
+
+  // Audit UX : fermeture clavier (Échap) de la modale d'édition navire & escale.
+  useEscapeClose(Boolean(editingEscale), () => setEditingEscale(null));
 
   // Modal d'édition et correction d'un BL existant dans le Registre
   const [editingBl, setEditingBl] = useState<BL | null>(null);
@@ -644,15 +642,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
           {/* Brand Identity */}
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/30 flex items-center justify-center shadow-2xs">
-              <Anchor className="w-5 h-5 text-[#005DAA]" />
-            </div>
+            <BocsLogo className="h-11 w-auto shrink-0" />
             <div>
               <div className="flex items-center gap-2.5">
                 <span className="text-xl font-black tracking-wider text-zinc-900 font-sans">BOCS CI</span>
-                <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30 tracking-wider shadow-2xs">
-                  Abidjan Terminal
-                </span>
               </div>
               <p className="text-xs text-zinc-500 font-bold mt-0.5">Bremen Overseas Chartering Shipping • Agence Consignataire</p>
             </div>
@@ -661,11 +654,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           {/* Right Authority & Actions */}
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="hidden lg:flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-700 font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <Building2 className="w-4 h-4 text-[#005DAA]" />
-                <span>Port Autonome d'Abidjan (CIABJ) • Quai Vridi</span>
-              </div>
               <div className="flex items-center gap-2 font-mono text-[#005DAA] bg-[#F0F7FF] px-3.5 py-1.5 rounded-xl border border-[#005DAA]/25 font-black">
                 <Clock className="w-4 h-4 text-[#005DAA]" />
                 <span>{currentTime || '00:00:00 GMT'}</span>
@@ -675,27 +663,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             {/* Personne connectée : nom + rôle, sélecteur de compte, profil, déconnexion */}
             {connectedUser ? (
               <div className="flex items-center gap-2">
-                {allUsers.length > 0 && onSwitchUser && (
-                  <div className="relative hidden md:block">
-                    <select
-                      value={connectedUser.id}
-                      onChange={(e) => {
-                        const target = allUsers.find(u => u.id === Number(e.target.value));
-                        if (target) onSwitchUser(target);
-                      }}
-                      className="appearance-none bg-zinc-50 border border-zinc-200 rounded-xl pl-2.5 pr-8 py-2 text-xs font-bold text-zinc-800 focus:outline-none focus:border-[#005DAA] cursor-pointer hover:border-zinc-300 transition-all max-w-[190px] truncate"
-                      title="Changer de compte (Rôle Opérationnel)"
-                    >
-                      {allUsers.map(u => (
-                        <option key={u.id} value={u.id} className="bg-white text-zinc-900 font-medium text-xs">
-                          {u.nomComplet} ({u.role.replace('AGENT_', '')})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                )}
-
                 <button
                   type="button"
                   onClick={onOpenProfile}
@@ -779,7 +746,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   Plateforme Intégrée de <span className="text-[#00875A] font-serif italic font-normal">Gestion & Facturation Maritime</span>
                 </h1>
                 <p className="text-base text-zinc-600 font-medium leading-relaxed max-w-3xl">
-                  Supervision des escales à Abidjan, dédouanement automatisé XML GUCE & ALIS, émission certifiée des connaissements et facturation électronique unifiée (Multi-Fret & DGI/FNE).
+                  Gestion des escales, suivi des Bls, consolidation des Manifeste et facturation des prestations.
                 </p>
               </div>
 
@@ -1876,7 +1843,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       {/* ─── 3. MODAL ÉDITION NAVIRE & ESCALE (CLEAN LIGHT MODAL) ─── */}
       {editingEscale && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-fade-in">
+        <div
+          onClick={overlayClickClose(() => setEditingEscale(null))}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-fade-in"
+        >
           <div className="welcome-dark-modal w-full max-w-xl bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-zinc-900">
 
             {/* Modal Header */}

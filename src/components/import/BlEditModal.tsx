@@ -19,6 +19,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { BL, Container, ContainerType } from '../../types';
+import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 
 export interface BlEditModalProps {
   bl: BL | null;
@@ -60,14 +61,8 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
     }
   }, [bl, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  // Audit UX : Échap (sommet de pile) + clic sur l'arrière-plan ferment la modale.
+  useEscapeClose(isOpen, onClose);
 
   if (!isOpen || !form) return null;
 
@@ -161,6 +156,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
     <div 
       className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 md:p-8 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
       style={{ zIndex: 99999 }}
+      onClick={overlayClickClose(onClose)}
     >
       <div 
         className="bg-white rounded-3xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden relative"

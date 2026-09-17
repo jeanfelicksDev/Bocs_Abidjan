@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../../types';
+import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 import { toastSuccess, toastError, toastWarning } from '../common/Toast';
 import { 
   User as UserIcon, 
@@ -33,6 +34,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onChangePassword
 }) => {
   if (!isOpen) return null;
+  // Audit UX P1 : fermeture au clavier (Échap) + clic sur l'arrière-plan.
+  // (Modale montée conditionnellement : convention hooks du fichier conservée.)
+  useEscapeClose(true, onClose);
 
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'security'>('profile');
   
@@ -131,7 +135,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     .toUpperCase();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in select-none">
+    <div
+      onClick={overlayClickClose(onClose)}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in select-none">
       <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header with User Banner */}

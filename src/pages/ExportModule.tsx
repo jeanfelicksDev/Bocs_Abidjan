@@ -5,6 +5,8 @@ import { isDraftOwnedByUser, filterDraftsForUser } from '../utils/draftOwnership
 import { generateOriginalBlPdf, generateBocsExportBlLetterheadPdf, generateExportManifestPdf } from '../utils/pdfGenerator';
 import { exportExportManifestCsv } from '../utils/exportCsv';
 import { SignatureModal } from '../components/common/SignatureModal';
+import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import { getDraftDiff, getDraftFieldColor, snapshotContenuDraft, isDraftEnPeriodeCorrection } from '../utils/draftDiff';
 import { BOCS_BREMEN_25586_ESCALE } from '../utils/manifestParser';
 import { 
   Lock, 
@@ -206,6 +208,12 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
   // Refus de la demande de correction
   const [refuseModalOpen, setRefuseModalOpen] = useState(false);
   const [refusalReason, setRefusalReason] = useState('');
+
+  // Audit UX : fermeture clavier (Échap, sommet de pile) des modales du module.
+  useEscapeClose(correctionModalOpen, () => setCorrectionModalOpen(false));
+  useEscapeClose(agentApprovalModalOpen, () => setAgentApprovalModalOpen(false));
+  useEscapeClose(refuseModalOpen, () => setRefuseModalOpen(false));
+  useEscapeClose(validationErrors.length > 0, () => setValidationErrors([]));
 
   // Form State Step 1 (Routing & General Info)
   const [shipperNom, setShipperNom] = useState(currentUser.nomSociete || 'Agro Export SA');
@@ -629,6 +637,8 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       statut: 'CORRECTION_AUTORISEE',
       estDeverrouille: true,
       fraisAmendementFactures: true,
+      // Instantané du contenu AVANT modification client — base du diff coloré (écran uniquement)
+      contenuOriginal: targetDraftForApproval.contenuOriginal || snapshotContenuDraft(targetDraftForApproval),
       demandeCorrection: {
         ...targetDraftForApproval.demandeCorrection!,
         statut: 'ACCEPTEE',
@@ -1101,6 +1111,14 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                   displayedDrafts.map(draft => {
                     const escale = activeEscales.find(e => e.id === draft.escaleId || e.numeroVoyage === draft.numeroVoyage);
                     const deadlineInfo = getDraftDeadlineInfo(draft, escale);
+                    // Diff coloré (écran uniquement) : ajouts en rouge, restants en vert,
+                    // uniquement pendant la période de correction autorisée.
+                    const diff = isDraftEnPeriodeCorrection(draft) ? getDraftDiff(draft) : null;
+                    const cls = (section: string, field: string, normal: string) => {
+                      const c = getDraftFieldColor(diff, section, field);
+                      return c === 'AJOUTE' ? 'text-rose-600 font-black' : c === 'CONSERVE' ? 'text-emerald-600 font-bold' : normal;
+                    };
+                    const ctrColor = !diff ? '' : diff.conteneursAjoutes > 0 ? 'text-rose-600 font-black' : diff.conteneursSupprimes > 0 ? 'text-emerald-600 font-bold' : '';
 
                     return (
                       <tr key={draft.id} className="hover:bg-zinc-50 transition-colors">
@@ -1110,7 +1128,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                           <div className="font-extrabold text-[#005DAA]">
                             {draft.numeroBlGenere || draft.numeroDraft}
                           </div>
-                          <div className="text-[10px] text-zinc-500">
+                          <div className={cls('nav', 'bookingRef', 'text-[10px] text-zinc-500')}>
                             Réf: {draft.bookingRef || 'BKG-ABJ'}
                           </div>
                           {draft.numeroBlGenere && (
@@ -1125,34 +1143,34 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                         <td className="p-3.5">
                           <div className="font-extrabold text-zinc-900 flex items-center gap-1">
                             <Ship className="w-3.5 h-3.5 text-[#005DAA]" />
-                            <span>{draft.navireNom || escale?.nomNavire || 'BOCS BREMEN'}</span>
+                            <span className={cls('nav', 'navireNom', '')}>{draft.navireNom || escale?.nomNavire || 'BOCS BREMEN'}</span>
                           </div>
-                          <div className="text-[10px] text-zinc-500 font-mono">
+                          <div className={cls('nav', 'numeroVoyage', 'text-[10px] text-zinc-500 font-mono')}>
                             Voy. {draft.numeroVoyage || escale?.numeroVoyage || '25586'}
                           </div>
-                          <div className="text-[10px] text-zinc-500">
-                            POD : <strong>{draft.portDechargementNom || draft.portDechargementCode || 'ANVERS'}</strong>
+                          <div className={cls('nav', 'portDechargementNom', 'text-[10px] text-zinc-500')}>
+                            POD : <strong className={cls('nav', 'portDechargementCode', '')}>{draft.portDechargementNom || draft.portDechargementCode || 'ANVERS'}</strong>
                           </div>
                         </td>
 
                         {/* Expéditeur & Destinataire */}
                         <td className="p-3.5">
-                          <div className="font-bold text-zinc-900">{draft.shipperInfo.nom}</div>
-                          <div className="text-[10px] text-zinc-500 truncate max-w-[180px]">
-                            &rarr; {draft.consigneeInfo.nom} ({draft.consigneeInfo.pays})
+                          <div className={cls('shipper', 'nom', 'font-bold text-zinc-900')}>{draft.shipperInfo.nom}</div>
+                          <div className={cls('consignee', 'nom', 'text-[10px] text-zinc-500 truncate max-w-[180px]')}>
+                            &rarr; {draft.consigneeInfo.nom} (<span className={cls('consignee', 'pays', '')}>{draft.consigneeInfo.pays}</span>)
                           </div>
                         </td>
 
                         {/* Cargaison */}
                         <td className="p-3.5 font-mono">
-                          <div className="font-extrabold text-zinc-900">
+                          <div className={cls('march', 'poidsBrutKg', 'font-extrabold text-zinc-900')}>
                             {draft.marchandisesInfo.poidsBrutKg.toLocaleString('fr-FR')} KG
                           </div>
-                          <div className="text-[10px] text-zinc-500">
-                            {draft.marchandisesInfo.nombreColis} {draft.marchandisesInfo.typeEmballage}
+                          <div className={cls('march', 'nombreColis', 'text-[10px] text-zinc-500')}>
+                            {draft.marchandisesInfo.nombreColis} <span className={cls('march', 'typeEmballage', '')}>{draft.marchandisesInfo.typeEmballage}</span>
                           </div>
-                          <div className="text-[10px] text-[#00875A] font-bold">
-                            {draft.conteneursInfo?.length || 0} conteneur(s)
+                          <div className={`${ctrColor || 'text-[10px] text-[#00875A] font-bold'}`}>
+                            {draft.conteneursInfo?.length || 0} conteneur(s){ctrColor ? '' : ''}
                           </div>
                         </td>
 
@@ -2115,7 +2133,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 1 : DEMANDE DE CORRECTION APRÈS VERROUILLAGE (CLIENT)
       ══════════════════════════════════════════════════════════════════ */}
       {correctionModalOpen && targetDraftForCorrection && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div onClick={overlayClickClose(() => setCorrectionModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-zinc-200 overflow-hidden animate-scale-in">
             
             <div className="bg-gradient-to-r from-rose-50 to-amber-50 p-5 border-b border-rose-200 flex items-center gap-3">
@@ -2206,7 +2224,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 2 : TRAITEMENT DE LA DEMANDE DE CORRECTION (AGENT / ADMIN)
       ══════════════════════════════════════════════════════════════════ */}
       {agentApprovalModalOpen && targetDraftForApproval && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div onClick={overlayClickClose(() => setAgentApprovalModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-zinc-200 overflow-hidden animate-scale-in">
             
             <div className="bg-[#002B49] text-white p-5 flex items-center gap-3">
@@ -2360,7 +2378,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 3 : REFUS DE LA DEMANDE DE CORRECTION (AGENT / ADMIN)
       ══════════════════════════════════════════════════════════════════ */}
       {refuseModalOpen && targetDraftForApproval && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
+        <div onClick={overlayClickClose(() => setRefuseModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-rose-300 overflow-hidden animate-scale-in">
             <div className="bg-rose-600 text-white p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
@@ -2425,7 +2443,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
       {/* Validation Errors Modal */}
       {validationErrors.length > 0 && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div onClick={overlayClickClose(() => setValidationErrors([]))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-rose-300 overflow-hidden animate-scale-in">
             <div className="bg-rose-50 p-5 border-b border-rose-200 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-200 text-rose-800 flex items-center justify-center font-bold">

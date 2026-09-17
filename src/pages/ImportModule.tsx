@@ -5,6 +5,7 @@ import { Escale, BL, Invoice, UserRole, Container, ContainerType, RubriqueConfig
 import { generateProformaPdf, generateDoBadPdf, generateImportManifestPdf } from '../utils/pdfGenerator';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { MultiPdfImportModal, EscaleCommitGroup } from '../components/import/MultiPdfImportModal';
+import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 
 interface ImportModuleProps {
   escales: Escale[];
@@ -97,6 +98,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
   // DMDT / Surestaries local calculations and modal state
   const [calculationModalData, setCalculationModalData] = useState<{ bl: BL, typeConfig: InvoiceTypeConfig } | null>(null);
+
+  // ─── Fermeture clavier (Échap, sommet de pile) de toutes les modales du module ───
+  useEscapeClose(showAddEscaleModal, () => setShowAddEscaleModal(false));
+  useEscapeClose(showPasteXmlModal, () => setShowPasteXmlModal(false));
+  useEscapeClose(Boolean(selectedBlDetails), () => setSelectedBlDetails(null));
+  useEscapeClose(Boolean(escaleToDelete), () => setEscaleToDelete(null));
+  useEscapeClose(Boolean(editingBl), () => { setEditingBl(null); setEditBlForm(null); });
+  useEscapeClose(showAddBlModal, () => setShowAddBlModal(false));
+  useEscapeClose(Boolean(blForInvoiceSelection), () => setBlForInvoiceSelection(null));
+  useEscapeClose(Boolean(calculationModalData), () => setCalculationModalData(null));
   const [validatedCalculations, setValidatedCalculations] = useState<Record<string, { total: number, details: any[] }>>(() => {
     try {
       const saved = localStorage.getItem('bocs_validated_calculations');
@@ -1698,7 +1709,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         const allPaid = blInvoices.length > 0 && blInvoices.every(i => i.soldeDuFcfa === 0 || i.statutPaiement === 'PAYE');
 
         return (
-          <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-md animate-fade-in text-zinc-900">
+          <div
+            className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-md animate-fade-in text-zinc-900"
+            onClick={overlayClickClose(() => setSelectedBlDetails(null))}
+          >
             <div className="bg-white shadow-2xl max-w-5xl w-full overflow-hidden flex flex-col h-full animate-slide-in-right rounded-l-3xl border-l border-zinc-200">
               
               {/* Header Ultra-Moderne & Épuré */}
@@ -2170,7 +2184,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Modal Create Escale */}
       {showAddEscaleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={overlayClickClose(() => setShowAddEscaleModal(false))}
+        >
           <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <h3 className="font-black text-lg text-[#005DAA] font-display">Créer une Escale Manuelle</h3>
@@ -2238,7 +2255,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Modal: Coller du texte XML GUCE */}
       {showPasteXmlModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={overlayClickClose(() => setShowPasteXmlModal(false))}
+        >
           <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 border border-zinc-200 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div className="flex items-center gap-2">
@@ -2296,7 +2316,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         );
 
         return (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            onClick={overlayClickClose(() => setEscaleToDelete(null))}
+          >
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-rose-200 animate-in fade-in zoom-in duration-150">
               <div className="flex items-center gap-3 text-rose-600 border-b border-rose-100 pb-3">
                 <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shadow-2xs">
@@ -2379,7 +2402,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       {blForInvoiceSelection && (() => {
         const blCat = getBlCategory(blForInvoiceSelection);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+            onClick={overlayClickClose(() => setBlForInvoiceSelection(null))}
+          >
             <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4">
               
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
@@ -2827,7 +2853,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Modal: Ajouter un Connaissement (BL) Manuel */}
       {showAddBlModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+          onClick={overlayClickClose(() => setShowAddBlModal(false))}
+        >
           <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto bocs-scrollbar">
             
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
@@ -3026,7 +3055,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Calculateur Modal */}
       {calculationModalData && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={overlayClickClose(() => setCalculationModalData(null))}
+        >
           <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
             
             {/* Header */}
@@ -3301,7 +3333,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           <div
             className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm"
             style={{ zIndex: 99999 }}
-            onClick={() => { setEditingBl(null); setEditBlForm(null); }}
+            onClick={overlayClickClose(() => { setEditingBl(null); setEditBlForm(null); })}
           >
             <div
               className="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden"

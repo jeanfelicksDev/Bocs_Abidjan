@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
+import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -36,6 +37,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Forgot Password state
   const [forgotEmail, setForgotEmail] = useState('');
+
+  // Audit UX P1 : fermeture au clavier (Échap) — câblée inconditionnellement.
+  useEscapeClose(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -102,7 +106,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+    <div
+      onClick={overlayClickClose(onClose)}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row relative">
         
         {/* Close Button */}

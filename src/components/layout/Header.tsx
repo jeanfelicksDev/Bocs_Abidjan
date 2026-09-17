@@ -3,12 +3,11 @@ import { User, UserRole } from '../../types';
 import { NavTab } from './Sidebar';
 import { LogOut, LogIn, ShieldCheck, Menu, X, ChevronDown, DollarSign, ArrowLeft } from 'lucide-react';
 import { isTabAllowed, usePermissionsSync } from '../../utils/permissions';
+import { useEscapeClose } from '../../hooks/useEscapeClose';
 
 interface HeaderProps {
   currentUser: User;
   isAuthenticated: boolean;
-  onSwitchUser: (user: User) => void;
-  allUsers: User[];
   exchangeRateUsd: number;
   onUpdateExchangeRate: (rate: number) => void;
   onLogout: () => void;
@@ -28,8 +27,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
   isAuthenticated,
-  onSwitchUser,
-  allUsers,
   exchangeRateUsd,
   onUpdateExchangeRate,
   onLogout,
@@ -44,6 +41,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [editingRate, setEditingRate] = useState(false);
   const [tempRate, setTempRate] = useState(exchangeRateUsd.toString());
+
+  // Audit UX : fermeture clavier du menu mobile et des menus déroulants via Échap.
+  useEscapeClose(mobileMenuOpen, () => setMobileMenuOpen(false));
+  useEscapeClose(activeDropdown !== null, () => setActiveDropdown(null));
 
   const getRoleLabel = (role: UserRole) => {
     switch (role) {
@@ -448,23 +449,6 @@ export const Header: React.FC<HeaderProps> = ({
           {/* User Account summary */}
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
-
-              {/* Sélecteur de rôle/compte démo */}
-              <select
-                value={currentUser.id}
-                onChange={(e) => {
-                  const targetUser = allUsers.find(u => u.id === Number(e.target.value));
-                  if (targetUser) onSwitchUser(targetUser);
-                }}
-                className="bg-zinc-50 border border-zinc-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none focus:border-[#005DAA] cursor-pointer hidden md:inline-block hover:border-zinc-300 transition-all"
-                title="Changer de compte (Rôle Opérationnel)"
-              >
-                {allUsers.map(u => (
-                  <option key={u.id} value={u.id} className="bg-white text-zinc-900 font-medium text-xs">
-                    {u.nomComplet} ({u.role.replace('AGENT_', '')})
-                  </option>
-                ))}
-              </select>
 
               <button
                 type="button"

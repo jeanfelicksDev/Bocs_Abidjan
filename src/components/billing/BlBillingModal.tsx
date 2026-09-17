@@ -11,6 +11,7 @@ import {
   CreditCard 
 } from 'lucide-react';
 import { BL, Escale, Invoice, RubriqueConfig, InvoiceTypeConfig, UserRole, Payment, TimbreBracket } from '../../types';
+import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 import { BlBillingModule } from '../../pages/BlBillingModule';
 
 export interface BlBillingModalProps {
@@ -53,14 +54,8 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
   onUpdateBl,
   timbreBrackets
 }) => {
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  // Audit UX : Échap (sommet de pile) + clic sur l'arrière-plan ferment la modale.
+  useEscapeClose(isOpen, onClose);
 
   if (!isOpen || !bl) return null;
 
@@ -73,6 +68,7 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
     <div 
       className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-zinc-950/70 backdrop-blur-sm animate-fade-in"
       style={{ zIndex: 99999 }}
+      onClick={overlayClickClose(onClose)}
     >
       <div 
         className="bg-white rounded-3xl w-full max-w-[1450px] max-h-[95vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden relative"

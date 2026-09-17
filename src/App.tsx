@@ -52,6 +52,7 @@ import {
   getTaxeAdditionnelleValeurLabel
 } from './utils/taxeAdditionnelle';
 import { applyTimbreFiscalToInvoice } from './utils/timbreFiscal';
+import { snapshotContenuDraft } from './utils/draftDiff';
 
 export function App() {
   // Global Application & Auth State
@@ -500,18 +501,6 @@ export function App() {
 
   // --- USER & AUTHENTICATION HANDLERS ---
 
-  // Switch Active User / Role (For Demo/Testing)
-  const handleSwitchUser = (user: User) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    // RBAC : si le nouvel utilisateur n'a pas l'habilitation pour l'onglet courant, retour au cockpit
-    if (!isTabAllowed(user, activeTab)) {
-      setActiveTab('dashboard');
-    }
-    localStorage.setItem('bocs_session_user', JSON.stringify(user));
-    logAuditAction('CHANGEMENT_ROLE_DEMO', 'Utilisateur', `Passage sous le compte ${user.nomComplet} (${user.role})`);
-  };
-
   // Login handler
   const handleLoginSuccess = (user: User) => {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -804,12 +793,16 @@ export function App() {
   const handleUpdateDraftStatus = (draftId: number, status: any, motif?: string, blNumber?: string) => {
     setDrafts(prev => prev.map(d => {
       if (d.id === draftId) {
+        // Déverrouillage pour correction : on capture l'instantané du contenu AVANT
+        // toute modification client (base du diff coloré ajoutés/conservés).
+        const needsSnapshot = status === 'CORRECTION_AUTORISEE' && !d.contenuOriginal;
         return {
           ...d,
           statut: status,
           motifDemandeModification: motif || d.motifDemandeModification,
           numeroBlGenere: blNumber || d.numeroBlGenere,
-          dateValidation: status === 'VALIDE' ? new Date().toISOString() : d.dateValidation
+          dateValidation: status === 'VALIDE' ? new Date().toISOString() : d.dateValidation,
+          ...(needsSnapshot ? { contenuOriginal: snapshotContenuDraft(d) } : {})
         };
       }
       return d;
@@ -1336,8 +1329,6 @@ export function App() {
         exchangeRateUsd={exchangeRateUsd}
         userRole={currentUser.role}
         currentUser={currentUser}
-        allUsers={allUsers}
-        onSwitchUser={handleSwitchUser}
         onOpenProfile={() => setShowProfileModal(true)}
         onLogout={handleLogout}
         onEnter={(targetTab, targetBlId) => {
@@ -1382,8 +1373,6 @@ export function App() {
       <Header
         currentUser={currentUser}
         isAuthenticated={isAuthenticated}
-        onSwitchUser={handleSwitchUser}
-        allUsers={allUsers}
         exchangeRateUsd={exchangeRateUsd}
         onUpdateExchangeRate={setExchangeRateUsd}
         onLogout={handleLogout}

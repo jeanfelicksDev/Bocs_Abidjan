@@ -6,6 +6,7 @@ import {
   ExtractedBlItem 
 } from '../../utils/pdfExtractor';
 import { ExtractedBlEditModal } from './ExtractedBlEditModal';
+import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 import { 
   Upload, 
   FileText, 
@@ -57,6 +58,11 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
 }) => {
   const [items, setItems] = useState<ExtractedBlItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Audit UX : Échap (sommet de pile) + clic sur l'arrière-plan ferment la modale.
+  // La modale d'édition imbriquée (ExtractedBlEditModal) est au sommet de la pile :
+  // Échap ne ferme qu'elle en premier.
+  useEscapeClose(isOpen, onClose);
 
   // Escale choisie par l'utilisateur (par défaut l'escale activement ouverte)
   const [selectedTargetEscaleId, setSelectedTargetEscaleId] = useState<number>(() => {
@@ -284,7 +290,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in font-sans" onClick={overlayClickClose(onClose)}>
       <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden">
         
         {/* ── HEADER MODALE ── */}

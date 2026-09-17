@@ -3,6 +3,7 @@ import { toastSuccess } from '../components/common/Toast';
 import { FneParam, AuditLog, UserRole, User } from '../types';
 import { INITIAL_PERMISSIONS, hasPermission, notifyPermissionsChanged } from '../utils/permissions';
 import type { PermissionItem } from '../utils/permissions';
+import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 
 // ⚠️ Source canonique des habilitations déplacée dans src/utils/permissions.ts
 // (moteur RBAC partagé par App, Sidebar, Header et Dashboard).
@@ -89,6 +90,13 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [showPermissionsMatrix, setShowPermissionsMatrix] = useState(false);
+
+  // ─── Fermeture clavier (Échap, sommet de pile) de toutes les modales du module ───
+  useEscapeClose(showAddUserModal, () => setShowAddUserModal(false));
+  useEscapeClose(Boolean(editingUser), () => setEditingUser(null));
+  useEscapeClose(Boolean(resetPasswordUser), () => setResetPasswordUser(null));
+  useEscapeClose(Boolean(deletingUser), () => setDeletingUser(null));
+  useEscapeClose(showPermissionsMatrix, () => setShowPermissionsMatrix(false));
 
   // Form State for Add / Edit
   const [formNom, setFormNom] = useState('');
@@ -1184,7 +1192,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
       {/* MODAL: ADD USER */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={overlayClickClose(() => setShowAddUserModal(false))}
+        >
           <div className="ocean-glass-card border border-cyan-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-lg w-full p-6 space-y-4 text-white">
 
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">
@@ -1311,7 +1322,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
       {/* MODAL: EDIT USER */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={overlayClickClose(() => setEditingUser(null))}
+        >
           <div className="ocean-glass-card border border-cyan-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-lg w-full p-6 space-y-4 text-white">
 
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">
@@ -1423,7 +1437,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
       {/* MODAL: RESET PASSWORD */}
       {resetPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={overlayClickClose(() => setResetPasswordUser(null))}
+        >
           <div className="ocean-glass-card border border-amber-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white">
 
             <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
@@ -1471,7 +1488,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
       {/* MODAL: CONFIRM DELETE */}
       {deletingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={overlayClickClose(() => setDeletingUser(null))}
+        >
           <div className="ocean-glass-card border border-rose-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white">
 
             <div className="flex items-center gap-3 text-rose-400 border-b border-rose-500/20 pb-3">
@@ -1507,7 +1527,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
       {/* MODAL: PERMISSIONS & ROLES MATRIX */}
       {showPermissionsMatrix && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={overlayClickClose(() => setShowPermissionsMatrix(false))}
+        >
           <div className="ocean-glass-card border border-cyan-500/30 rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col p-6 space-y-4 text-white">
 
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">

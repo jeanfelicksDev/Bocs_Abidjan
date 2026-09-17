@@ -6,6 +6,7 @@ import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, normalizeTaxeAdditionnelleConfig, co
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf, generateDoBadPdf, generateCreditNotePdf } from '../utils/pdfGenerator';
 import { BlBillingModule } from './BlBillingModule';
+import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 
 interface FacturationModuleProps {
   initialSubTab?: 'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG';
@@ -858,6 +859,23 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   const [tariffFilterOpType, setTariffFilterOpType] = useState<'IMPORT' | 'EXPORT'>('IMPORT');
   const [tariffFilterRegime, setTariffFilterRegime] = useState<'SURESTARIE' | 'DETENTION'>('SURESTARIE');
   const [showAddTarifModal, setShowAddTarifModal] = useState(false);
+
+  // Audit UX : fermeture clavier (Échap) de toutes les modales — seule la modale
+  // au sommet de la pile se ferme lorsque plusieurs sont empilées.
+  useEscapeClose(showPaymentModal && !!paymentFacture, () => { setShowPaymentModal(false); setPaymentFacture(null); });
+  useEscapeClose(!!editingTarif, () => setEditingTarif(null));
+  useEscapeClose(showAddTarifModal, () => setShowAddTarifModal(false));
+  useEscapeClose(showAddTypeModal, () => setShowAddTypeModal(false));
+  useEscapeClose(showEditTypeModal && !!editingInvoiceType, () => { setShowEditTypeModal(false); setEditingInvoiceType(null); });
+  useEscapeClose(showDeleteTypeModal && !!typeToDelete, () => { setShowDeleteTypeModal(false); setTypeToDelete(null); });
+  useEscapeClose(showEditRubriqueModal && !!editingRubrique, () => { setShowEditRubriqueModal(false); setEditingRubrique(null); });
+  useEscapeClose(showDeleteConfirmModal && !!rubriqueToDelete, () => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); });
+  useEscapeClose(showAddRubriqueModal, () => setShowAddRubriqueModal(false));
+  useEscapeClose(showPriceModal && !!selectedRubriqueForPrice, () => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); });
+  useEscapeClose(showCreditNoteModal && !!targetInvoiceForCreditNote, () => { setShowCreditNoteModal(false); setTargetInvoiceForCreditNote(null); });
+  useEscapeClose(showValidateModal && !!invoiceToValidate, () => { setShowValidateModal(false); setInvoiceToValidate(null); });
+  useEscapeClose(showDuplicateModal && !!invoiceToDuplicate, () => { setShowDuplicateModal(false); setInvoiceToDuplicate(null); });
+  useEscapeClose(showDeleteInvoiceModal && !!invoiceToDelete, () => { setShowDeleteInvoiceModal(false); setInvoiceToDelete(null); });
   const [tarifToDelete, setTarifToDelete] = useState<TarifSurestarie | null>(null);
 
   // Form states for new tariff
@@ -2010,7 +2028,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Payment Form */}
       {showPaymentModal && paymentFacture && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+        <div onClick={overlayClickClose(() => { setShowPaymentModal(false); setPaymentFacture(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-outline-variant pb-3">
               <h3 className="font-bold text-lg text-primary flex items-center gap-2">
@@ -2100,7 +2118,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Tarif */}
       {editingTarif && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
+        <div onClick={overlayClickClose(() => setEditingTarif(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
           <div className="bg-white border border-slate-100 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-base text-slate-900 flex items-center gap-1.5">
@@ -2214,7 +2232,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Add Tarif */}
       {showAddTarifModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
+        <div onClick={overlayClickClose(() => setShowAddTarifModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
           <div className="bg-white border border-slate-100 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-base text-slate-900 flex items-center gap-1.5">
@@ -3131,7 +3149,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       {/* Modals for Invoice Config */}
       {/* Modal Add Invoice Type */}
       {showAddTypeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => setShowAddTypeModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
@@ -3192,7 +3210,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Invoice Type */}
       {showEditTypeModal && editingInvoiceType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowEditTypeModal(false); setEditingInvoiceType(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
@@ -3251,7 +3269,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Delete Invoice Type Confirmation */}
       {showDeleteTypeModal && typeToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowDeleteTypeModal(false); setTypeToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg text-rose-600 flex items-center gap-2">
@@ -3296,7 +3314,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Rubrique */}
       {showEditRubriqueModal && editingRubrique && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowEditRubriqueModal(false); setEditingRubrique(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
@@ -3411,7 +3429,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Delete Rubrique Confirmation */}
       {showDeleteConfirmModal && rubriqueToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg text-rose-600 flex items-center gap-2">
@@ -3456,7 +3474,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       
       {/* Modal Add Rubrique */}
       {showAddRubriqueModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => setShowAddRubriqueModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
@@ -3609,7 +3627,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Mise à jour du Prix Unitaire & Historique */}
       {showPriceModal && selectedRubriqueForPrice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
@@ -3778,7 +3796,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Émission Note d'Avoir */}
       {showCreditNoteModal && targetInvoiceForCreditNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowCreditNoteModal(false); setTargetInvoiceForCreditNote(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
@@ -3940,7 +3958,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Validation Définitive de Facture */}
       {showValidateModal && invoiceToValidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowValidateModal(false); setInvoiceToValidate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
@@ -3993,7 +4011,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Duplication / Reprise de Facture */}
       {showDuplicateModal && invoiceToDuplicate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowDuplicateModal(false); setInvoiceToDuplicate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
@@ -4043,7 +4061,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Confirmation Suppression Brouillon */}
       {showDeleteInvoiceModal && invoiceToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
+        <div onClick={overlayClickClose(() => { setShowDeleteInvoiceModal(false); setInvoiceToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-rose-600 flex items-center gap-2">

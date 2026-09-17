@@ -224,6 +224,9 @@ export interface DraftExport {
   dateLimiteTransmission?: string; // Échéance 24h avant ETD (fallback ETA)
   estDeverrouille?: boolean;
   okToPrint?: boolean; // Contenu confirmé par le client : bon pour impression BL & intégration manifeste
+  // Instantané sérialisé du contenu au moment du déverrouillage (correction autorisée) :
+  // base du diff coloré (ajouts en rouge, restants en vert) — affichage écran uniquement.
+  contenuOriginal?: string;
   demandeCorrection?: DemandeCorrectionDraft;
   fraisAmendementFactures?: boolean;
   factureFraisId?: number;

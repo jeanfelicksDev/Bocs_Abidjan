@@ -46,6 +46,34 @@
 }
 
 /* ==========================================================================
+   ACCESSIBILITÉ — Focus clavier visible (audit UX P1)
+   Anneau bleu BOCS sur tout élément interactif atteint au clavier (Tab).
+   :focus-visible uniquement : les clics souris n'affichent pas l'anneau.
+   !important surcharge les classes `focus:outline-none` existantes.
+   ========================================================================== */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--bocs-blue) !important;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Sur fond sombre (panneaux, sidebar, aperçu d'impression) : anneau clair */
+.dark-panel :focus-visible,
+[class*="bg-[#1e1e1e]"] :focus-visible,
+[class*="bg-slate-900"] :focus-visible,
+[class*="bg-[#0b172a]"] :focus-visible {
+  outline-color: #7cc4ff !important;
+}
+
+
+/* ==========================================================================
    STYLE ÉPURÉ BOCS — BLEU MARINE & VERT MARITIME BOCS
    Fond blanc pur, titres en bleu marine, accents en vert BOCS
    ========================================================================== */

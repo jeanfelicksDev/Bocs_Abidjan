@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { DraftExport, BL } from '../../types';
+import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 
 interface SignatureModalProps {
   isOpen: boolean;
@@ -18,6 +19,9 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [stampApposed, setStampApposed] = useState(true);
+
+  // Audit UX P1 : fermeture au clavier (Échap) — câblée inconditionnellement.
+  useEscapeClose(isOpen && Boolean(targetBlOrDraft), onClose);
 
   if (!isOpen || !targetBlOrDraft) return null;
 
@@ -84,7 +88,9 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
   const numBl = isBl ? (targetBlOrDraft as BL).numeroBL : (targetBlOrDraft as DraftExport).numeroDraft;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+    <div
+      onClick={overlayClickClose(onClose)}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
         
         {/* Header */}

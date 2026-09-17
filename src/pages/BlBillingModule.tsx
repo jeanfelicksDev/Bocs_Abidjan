@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BL, Escale, Invoice, UserRole, InvoiceTypeConfig, RubriqueConfig, Container, FretCategory, Payment, TaxeAdditionnelleConfig, TimbreBracket } from '../types';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel } from '../utils/taxeAdditionnelle';
 import { computeTimbreFiscal, getNetAPayerFcfa, getModeReglementLabel, MODES_REGLEMENT } from '../utils/timbreFiscal';
+import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { generateProformaPdf, generateDoBadPdf } from '../utils/pdfGenerator';
 import { 
@@ -169,6 +170,12 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   // Modal sélection factures
   const [showInvoiceSelectionModal, setShowInvoiceSelectionModal] = useState(false);
   const [tempSelectedTypeIds, setTempSelectedTypeIds] = useState<string[]>([]);
+
+  // Audit UX : fermeture clavier (Échap, sommet de pile) pour toutes les modales du module.
+  useEscapeClose(showInvoiceSelectionModal, () => setShowInvoiceSelectionModal(false));
+  useEscapeClose(showPaymentModal, () => setShowPaymentModal(false));
+  useEscapeClose(Boolean(calculationModalData), () => setCalculationModalData(null));
+  useEscapeClose(Boolean(printPreviewData), () => setPrintPreviewData(null));
 
   // Filter BLs matching search query (by BL number, Shipper name, or Consignee) + type d'opération
   const matchingBls = useMemo(() => {
@@ -1676,8 +1683,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       {/* ─── MODAL : SÉLECTION DES TYPES DE FACTURES ─── */}
       {showInvoiceSelectionModal && activeBl && (
         <div
+          onClick={overlayClickClose(() => setShowInvoiceSelectionModal(false))}
           className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm"
-          onClick={() => setShowInvoiceSelectionModal(false)}
         >
           <div
             className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-zinc-200 overflow-hidden flex flex-col"
@@ -1811,7 +1818,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       )}
 
       {showPaymentModal && paymentFacture && (
-        <div className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+        <div onClick={overlayClickClose(() => setShowPaymentModal(false))} className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -1904,7 +1911,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
       {/* 4. MODAL: DMDT SURESTARIE DEGRESSIVE CALCULATION */}
       {calculationModalData && (
-        <div className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+        <div onClick={overlayClickClose(() => setCalculationModalData(null))} className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -2087,7 +2094,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
       {/* CUSTOM PRINT PREVIEW DIALOG MODAL (CHROME DESIGN SIMULATION) */}
       {printPreviewData && (
-        <div className="fixed inset-0 z-[100005] flex items-center justify-center p-0 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
+        <div onClick={overlayClickClose(() => setPrintPreviewData(null))} className="fixed inset-0 z-[100005] flex items-center justify-center p-0 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
           <div className="w-full h-full flex flex-row overflow-hidden bg-slate-900">
             
             {/* Left Column: Live PDF Document Preview */}
