@@ -11,8 +11,15 @@ export { INITIAL_PERMISSIONS };
 export type { PermissionItem };
 
 
+export type AdminSubTab = 'USERS' | 'RIGHTS' | 'FNE' | 'AUDIT';
+
 interface AdminModuleProps {
-  initialTab?: 'USERS' | 'RIGHTS' | 'FNE' | 'AUDIT';
+  initialTab?: AdminSubTab;
+  /**
+   * Remonte à la navigation globale (Sidebar / Header) le sous-onglet réellement
+   * affiché, afin de resynchroniser le sous-menu Administration.
+   */
+  onTabChange?: (tab: AdminSubTab) => void;
   allUsers: User[];
   onAddUser: (user: User) => void;
   onUpdateUser: (user: User) => void;
@@ -33,6 +40,7 @@ interface AdminModuleProps {
 
 export const AdminModule: React.FC<AdminModuleProps> = ({
   initialTab = 'USERS',
+  onTabChange,
   allUsers,
   onAddUser,
   onUpdateUser,
@@ -49,7 +57,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   currentUser,
   onClearAllData
 }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState<'USERS' | 'RIGHTS' | 'FNE' | 'AUDIT'>(initialTab);
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminSubTab>(initialTab);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
 
   // RBAC : habilitations effectives du rôle courant dans la console d'administration
@@ -60,24 +68,45 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const canManageFne = hasPermission(permissionSubject, 'fne_certification');
   const canViewAudit = hasPermission(permissionSubject, 'admin_audit_logs');
 
+  // Liste ordonnée des sous-onglets autorisés pour l'utilisateur courant.
+  const allowedAdminTabs = React.useMemo<AdminSubTab[]>(() => {
+    const tabs: AdminSubTab[] = [];
+    if (canManageUsers) tabs.push('USERS');
+    if (canManageRights) tabs.push('RIGHTS');
+    if (canManageFne) tabs.push('FNE');
+    if (canViewAudit) tabs.push('AUDIT');
+    return tabs;
+  }, [canManageUsers, canManageRights, canManageFne, canViewAudit]);
+
+  // 1) Synchronisation avec la navigation (Sidebar / Header / Dashboard).
+  // ⚠️ Anomalie corrigée : `activeAdminTab` figurait dans les dépendances de cet
+  // effet qui re-force ensuite l'onglet demandé par la navigation. Résultat :
+  // chaque clic sur un bouton d'onglet était immédiatement annulé (retour forcé
+  // sur `initialTab`) et les boutons paraissaient inertes. L'effet ne doit
+  // réagir qu'à un vrai changement d'onglet demandé depuis la navigation.
   React.useEffect(() => {
-    if (initialTab) {
-      const isAllowedTab =
-        (initialTab === 'USERS' && canManageUsers) ||
-        (initialTab === 'RIGHTS' && canManageRights) ||
-        (initialTab === 'FNE' && canManageFne) ||
-        (initialTab === 'AUDIT' && canViewAudit);
-      // RBAC : si l'utilisateur n'a aucune habilitation dans la console, rester sur l'onglet par défaut
-      // plutôt que d'afficher une page blanche ; le garde App (accessDenied) protège l'accès au module.
-      if (isAllowedTab) {
-        setActiveAdminTab(initialTab);
-      } else if (!canManageUsers && !canManageRights && !canManageFne && !canViewAudit) {
-        setActiveAdminTab('USERS');
-      } else if (activeAdminTab === 'USERS' && !canManageUsers) {
-        setActiveAdminTab(canManageRights ? 'RIGHTS' : canManageFne ? 'FNE' : canViewAudit ? 'AUDIT' : 'USERS');
-      }
+    if (initialTab && allowedAdminTabs.includes(initialTab)) {
+      setActiveAdminTab(initialTab);
     }
-  }, [initialTab, canManageUsers, canManageRights, canManageFne, canViewAudit, activeAdminTab]);
+  }, [initialTab, allowedAdminTabs]);
+
+  // 2) Garde RBAC : si l'onglet actuellement affiché n'est plus habilité
+  // (matrice des droits modifiée), basculer sur le premier onglet autorisé
+  // plutôt que d'afficher une page vide ; le garde App (accessDenied) protège
+  // l'accès au module.
+  React.useEffect(() => {
+    if (!allowedAdminTabs.includes(activeAdminTab)) {
+      setActiveAdminTab(allowedAdminTabs[0] || 'USERS');
+    }
+  }, [allowedAdminTabs, activeAdminTab]);
+
+  // Changement d'onglet demandé par l'utilisateur depuis la console :
+  // applique l'onglet localement puis resynchronise la navigation globale
+  // (sous-menu Administration de la Sidebar / Header).
+  const handleAdminTabChange = (tab: AdminSubTab) => {
+    setActiveAdminTab(tab);
+    onTabChange?.(tab);
+  };
 
   // Search & Filter state for Users
   const [searchQuery, setSearchQuery] = useState('');
@@ -362,7 +391,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         <div className="flex flex-wrap items-center gap-2 bg-[#0F172A] p-1.5 rounded-xl border border-slate-700/80 shadow-sm">
           {canManageUsers && (
             <button
-              onClick={() => setActiveAdminTab('USERS')}
+              onClick={() => handleAdminTabChange('USERS')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'USERS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
                 }`}
             >
@@ -372,7 +401,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           )}
           {canManageRights && (
             <button
-              onClick={() => setActiveAdminTab('RIGHTS')}
+              onClick={() => handleAdminTabChange('RIGHTS')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'RIGHTS' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
                 }`}
             >
@@ -382,7 +411,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           )}
           {canManageFne && (
             <button
-              onClick={() => setActiveAdminTab('FNE')}
+              onClick={() => handleAdminTabChange('FNE')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'FNE' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
                 }`}
             >
@@ -392,7 +421,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           )}
           {canViewAudit && (
             <button
-              onClick={() => setActiveAdminTab('AUDIT')}
+              onClick={() => handleAdminTabChange('AUDIT')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeAdminTab === 'AUDIT' ? 'premium-btn-primary text-white font-black shadow-md' : 'text-slate-200 hover:text-white hover:bg-slate-800/80'
                 }`}
             >
@@ -988,7 +1017,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                     </div>
 
                     {/* Permissions list for this user */}
-                    <div className="border border-slate-300 rounded-xl overflow-hidden shadow-2xs bg-white">
+                    <div className="border border-slate-300 rounded-xl overflow-x-auto shadow-2xs bg-white">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
                           <tr className="bg-slate-100 text-slate-900 text-[11px] font-black uppercase border-b border-slate-300">

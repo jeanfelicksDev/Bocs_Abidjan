@@ -149,6 +149,8 @@ function getPlannedTypeIdsForBl(bl: BL | undefined, invoiceTypeConfigs: InvoiceT
   return planned.filter(id => !excludedIds.includes(id));
 }
 
+
+
 export const FacturationModule: React.FC<FacturationModuleProps> = ({
   initialSubTab = 'FACTURATION_BL',
   invoices,
@@ -188,6 +190,34 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   React.useEffect(() => {
     if (initialSubTab) setActiveTab(initialSubTab);
   }, [initialSubTab]);
+
+  // ── Sous-onglets internes du panneau de paramétrage : un bouton par panneau ──
+  // TYPES  : types de factures + rubriques tarifaires
+  // TAXE   : taxe additionnelle exceptionnelle (assiette TTC)
+  // TIMBRE : timbre fiscal d'État (assiette HT, par tranches)
+  const [configSubTab, setConfigSubTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE'>('TYPES');
+
+  // ── Navigation vers le panneau de paramétrage ──
+  const isAdminUser = userRole === 'ADMIN';
+
+  const openParamsWindow = (section: 'TARIFS' | 'TYPES' | 'TAXE' | 'TIMBRE' = 'TYPES') => {
+    setShowAddTarifModal(false);
+    setEditingTarif(null);
+    setShowAddTypeModal(false);
+    setShowEditTypeModal(false);
+    setShowDeleteTypeModal(false);
+    setShowEditRubriqueModal(false);
+    setShowDeleteConfirmModal(false);
+    setShowAddRubriqueModal(false);
+    setShowPriceModal(false);
+    if (section === 'TARIFS') {
+      setActiveTab('TARIFS');
+    } else {
+      setConfigSubTab(section);
+      setActiveTab('CONFIG');
+    }
+    onLogAudit('OUVERTURE_PARAMETRES', 'PARAMETRAGE_FACTURATION', `Navigation vers le paramétrage — section « ${section} »`);
+  };
 
   // ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
   // Brouillon local : la valeur n'est publiée qu'au clic sur « Enregistrer la taxe ».
@@ -1125,8 +1155,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
-      {/* Header & Sélecteur d'onglets Ultra-Épuré */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 ocean-glass-banner p-6 rounded-2xl shadow-2xl mb-2">
+      {/* Header & Sélecteur d'onglets — bloc entier en bleu BOCS translucide */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 ocean-glass-banner bocs-banner-blue p-6 rounded-2xl shadow-2xl mb-2">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="material-symbols-outlined text-teal-400 text-lg">payments</span>
@@ -1150,23 +1180,23 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             { key: 'AVOIRS', label: `Avoirs (${(creditNotes || []).length})`, icon: 'account_balance_wallet' },
             { key: 'BALANCE_AGEE', label: 'Balance Client', icon: 'account_balance' },
             { key: 'TARIFS', label: 'Grille DMDT', icon: 'calculate' },
-            { key: 'CONFIG', label: 'Types de Factures', icon: 'tune' }
+            { key: 'CONFIG', label: 'Paramètres Factures', icon: 'tune' }
           ].map(tab => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`px-4 py-2 rounded-xl flex items-center gap-2 font-extrabold text-xs transition-all active:scale-95 cursor-pointer shadow-md ${
+                className={`px-4 py-2 rounded-xl flex items-center gap-2 font-extrabold text-xs transition-all active:scale-95 cursor-pointer shadow-sm ${
                   isActive
-                    ? 'premium-btn-primary text-white shadow-[0_0_15px_rgba(217,72,23,0.3)]'
-                    : 'bg-[#0F172A] hover:bg-[#1E293B] text-white hover:text-white border border-slate-700/80 hover:border-[#005DAA]'
+                    ? 'bg-[#005DAA] text-white shadow-[0_0_12px_rgba(0,93,170,0.3)]'
+                    : 'bg-white hover:bg-[#F0F7FF] text-slate-700 hover:text-[#005DAA] border border-slate-200/90 hover:border-[#005DAA]/40'
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px] text-slate-300">
+                <span className={`material-symbols-outlined text-[18px] ${isActive ? 'text-white' : 'text-[#005DAA]'}`}>
                   {tab.icon}
                 </span>
-                <span className="text-white font-black tracking-wide">{tab.label}</span>
+                <span className={`font-black tracking-wide ${isActive ? 'text-white' : 'text-slate-800'}`}>{tab.label}</span>
               </button>
             );
           })}
@@ -1833,14 +1863,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* TAB 3: TARIFS SURESTARIES */}
       {activeTab === 'TARIFS' && (
-        <div className="bocs-card p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-outline-variant pb-4 gap-4">
+        <div className="bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl p-6 space-y-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#005DAA]/15 pb-4 gap-4">
             <div>
-              <h2 className="text-lg font-bold text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">tune</span>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#005DAA]">tune</span>
                 <span>Configuration des Grilles Tarifaires</span>
               </h2>
-              <p className="text-xs text-on-surface-variant">Paramétrage des tranches tarifaires de surestaries et de détentions.</p>
+              <p className="text-xs text-slate-500">Paramétrage des tranches tarifaires de surestaries et de détentions.</p>
             </div>
             <button
               onClick={() => {
@@ -1861,7 +1891,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
           </div>
 
           {/* Filters controls */}
-          <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
+          <div className="flex flex-wrap items-center gap-4 bg-white/80 p-4 rounded-xl border border-[#005DAA]/20 text-xs shadow-2xs">
             <div className="space-y-1">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Flux d'opération</span>
               <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
@@ -2135,7 +2165,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             </div>
 
             <form onSubmit={handleUpdateTarif} className="space-y-3 text-xs">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="block font-bold text-slate-400 uppercase mb-1">Conteneur</label>
                   <input
@@ -2165,7 +2195,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-500 uppercase mb-1">Jour Début</label>
                   <input
@@ -2190,7 +2220,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-500 uppercase mb-1">Jours Franchise</label>
                   <input
@@ -2267,7 +2297,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-500 uppercase mb-1">Opération</label>
                   <select
@@ -2293,7 +2323,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-500 uppercase mb-1">Jour Début</label>
                   <input
@@ -2318,7 +2348,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-500 uppercase mb-1">Jours Franchise</label>
                   <input
@@ -2364,631 +2394,765 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* TAB 4: CONFIGURATION DES FACTURES */}
       {activeTab === 'CONFIG' && (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24">
           
           {/* Title & Subtitle Banner with '+ Nouveau Type' button */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs p-6 rounded-2xl shadow-sm">
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-[#00182f] font-heading flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005daa] text-xl">settings_suggest</span>
-                <span>Configuration des Factures & Tarifs</span>
+                <span className="material-symbols-outlined text-[#005daa] text-2xl">
+                  {configSubTab === 'TAXE' ? 'receipt_long' : configSubTab === 'TIMBRE' ? 'approval' : 'settings_suggest'}
+                </span>
+                <span>
+                  {configSubTab === 'TAXE'
+                    ? 'Taxe Additionnelle Exceptionnelle'
+                    : configSubTab === 'TIMBRE'
+                      ? "Timbre Fiscal d'État"
+                      : 'Configuration des Factures & Rubriques'}
+                </span>
               </h2>
               <p className="text-xs text-slate-500">
-                Gérez et modifiez librement les types de factures, leurs rubriques tarifaires et les montants unitaires par catégorie.
+                {configSubTab === 'TYPES'
+                  ? 'Gérez et modifiez librement les types de factures, leurs rubriques tarifaires et les montants unitaires par catégorie.'
+                  : configSubTab === 'TAXE'
+                    ? "Taxe additionnelle exceptionnelle : assiette sur le montant TTC de la facture, valeur modifiable à tout moment."
+                    : "Timbre fiscal d'État : assiette sur le montant HT, appliqué par tranches paramétrables à chaque facture."}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAddTypeModal(true)}
-              className="px-4 py-2.5 bg-[#0b172a] hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow cursor-pointer active:scale-95 shrink-0"
-            >
-              <span className="material-symbols-outlined text-sm font-bold">add</span>
-              <span>Nouveau Type de Facture</span>
-            </button>
+            {configSubTab === 'TYPES' && (
+              <button
+                type="button"
+                onClick={() => setShowAddTypeModal(true)}
+                className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow cursor-pointer active:scale-95 shrink-0"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">add</span>
+                <span>Nouveau Type de Facture</span>
+              </button>
+            )}
+          </div>
+
+          {/* ── Boutons d'onglets de configuration ── */}
+          <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Panneaux de configuration des factures">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Paramètres</span>
+            {[
+              { key: 'TYPES', label: `Types & Rubriques (${invoiceTypeConfigs.length})`, icon: 'list' },
+              { key: 'TAXE', label: 'Taxe Additionnelle (TTC)', icon: 'receipt_long' },
+              { key: 'TIMBRE', label: 'Timbre Fiscal (HT)', icon: 'approval' }
+            ].map(tab => {
+              const isActive = configSubTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  id={`config-tab-${tab.key}`}
+                  aria-selected={isActive}
+                  aria-controls={`config-panel-${tab.key}`}
+                  title={`Afficher le panneau : ${tab.label}`}
+                  onClick={() => setConfigSubTab(tab.key as 'TYPES' | 'TAXE' | 'TIMBRE')}
+                  className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-xs transition-all active:scale-95 cursor-pointer border ${
+                    isActive
+                      ? 'bg-[#005DAA] text-white border-[#005DAA] shadow-md'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-[#005DAA]/40'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-[18px] ${isActive ? 'text-white' : 'text-[#005DAA]'}`}>{tab.icon}</span>
+                  <span className="font-extrabold">{tab.label}</span>
+                  {tab.key === 'TAXE' && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                      isActive
+                        ? (taxeAdditionnelleDraft.estActif ? 'bg-emerald-500/20 text-white border-white/30' : 'bg-white/20 text-white border-white/30')
+                        : (taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200')
+                    }`}>
+                      {taxeAdditionnelleDraft.estActif ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  )}
+                  {tab.key === 'TIMBRE' && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                      isActive
+                        ? (timbreDraft.some(b => b.estActif) ? 'bg-emerald-500/20 text-white border-white/30' : 'bg-white/20 text-white border-white/30')
+                        : (timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200')
+                    }`}>
+                      {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'INACTIF'}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ── */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-xl">receipt_long</span>
-                </div>
-                <div className="space-y-0.5">
-                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                    <span>Taxe additionnelle exceptionnelle</span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                      {taxeAdditionnelleDraft.estActif ? 'ACTIVE' : 'INACTIVE'}
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Assiette : <strong className="text-slate-700">montant TTC</strong> de la facture. La valeur est modifiable à tout moment ;
-                    les factures déjà émises conservent la valeur appliquée lors de leur émission.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setTaxeAdditionnelleDraft(normalizeTaxeAdditionnelleConfig(undefined))}
-                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
-                >
-                  Réinitialiser
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveTaxeAdditionnelle}
-                  className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-sm font-black">save</span>
-                  <span>Enregistrer la taxe</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-              {/* Libellé */}
-              <div className="lg:col-span-5">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                  Libellé imprimé sur la facture
-                </label>
-                <input
-                  type="text"
-                  value={taxeAdditionnelleDraft.libelle}
-                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, libelle: e.target.value }))}
-                  placeholder="Ex. Taxe additionnelle exceptionnelle"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                />
-              </div>
-
-              {/* Activation */}
-              <div className="lg:col-span-3">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Application</label>
-                <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
-                  <input
-                    type="checkbox"
-                    checked={taxeAdditionnelleDraft.estActif}
-                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estActif: e.target.checked }))}
-                    className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-slate-800">Activer la taxe</span>
-                </label>
-              </div>
-
-              {/* Nature */}
-              <div className="lg:col-span-4">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Nature</label>
-                <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
-                  <input
-                    type="checkbox"
-                    checked={taxeAdditionnelleDraft.estExceptionnelle}
-                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estExceptionnelle: e.target.checked }))}
-                    className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-slate-800">Taxe exceptionnelle (ponctuelle)</span>
-                </label>
-              </div>
-              {/* Mode de calcul */}
-              <div className="lg:col-span-4">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Mode de calcul</label>
-                <select
-                  value={taxeAdditionnelleDraft.mode}
-                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, mode: e.target.value === 'MONTANT_FIXE' ? 'MONTANT_FIXE' : 'POURCENTAGE' }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
-                >
-                  <option value="POURCENTAGE">Pourcentage du TTC (%)</option>
-                  <option value="MONTANT_FIXE">Montant fixe (FCFA)</option>
-                </select>
-              </div>
-
-              {/* Valeur (mise à jour) */}
-              <div className="lg:col-span-4">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                  {taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 'Taux applicable au TTC (%)' : 'Montant forfaitaire (FCFA)'}
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 0.1 : 100}
-                  value={taxeAdditionnelleDraft.valeur}
-                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, valeur: Math.max(0, Number(e.target.value) || 0) }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                />
-              </div>
-
-              {/* Seuil d'assiette */}
-              <div className="lg:col-span-4">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                  Seuil d'assiette : TTC minimum (FCFA)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={taxeAdditionnelleDraft.seuilMinTtcFcfa ?? 0}
-                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, seuilMinTtcFcfa: Math.max(0, Number(e.target.value) || 0) }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">0 = taxe appliquée quel que soit le montant.</p>
-              </div>
-
-              {/* Plafond de taxe */}
-              <div className="lg:col-span-4">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                  Plafond de la taxe (FCFA)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={taxeAdditionnelleDraft.plafondFcfa ?? 0}
-                  onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, plafondFcfa: Math.max(0, Number(e.target.value) || 0) }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">0 = aucun plafond.</p>
-              </div>
-              {/* Périmètre */}
-              <div className="lg:col-span-4">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Périmètre d'application</label>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
-                    <input
-                      type="checkbox"
-                      checked={taxeAdditionnelleDraft.appliquerImport}
-                      onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerImport: e.target.checked }))}
-                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800">Factures Import (TVA 18 %)</span>
-                  </label>
-                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
-                    <input
-                      type="checkbox"
-                      checked={taxeAdditionnelleDraft.appliquerExport}
-                      onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerExport: e.target.checked }))}
-                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800">Factures Export (TVA 0 %)</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Simulation */}
-              <div className="lg:col-span-8 bg-slate-50/60 border border-slate-200 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    Simulation en direct (assiette TTC)
+          {configSubTab === 'TAXE' && (
+            <div
+              id="config-panel-TAXE"
+              role="tabpanel"
+              aria-labelledby="config-tab-TAXE"
+              className="bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden"
+            >
+              <div className="p-5 border-b border-[#005DAA]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/10">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/80 border border-[#005DAA]/20 text-[#005DAA] flex items-center justify-center shrink-0 shadow-xs">
+                    <span className="material-symbols-outlined text-xl">receipt_long</span>
                   </div>
-                  <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
-                    {(['IMPORT', 'EXPORT'] as const).map(t => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setTaxeSimulationType(t)}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all cursor-pointer ${taxeSimulationType === t ? 'bg-[#005DAA] text-white' : 'text-slate-500 hover:text-slate-800'}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <span>Taxe additionnelle exceptionnelle</span>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                        {taxeAdditionnelleDraft.estActif ? 'ACTIVE' : 'INACTIVE'}
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-slate-600">
+                      Assiette : <strong className="text-slate-800">montant TTC</strong> de la facture. La valeur est modifiable à tout moment ;
+                      les factures déjà émises conservent la valeur appliquée lors de leur émission.
+                    </p>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Montant TTC simulé (FCFA)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={10000}
-                      value={taxeSimulationTtc}
-                      onChange={e => setTaxeSimulationTtc(Math.max(0, Number(e.target.value) || 0))}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Taxe additionnelle</label>
-                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-black ${taxeSimulation.appliquee ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-400'}`}>
-                      {taxeSimulation.montantFcfa.toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Net à payer (TTC + taxe)</label>
-                    <div className="px-3 py-1.5 rounded-lg border border-[#005DAA]/30 bg-[#F0F7FF] text-xs font-mono font-black text-[#005DAA]">
-                      {(taxeSimulation.baseTtcFcfa + taxeSimulation.montantFcfa).toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-[11px] font-semibold text-slate-500">
-                  {taxeSimulation.appliquee
-                    ? `Mode « ${getTaxeAdditionnelleModeLabel(taxeSimulation.mode)} » — ${getTaxeAdditionnelleValeurLabel(taxeSimulation.mode, taxeSimulation.valeur)} appliqué au TTC.`
-                    : `Non appliquée : ${taxeSimulation.motif || 'conditions non remplies'}.`}
-                </p>
-              </div>
-
-              <div className="lg:col-span-12 text-[11px] text-slate-500 bg-slate-50/60 border border-slate-200 rounded-lg px-3 py-2">
-                <strong className="text-slate-700">Traçabilité :</strong> le libellé, le mode et la valeur appliqués sont figés sur chaque facture émise
-                (champs <span className="font-mono">taxeAdditionnelle*</span>) ; une modification de la valeur ci-dessus ne s'applique qu'aux
-                factures émises ensuite. La proforma en cours peut être régénérée pour adopter la nouvelle valeur.
-              </div>
-            </div>
-          </div>
-
-          {/* ── Timbre fiscal d'État (assiette : montant HT, par tranches) ── */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-xl">approval</span>
-                </div>
-                <div className="space-y-0.5">
-                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                    <span>Timbre fiscal d'État</span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                      {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'AUCUNE TRANCHE ACTIVE'}
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Assiette : <strong className="text-slate-700">montant HT</strong> de la facture, par tranches paramétrables.
-                    Le timbre s'ajoute au Net à Payer <strong className="text-slate-700">quel que soit le mode de règlement</strong> (comptant, virement, chèque, à terme…) ;
-                    les factures déjà émises conservent le timbre appliqué lors de leur émission.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setTimbreDraft(timbreBrackets.map(b => ({ ...b })))}
-                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
-                >
-                  Réinitialiser
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveTimbreBrackets}
-                  className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-sm font-black">save</span>
-                  <span>Enregistrer le timbre</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 space-y-3">
-              {/* En-têtes de colonnes */}
-              <div className="hidden lg:grid grid-cols-12 gap-3 px-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                <div className="col-span-4">Tranche (montant HT)</div>
-                <div className="col-span-2">Min HT (FCFA)</div>
-                <div className="col-span-2">Max HT (FCFA)</div>
-                <div className="col-span-2">Timbre (FCFA)</div>
-                <div className="col-span-1 text-center">Active</div>
-                <div className="col-span-1 text-right">Suppr.</div>
-              </div>
-
-              {timbreDraft.map((bracket, index) => (
-                <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-slate-50/60 border border-slate-200 rounded-xl p-3">
-                  <div className="lg:col-span-4">
-                    <input
-                      type="text"
-                      value={bracket.libelle}
-                      onChange={e => updateTimbreBracket(index, { libelle: e.target.value })}
-                      placeholder="Libellé de la tranche"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={bracket.montantHtMin}
-                      onChange={e => updateTimbreBracket(index, { montantHtMin: Math.max(0, Number(e.target.value) || 0) })}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={bracket.montantHtMax}
-                      title="Valeur très élevée (ex. 999999999) = pas de maximum"
-                      onChange={e => updateTimbreBracket(index, { montantHtMax: Math.max(0, Number(e.target.value) || 0) })}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step={100}
-                      value={bracket.montantTimbreFcfa}
-                      onChange={e => updateTimbreBracket(index, { montantTimbreFcfa: Math.max(0, Number(e.target.value) || 0) })}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div className="lg:col-span-1 flex justify-center">
-                    <input
-                      type="checkbox"
-                      checked={bracket.estActif !== false}
-                      onChange={e => updateTimbreBracket(index, { estActif: e.target.checked })}
-                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
-                    />
-                  </div>
-                  <div className="lg:col-span-1 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => removeTimbreBracket(index)}
-                      title="Supprimer la tranche"
-                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">delete</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <div>
-                <button
-                  type="button"
-                  onClick={addTimbreBracket}
-                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-sm font-black">add</span>
-                  <span>Ajouter une tranche</span>
-                </button>
-              </div>
-
-              <div className="lg:col-span-12 text-[11px] text-slate-500 bg-slate-50/60 border border-slate-200 rounded-lg px-3 py-2">
-                <strong className="text-slate-700">Traçabilité :</strong> le montant du timbre appliqué est figé sur chaque facture émise
-                (champ <span className="font-mono">timbreFiscalFcfa</span>) ; une modification des tranches ci-dessus ne s'applique qu'aux
-                factures émises ensuite. Le timbre est inclus dans le « Net à payer » de l'aperçu et de la facture imprimée.
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-slate-900">
-            
-            {/* Left Panel: Types de Factures (4 columns) */}
-            <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#005DAA] text-sm">list</span>
-                  <span>Types de Factures</span>
-                </h3>
-                <div className="flex items-center gap-2">
-                  <button 
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
                     type="button"
-                    onClick={() => setShowAddTypeModal(true)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-[#005DAA] hover:bg-[#004580] text-white rounded-lg text-xs font-black transition-all shadow-xs cursor-pointer active:scale-95"
-                    title="Créer un nouveau type de facture"
+                    onClick={() => setTaxeAdditionnelleDraft(normalizeTaxeAdditionnelleConfig(undefined))}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-sm font-black">add</span>
-                    <span>Nouveau Type</span>
+                    Réinitialiser
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveTaxeAdditionnelle}
+                    className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-sm font-black">save</span>
+                    <span>Enregistrer la taxe</span>
                   </button>
                 </div>
               </div>
 
-              {/* Search input for types */}
-              <div className="p-3 border-b border-slate-100 bg-slate-50/20">
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+              <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                {/* Libellé */}
+                <div className="lg:col-span-5">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                    Libellé imprimé sur la facture
+                  </label>
                   <input
                     type="text"
-                    value={searchTypeQuery}
-                    onChange={(e) => setSearchTypeQuery(e.target.value)}
-                    placeholder="Filtrer les types..."
-                    className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-600 focus:outline-none transition-all bg-slate-50/50 text-slate-800"
+                    value={taxeAdditionnelleDraft.libelle}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, libelle: e.target.value }))}
+                    placeholder="Ex. Taxe additionnelle exceptionnelle"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
                   />
+                </div>
+
+                {/* Activation */}
+                <div className="lg:col-span-3">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Application</label>
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={taxeAdditionnelleDraft.estActif}
+                      onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estActif: e.target.checked }))}
+                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-800">Activer la taxe</span>
+                  </label>
+                </div>
+
+                {/* Nature */}
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Nature</label>
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={taxeAdditionnelleDraft.estExceptionnelle}
+                      onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estExceptionnelle: e.target.checked }))}
+                      className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-800">Taxe exceptionnelle (ponctuelle)</span>
+                  </label>
+                </div>
+                {/* Mode de calcul */}
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Mode de calcul</label>
+                  <select
+                    value={taxeAdditionnelleDraft.mode}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, mode: e.target.value === 'MONTANT_FIXE' ? 'MONTANT_FIXE' : 'POURCENTAGE' }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
+                  >
+                    <option value="POURCENTAGE">Pourcentage du TTC (%)</option>
+                    <option value="MONTANT_FIXE">Montant fixe (FCFA)</option>
+                  </select>
+                </div>
+
+                {/* Valeur (mise à jour) */}
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                    {taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 'Taux applicable au TTC (%)' : 'Montant forfaitaire (FCFA)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 0.1 : 100}
+                    value={taxeAdditionnelleDraft.valeur}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, valeur: Math.max(0, Number(e.target.value) || 0) }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  />
+                </div>
+
+                {/* Seuil d'assiette */}
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                    Seuil d'assiette : TTC minimum (FCFA)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={taxeAdditionnelleDraft.seuilMinTtcFcfa ?? 0}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, seuilMinTtcFcfa: Math.max(0, Number(e.target.value) || 0) }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">0 = taxe appliquée quel que soit le montant.</p>
+                </div>
+
+                {/* Plafond de taxe */}
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                    Plafond de la taxe (FCFA)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={taxeAdditionnelleDraft.plafondFcfa ?? 0}
+                    onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, plafondFcfa: Math.max(0, Number(e.target.value) || 0) }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">0 = aucun plafond.</p>
+                </div>
+                {/* Périmètre */}
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Périmètre d'application</label>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={taxeAdditionnelleDraft.appliquerImport}
+                        onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerImport: e.target.checked }))}
+                        className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-800">Factures Import (TVA 18 %)</span>
+                    </label>
+                    <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={taxeAdditionnelleDraft.appliquerExport}
+                        onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerExport: e.target.checked }))}
+                        className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-800">Factures Export (TVA 0 %)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Simulation */}
+                <div className="lg:col-span-8 bg-white/90 border border-[#005DAA]/20 rounded-xl p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Simulation en direct (assiette TTC)
+                    </div>
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
+                      {(['IMPORT', 'EXPORT'] as const).map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTaxeSimulationType(t)}
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all cursor-pointer ${taxeSimulationType === t ? 'bg-[#005DAA] text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Montant TTC simulé (FCFA)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={10000}
+                        value={taxeSimulationTtc}
+                        onChange={e => setTaxeSimulationTtc(Math.max(0, Number(e.target.value) || 0))}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Taxe additionnelle</label>
+                      <div className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-black ${taxeSimulation.appliquee ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-400'}`}>
+                        {taxeSimulation.montantFcfa.toLocaleString('fr-FR')} FCFA
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Net à payer (TTC + taxe)</label>
+                      <div className="px-3 py-1.5 rounded-lg border border-[#005DAA]/30 bg-[#F0F7FF] text-xs font-mono font-black text-[#005DAA]">
+                        {(taxeSimulation.baseTtcFcfa + taxeSimulation.montantFcfa).toLocaleString('fr-FR')} FCFA
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    {taxeSimulation.appliquee
+                      ? `Mode « ${getTaxeAdditionnelleModeLabel(taxeSimulation.mode)} » — ${getTaxeAdditionnelleValeurLabel(taxeSimulation.mode, taxeSimulation.valeur)} appliqué au TTC.`
+                      : `Non appliquée : ${taxeSimulation.motif || 'conditions non remplies'}.`}
+                  </p>
+                </div>
+
+                <div className="lg:col-span-12 text-[11px] text-slate-600 bg-white/75 border border-[#005DAA]/15 rounded-lg px-3 py-2">
+                  <strong className="text-slate-800">Traçabilité :</strong> le libellé, le mode et la valeur appliqués sont figés sur chaque facture émise
+                  (champs <span className="font-mono">taxeAdditionnelle*</span>) ; une modification de la valeur ci-dessus ne s'applique qu'aux
+                  factures émises ensuite. La proforma en cours peut être régénérée pour adopter la nouvelle valeur.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Timbre fiscal d'État (assiette : montant HT, par tranches) ── */}
+          {configSubTab === 'TIMBRE' && (
+            <div
+              id="config-panel-TIMBRE"
+              role="tabpanel"
+              aria-labelledby="config-tab-TIMBRE"
+              className="bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden"
+            >
+              <div className="p-5 border-b border-[#005DAA]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/10">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/80 border border-[#005DAA]/20 text-[#005DAA] flex items-center justify-center shrink-0 shadow-xs">
+                    <span className="material-symbols-outlined text-xl">approval</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <span>Timbre fiscal d'État</span>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                        {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'AUCUNE TRANCHE ACTIVE'}
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-slate-600">
+                      Assiette : <strong className="text-slate-800">montant HT</strong> de la facture, par tranches paramétrables.
+                      Le timbre s'ajoute au Net à Payer <strong className="text-slate-800">quel que soit le mode de règlement</strong> (comptant, virement, chèque, à terme…) ;
+                      les factures déjà émises conservent le timbre appliqué lors de leur émission.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setTimbreDraft(timbreBrackets.map(b => ({ ...b })))}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                  >
+                    Réinitialiser
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveTimbreBrackets}
+                    className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-sm font-black">save</span>
+                    <span>Enregistrer le timbre</span>
+                  </button>
                 </div>
               </div>
 
-              {/* List of types */}
-              <div className="divide-y divide-slate-100 max-h-[440px] overflow-y-auto bocs-scrollbar">
-                {invoiceTypeConfigs
-                  .filter(t => t.name.toLowerCase().includes(searchTypeQuery.toLowerCase()))
-                  .map(t => {
-                    const isSelected = t.id === selectedInvoiceTypeId;
-                    return (
-                      <div
-                        key={t.id}
-                        onClick={() => {
-                          setSelectedInvoiceTypeId(t.id);
-                          const isCaution = t.name.toLowerCase().includes('caution') || t.id === '1';
-                          const isTransfert = t.name.toLowerCase().includes('transfert') || t.id === '4';
-                          const isEchange = t.name.toLowerCase().includes('echange') || t.id === '2';
-                          if (isCaution || isTransfert) {
-                            setActiveCategory('CONTENEUR');
-                          } else if (isEchange) {
-                            if (activeCategory === 'CONTENEUR' || activeCategory === 'CONTENEUR_SOC') {
-                              setActiveCategory('CONTENEUR_COC');
-                            }
-                          } else if (activeCategory === 'CONTENEUR_COC' || activeCategory === 'CONTENEUR_SOC') {
-                            setActiveCategory('CONTENEUR');
-                          }
-                        }}
-                        className={`p-4 flex items-center justify-between cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-[#072B53] text-white font-semibold'
-                            : 'hover:bg-slate-50 text-slate-700 hover:text-slate-900'
-                        }`}
-                      >
-                        <div className="space-y-0.5">
-                          <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                            {t.name}
-                          </p>
-                          <p className={`text-[10px] ${isSelected ? 'text-blue-200' : 'text-slate-500'}`}>
-                            {t.description}
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingInvoiceType(t);
-                                setEditTypeName(t.name);
-                                setEditTypeDescription(t.description);
-                                setShowEditTypeModal(true);
-                              }}
-                              className="p-1 hover:bg-white/10 rounded text-blue-200 hover:text-white transition-all cursor-pointer"
-                              title="Modifier ce type"
-                            >
-                              <span className="material-symbols-outlined text-sm font-bold">edit</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteInvoiceTypeClick(t);
-                              }}
-                              className="p-1 hover:bg-rose-500/20 rounded text-rose-300 hover:text-rose-100 transition-all cursor-pointer"
-                              title="Supprimer ce type"
-                            >
-                              <span className="material-symbols-outlined text-sm font-bold">delete</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                {invoiceTypeConfigs.filter(t => t.name.toLowerCase().includes(searchTypeQuery.toLowerCase())).length === 0 && (
-                  <div className="p-8 text-center text-slate-400 text-xs">
-                    Aucun type trouvé.
-                  </div>
-                )}
-              </div>
+              <div className="p-5 space-y-3">
+                {/* En-têtes de colonnes */}
+                <div className="hidden lg:grid grid-cols-12 gap-3 px-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <div className="col-span-4">Tranche (montant HT)</div>
+                  <div className="col-span-2">Min HT (FCFA)</div>
+                  <div className="col-span-2">Max HT (FCFA)</div>
+                  <div className="col-span-2">Timbre (FCFA)</div>
+                  <div className="col-span-1 text-center">Active</div>
+                  <div className="col-span-1 text-right">Suppr.</div>
+                </div>
 
-              {/* Bottom Quick Action Button */}
-              <div className="p-3 border-t border-slate-100 bg-slate-50/50">
-                <button
-                  type="button"
-                  onClick={() => setShowAddTypeModal(true)}
-                  className="w-full py-2.5 px-3 border border-dashed border-[#005DAA]/40 hover:border-[#005DAA] bg-[#F0F7FF]/60 hover:bg-[#F0F7FF] text-[#005DAA] font-black text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-base">add_circle</span>
-                  <span>+ Ajouter un nouveau type de facture</span>
-                </button>
+                {timbreDraft.map((bracket, index) => (
+                  <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-white/90 border border-[#005DAA]/15 rounded-xl p-3 shadow-xs hover:border-[#005DAA]/35 transition-all">
+                    <div className="lg:col-span-4">
+                      <input
+                        type="text"
+                        value={bracket.libelle}
+                        onChange={e => updateTimbreBracket(index, { libelle: e.target.value })}
+                        placeholder="Libellé de la tranche"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1000}
+                        value={bracket.montantHtMin}
+                        onChange={e => updateTimbreBracket(index, { montantHtMin: Math.max(0, Number(e.target.value) || 0) })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1000}
+                        value={bracket.montantHtMax}
+                        title="Valeur très élevée (ex. 999999999) = pas de maximum"
+                        onChange={e => updateTimbreBracket(index, { montantHtMax: Math.max(0, Number(e.target.value) || 0) })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={bracket.montantTimbreFcfa}
+                        onChange={e => updateTimbreBracket(index, { montantTimbreFcfa: Math.max(0, Number(e.target.value) || 0) })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div className="lg:col-span-1 flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={bracket.estActif !== false}
+                        onChange={e => updateTimbreBracket(index, { estActif: e.target.checked })}
+                        className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
+                      />
+                    </div>
+                    <div className="lg:col-span-1 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeTimbreBracket(index)}
+                        title="Supprimer la tranche"
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={addTimbreBracket}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-[#005DAA] border border-[#005DAA]/30 hover:border-[#005DAA] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
+                  >
+                    <span className="material-symbols-outlined text-sm font-black">add</span>
+                    <span>Ajouter une tranche</span>
+                  </button>
+                </div>
+
+                <div className="lg:col-span-12 text-[11px] text-slate-600 bg-white/75 border border-[#005DAA]/15 rounded-lg px-3 py-2">
+                  <strong className="text-slate-800">Traçabilité :</strong> le montant du timbre appliqué est figé sur chaque facture émise
+                  (champ <span className="font-mono">timbreFiscalFcfa</span>) ; une modification des tranches ci-dessus ne s'applique qu'aux
+                  factures émises ensuite. Le timbre est inclus dans le « Net à payer » de l'aperçu et de la facture imprimée.
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Right Panel: Configuration details (8 columns) */}
-            <div className="lg:col-span-8 bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-              {activeInvoiceType ? (
-                <div>
-                  
-                  {/* Panel Header */}
-                  <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/40">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-[#00182f] font-heading">
-                          Configuration: {activeInvoiceType.name}
-                        </h3>
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
-                          Modifiable
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        {activeInvoiceType.name.toLowerCase().includes('caution') || activeInvoiceType.id === '1'
-                          ? "La caution ne s'applique exclusivement qu'aux conteneurs."
-                          : (activeInvoiceType.name.toLowerCase().includes('surestarie') || activeInvoiceType.name.toLowerCase().includes('detention') || activeInvoiceType.name.toLowerCase().includes('détention'))
-                          ? "Les surestaries et détentions ne concernent exclusivement que les conteneurs."
-                          : "Définissez et personnalisez les rubriques applicables selon le type de marchandise."}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewRubriqueName('');
-                          setNewRubriqueDescription('');
-                          setNewRubriqueCode('');
-                          setNewRubriqueAmount(0);
-                          setNewRubriqueIsActive(true);
-                          setShowAddRubriqueModal(true);
-                        }}
-                        className="px-3 py-2 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/30 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
-                      >
-                        <span className="material-symbols-outlined text-base">add_circle</span>
-                        <span>Ajouter rubrique</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveConfig}
-                        className="px-4 py-2 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
-                      >
-                        <span className="material-symbols-outlined text-base">save</span>
-                        <span>Enregistrer</span>
-                      </button>
-                    </div>
+          {configSubTab === 'TYPES' && (
+            <div
+              id="config-panel-TYPES"
+              role="tabpanel"
+              aria-labelledby="config-tab-TYPES"
+              className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-slate-900"
+            >
+            
+              {/* Left Panel: Types de Factures (4 columns) */}
+              <div className="lg:col-span-4 bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-[#005DAA]/15 flex items-center justify-between bg-[#005DAA]/10">
+                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#005DAA] text-sm">list</span>
+                    <span>Types de Factures</span>
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddTypeModal(true)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-[#005DAA] hover:bg-[#004580] text-white rounded-lg text-xs font-black transition-all shadow-xs cursor-pointer active:scale-95"
+                      title="Créer un nouveau type de facture"
+                    >
+                      <span className="material-symbols-outlined text-sm font-black">add</span>
+                      <span>Nouveau Type</span>
+                    </button>
                   </div>
+                </div>
 
-                  {/* Fret Category Tabs */}
-                  {(() => {
-                    const isCaution = activeInvoiceType.name.toLowerCase().includes('caution') || activeInvoiceType.id === '1';
-                    const isTransfert = activeInvoiceType.name.toLowerCase().includes('transfert') || activeInvoiceType.id === '4';
-                    const isEchange = activeInvoiceType.name.toLowerCase().includes('echange') || activeInvoiceType.id === '2';
-                    const isSurestarieOrDetention = 
-                      activeInvoiceType.name.toLowerCase().includes('surestarie') ||
-                      activeInvoiceType.name.toLowerCase().includes('detention') ||
-                      activeInvoiceType.name.toLowerCase().includes('détention');
+                {/* Search input for types */}
+                <div className="p-3 border-b border-[#005DAA]/15 bg-white/70">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                    <input
+                      type="text"
+                      value={searchTypeQuery}
+                      onChange={(e) => setSearchTypeQuery(e.target.value)}
+                      placeholder="Filtrer les types..."
+                      className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-600 focus:outline-none transition-all bg-white text-slate-800"
+                    />
+                  </div>
+                </div>
 
-                    const allowedCategories: FretCategory[] = (isCaution || isTransfert || isSurestarieOrDetention)
-                      ? ['CONTENEUR']
-                      : isEchange
-                      ? ['CONTENEUR_COC', 'CONTENEUR_SOC', 'VRAC', 'RORO', 'CONVENTIONNEL']
-                      : ['CONTENEUR', 'VRAC', 'RORO', 'CONVENTIONNEL'];
-
-                    return (
-                      <div className="border-b border-slate-100 bg-white">
-                        <div className="flex border-b border-slate-200/60 px-4 gap-4 overflow-x-auto bocs-scrollbar">
-                          {allowedCategories.map(cat => {
-                            const label = 
-                              cat === 'CONTENEUR_COC' ? 'Conteneur COC' :
-                              cat === 'CONTENEUR_SOC' ? 'Conteneur SOC' :
-                              cat === 'CONTENEUR' ? 'Conteneur' :
-                              cat === 'VRAC' ? 'Vrac' :
-                              cat === 'RORO' ? 'Ro-Ro' : 'Conventionnel';
-                            const isCatSelected = cat === activeCategory;
-                            return (
+                {/* List of types */}
+                <div className="divide-y divide-[#005DAA]/10 max-h-[440px] overflow-y-auto bocs-scrollbar">
+                  {invoiceTypeConfigs
+                    .filter(t => t.name.toLowerCase().includes(searchTypeQuery.toLowerCase()))
+                    .map(t => {
+                      const isSelected = t.id === selectedInvoiceTypeId;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => {
+                            setSelectedInvoiceTypeId(t.id);
+                            const isCaution = t.name.toLowerCase().includes('caution') || t.id === '1';
+                            const isTransfert = t.name.toLowerCase().includes('transfert') || t.id === '4';
+                            const isEchange = t.name.toLowerCase().includes('echange') || t.id === '2';
+                            if (isCaution || isTransfert) {
+                              setActiveCategory('CONTENEUR');
+                            } else if (isEchange) {
+                              if (activeCategory === 'CONTENEUR' || activeCategory === 'CONTENEUR_SOC') {
+                                setActiveCategory('CONTENEUR_COC');
+                              }
+                            } else if (activeCategory === 'CONTENEUR_COC' || activeCategory === 'CONTENEUR_SOC') {
+                              setActiveCategory('CONTENEUR');
+                            }
+                          }}
+                          className={`p-4 flex items-center justify-between cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-[#005DAA] text-white font-semibold shadow-xs'
+                              : 'bg-white/60 hover:bg-[#005DAA]/10 text-slate-700 hover:text-slate-900'
+                          }`}
+                        >
+                          <div className="space-y-0.5">
+                            <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                              {t.name}
+                            </p>
+                            <p className={`text-[10px] ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                              {t.description}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <div className="flex items-center gap-1">
                               <button
-                                key={cat}
                                 type="button"
-                                onClick={() => setActiveCategory(cat)}
-                                className={`px-3 py-3 text-xs font-bold transition-all border-b-2 -mb-[1px] cursor-pointer whitespace-nowrap ${
-                                  isCatSelected
-                                    ? 'border-[#005daa] text-[#005daa]'
-                                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingInvoiceType(t);
+                                  setEditTypeName(t.name);
+                                  setEditTypeDescription(t.description);
+                                  setShowEditTypeModal(true);
+                                }}
+                                className="p-1 hover:bg-white/20 rounded text-white transition-all cursor-pointer"
+                                title="Modifier ce type"
                               >
-                                {label}
+                                <span className="material-symbols-outlined text-sm font-bold">edit</span>
                               </button>
-                            );
-                          })}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteInvoiceTypeClick(t);
+                                }}
+                                className="p-1 hover:bg-rose-500/30 rounded text-rose-200 hover:text-white transition-all cursor-pointer"
+                                title="Supprimer ce type"
+                              >
+                                <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })()}
+                      );
+                    })}
+                  {invoiceTypeConfigs.filter(t => t.name.toLowerCase().includes(searchTypeQuery.toLowerCase())).length === 0 && (
+                    <div className="p-8 text-center text-slate-400 text-xs">
+                      Aucun type trouvé.
+                    </div>
+                  )}
+                </div>
 
-                  {/* Grid of Rubrique Cards */}
-                  <div className="p-6 bg-slate-50/30">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {localRubriques
-                        .filter(r => r.invoiceTypeId === selectedInvoiceTypeId && (r.category === activeCategory || (activeCategory === 'CONTENEUR_COC' && r.category === 'CONTENEUR')))
-                        .map(rub => (
-                          <div 
-                            key={rub.id} 
-                            className={`p-4 rounded-xl border transition-all bg-white relative group ${
-                              rub.isActive 
-                                ? 'border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-sm' 
-                                : 'border-slate-100 opacity-60 bg-slate-50/50'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-1 pr-2 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h4 
-                                    className="text-xs font-bold text-[#0f172a] hover:text-[#005daa] transition-colors cursor-pointer"
+                {/* Bottom Quick Action Button */}
+                <div className="p-3 border-t border-[#005DAA]/15 bg-[#005DAA]/5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddTypeModal(true)}
+                    className="w-full py-2.5 px-3 border border-dashed border-[#005DAA]/40 hover:border-[#005DAA] bg-white hover:bg-[#F0F7FF] text-[#005DAA] font-black text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-base">add_circle</span>
+                    <span>+ Ajouter un nouveau type de facture</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Panel: Configuration details (8 columns) */}
+              <div className="lg:col-span-8 bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden">
+                {activeInvoiceType ? (
+                  <div>
+                  
+                    {/* Panel Header */}
+                    <div className="p-6 border-b border-[#005DAA]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/10">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-bold text-[#00182f] font-heading">
+                            Configuration: {activeInvoiceType.name}
+                          </h3>
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
+                            Modifiable
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">
+                          {activeInvoiceType.name.toLowerCase().includes('caution') || activeInvoiceType.id === '1'
+                            ? "La caution ne s'applique exclusivement qu'aux conteneurs."
+                            : (activeInvoiceType.name.toLowerCase().includes('surestarie') || activeInvoiceType.name.toLowerCase().includes('detention') || activeInvoiceType.name.toLowerCase().includes('détention'))
+                            ? "Les surestaries et détentions ne concernent exclusivement que les conteneurs."
+                            : "Définissez et personnalisez les rubriques applicables selon le type de marchandise."}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewRubriqueName('');
+                            setNewRubriqueDescription('');
+                            setNewRubriqueCode('');
+                            setNewRubriqueAmount(0);
+                            setNewRubriqueIsActive(true);
+                            setShowAddRubriqueModal(true);
+                          }}
+                          className="px-3 py-2 bg-white hover:bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/30 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-base">add_circle</span>
+                          <span>Ajouter rubrique</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveConfig}
+                          className="px-4 py-2 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-base">save</span>
+                          <span>Enregistrer</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Fret Category Tabs */}
+                    {(() => {
+                      const isCaution = activeInvoiceType.name.toLowerCase().includes('caution') || activeInvoiceType.id === '1';
+                      const isTransfert = activeInvoiceType.name.toLowerCase().includes('transfert') || activeInvoiceType.id === '4';
+                      const isEchange = activeInvoiceType.name.toLowerCase().includes('echange') || activeInvoiceType.id === '2';
+                      const isSurestarieOrDetention = 
+                        activeInvoiceType.name.toLowerCase().includes('surestarie') ||
+                        activeInvoiceType.name.toLowerCase().includes('detention') ||
+                        activeInvoiceType.name.toLowerCase().includes('détention');
+
+                      const allowedCategories: FretCategory[] = (isCaution || isTransfert || isSurestarieOrDetention)
+                        ? ['CONTENEUR']
+                        : isEchange
+                        ? ['CONTENEUR_COC', 'CONTENEUR_SOC', 'VRAC', 'RORO', 'CONVENTIONNEL']
+                        : ['CONTENEUR', 'VRAC', 'RORO', 'CONVENTIONNEL'];
+
+                      return (
+                        <div className="border-b border-[#005DAA]/15 bg-white/70">
+                          <div className="flex border-b border-[#005DAA]/15 px-4 gap-4 overflow-x-auto bocs-scrollbar">
+                            {allowedCategories.map(cat => {
+                              const label = 
+                                cat === 'CONTENEUR_COC' ? 'Conteneur COC' :
+                                cat === 'CONTENEUR_SOC' ? 'Conteneur SOC' :
+                                cat === 'CONTENEUR' ? 'Conteneur' :
+                                cat === 'VRAC' ? 'Vrac' :
+                                cat === 'RORO' ? 'Ro-Ro' : 'Conventionnel';
+                              const isCatSelected = cat === activeCategory;
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => setActiveCategory(cat)}
+                                  className={`px-3 py-3 text-xs font-bold transition-all border-b-2 -mb-[1px] cursor-pointer whitespace-nowrap ${
+                                    isCatSelected
+                                      ? 'border-[#005daa] text-[#005daa]'
+                                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Grid of Rubrique Cards */}
+                    <div className="p-6 bg-[#005DAA]/5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {localRubriques
+                          .filter(r => r.invoiceTypeId === selectedInvoiceTypeId && (r.category === activeCategory || (activeCategory === 'CONTENEUR_COC' && r.category === 'CONTENEUR')))
+                          .map(rub => (
+                            <div 
+                              key={rub.id} 
+                              className={`p-4 rounded-xl border transition-all bg-white/95 relative group ${
+                                rub.isActive 
+                                  ? 'border-[#005DAA]/15 hover:border-[#005DAA]/35 shadow-xs hover:shadow-sm' 
+                                  : 'border-slate-200 opacity-60 bg-white/60'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1 pr-2 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 
+                                      className="text-xs font-bold text-[#0f172a] hover:text-[#005daa] transition-colors cursor-pointer"
+                                      onClick={() => {
+                                        setEditingRubrique(rub);
+                                        setEditRubriqueName(rub.name);
+                                        setEditRubriqueDescription(rub.description);
+                                        setEditRubriqueCode(rub.code);
+                                        setEditRubriqueAmount(rub.montantUnitaire);
+                                        setEditRubriqueBaseCalcul(rub.baseCalcul || 'BL');
+                                        setShowEditRubriqueModal(true);
+                                      }}
+                                      title="Cliquez pour modifier les détails de cette rubrique"
+                                    >
+                                      {rub.name}
+                                    </h4>
+                                    {!rub.isActive && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.2 bg-slate-100 text-slate-500 rounded">
+                                        Inactif
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 line-clamp-2">
+                                    {rub.description || 'Aucune description'}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                    <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
+                                      Code: {rub.code}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-medium bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded">
+                                      Base: {
+                                        rub.baseCalcul === 'TEU' ? 'Facturé par TEU' : rub.baseCalcul === 'CONTENEUR' ? 'Par conteneur' :
+                                        rub.baseCalcul === 'POIDS_TONNE' ? 'Par Tonne brut' : 'Facturé au BL'
+                                      }
+                                    </span>
+                                  </div>
+                                </div>
+                              
+                                {/* Action controls */}
+                                <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-200/60">
+                                  {/* Price Update & History button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPriceModal(rub)}
+                                    className="p-1 text-slate-500 hover:text-[#005DAA] hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
+                                    title="Mettre à jour le prix unitaire et voir l'historique"
+                                  >
+                                    <span className="material-symbols-outlined text-sm font-bold">history</span>
+                                  </button>
+
+                                  {/* Edit button */}
+                                  <button
+                                    type="button"
                                     onClick={() => {
                                       setEditingRubrique(rub);
                                       setEditRubriqueName(rub.name);
@@ -2998,155 +3162,106 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                       setEditRubriqueBaseCalcul(rub.baseCalcul || 'BL');
                                       setShowEditRubriqueModal(true);
                                     }}
-                                    title="Cliquez pour modifier les détails de cette rubrique"
+                                    className="p-1 text-slate-500 hover:text-[#005daa] hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
+                                    title="Modifier la rubrique (nom, code, base de calcul...)"
                                   >
-                                    {rub.name}
-                                  </h4>
-                                  {!rub.isActive && (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.2 bg-slate-100 text-slate-500 rounded">
-                                      Inactif
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-slate-500 line-clamp-2">
-                                  {rub.description || 'Aucune description'}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                  <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
-                                    Code: {rub.code}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 font-medium bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded">
-                                    Base: {
-                                      rub.baseCalcul === 'TEU' ? 'Facturé par TEU' : rub.baseCalcul === 'CONTENEUR' ? 'Par conteneur' :
-                                      rub.baseCalcul === 'POIDS_TONNE' ? 'Par Tonne brut' : 'Facturé au BL'
-                                    }
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {/* Action controls */}
-                              <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-200/60">
-                                {/* Price Update & History button */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenPriceModal(rub)}
-                                  className="p-1 text-slate-500 hover:text-[#005DAA] hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
-                                  title="Mettre à jour le prix unitaire et voir l'historique"
-                                >
-                                  <span className="material-symbols-outlined text-sm font-bold">history</span>
-                                </button>
+                                    <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                  </button>
 
-                                {/* Edit button */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingRubrique(rub);
-                                    setEditRubriqueName(rub.name);
-                                    setEditRubriqueDescription(rub.description);
-                                    setEditRubriqueCode(rub.code);
-                                    setEditRubriqueAmount(rub.montantUnitaire);
-                                    setEditRubriqueBaseCalcul(rub.baseCalcul || 'BL');
-                                    setShowEditRubriqueModal(true);
-                                  }}
-                                  className="p-1 text-slate-500 hover:text-[#005daa] hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
-                                  title="Modifier la rubrique (nom, code, base de calcul...)"
-                                >
-                                  <span className="material-symbols-outlined text-sm font-bold">edit</span>
-                                </button>
+                                  {/* Delete button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteRubriqueClick(rub)}
+                                    className="p-1 text-slate-500 hover:text-rose-600 hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
+                                    title="Supprimer la rubrique"
+                                  >
+                                    <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                  </button>
 
-                                {/* Delete button */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteRubriqueClick(rub)}
-                                  className="p-1 text-slate-500 hover:text-rose-600 hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
-                                  title="Supprimer la rubrique"
-                                >
-                                  <span className="material-symbols-outlined text-sm font-bold">delete</span>
-                                </button>
-
-                                {/* Toggle switch */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleLocalRubrique(rub.id)}
-                                  title={rub.isActive ? "Désactiver cette rubrique" : "Activer cette rubrique"}
-                                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ml-0.5 ${
-                                    rub.isActive ? 'bg-[#005daa]' : 'bg-slate-300'
-                                  }`}
-                                >
-                                  <span
-                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                      rub.isActive ? 'translate-x-4' : 'translate-x-0'
+                                  {/* Toggle switch */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleLocalRubrique(rub.id)}
+                                    title={rub.isActive ? "Désactiver cette rubrique" : "Activer cette rubrique"}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ml-0.5 ${
+                                      rub.isActive ? 'bg-[#005daa]' : 'bg-slate-300'
                                     }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        rub.isActive ? 'translate-x-4' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Montant Unitaire editable field */}
+                              <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-sm text-[#005DAA]">payments</span>
+                                    MONTANT UNITAIRE:
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPriceModal(rub)}
+                                    className="p-1.5 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/30 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95"
+                                    title="Mettre à jour le prix avec date d'effet & voir l'historique"
+                                  >
+                                    <span className="material-symbols-outlined text-xs font-bold">update</span>
+                                    <span className="text-[10px]">Mettre à jour</span>
+                                  </button>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={rub.montantUnitaire ? rub.montantUnitaire.toLocaleString('fr-FR') : (rub.montantUnitaire === 0 ? '0' : '')}
+                                    onChange={(e) => {
+                                      const raw = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
+                                      handleChangeLocalRubriqueAmount(rub.id, raw === '' ? 0 : parseInt(raw, 10));
+                                    }}
+                                    className="w-36 h-10 px-3.5 border-2 border-slate-300 hover:border-slate-400 focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 rounded-full text-center font-mono font-black text-slate-900 bg-white focus:outline-none text-base transition-all shadow-2xs"
+                                    placeholder="0"
                                   />
-                                </button>
+                                  <span className="text-xs font-bold text-slate-400 font-mono">FCFA</span>
+                                </div>
                               </div>
                             </div>
+                          ))}
 
-                            {/* Montant Unitaire editable field */}
-                            <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-sm text-[#005DAA]">payments</span>
-                                  MONTANT UNITAIRE:
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenPriceModal(rub)}
-                                  className="p-1.5 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/30 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95"
-                                  title="Mettre à jour le prix avec date d'effet & voir l'historique"
-                                >
-                                  <span className="material-symbols-outlined text-xs font-bold">update</span>
-                                  <span className="text-[10px]">Mettre à jour</span>
-                                </button>
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={rub.montantUnitaire ? rub.montantUnitaire.toLocaleString('fr-FR') : (rub.montantUnitaire === 0 ? '0' : '')}
-                                  onChange={(e) => {
-                                    const raw = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
-                                    handleChangeLocalRubriqueAmount(rub.id, raw === '' ? 0 : parseInt(raw, 10));
-                                  }}
-                                  className="w-36 h-10 px-3.5 border-2 border-slate-300 hover:border-slate-400 focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 rounded-full text-center font-mono font-black text-slate-900 bg-white focus:outline-none text-base transition-all shadow-2xs"
-                                  placeholder="0"
-                                />
-                                <span className="text-xs font-bold text-slate-400 font-mono">FCFA</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-
-                      {/* Ajouter une rubrique dotted card */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewRubriqueName('');
-                          setNewRubriqueDescription('');
-                          setNewRubriqueCode('');
-                          setNewRubriqueAmount(0);
-                          setNewRubriqueIsActive(true);
-                          setShowAddRubriqueModal(true);
-                        }}
-                        className="p-4 rounded-xl border border-dashed border-[#005DAA]/40 hover:border-[#005DAA] bg-[#F0F7FF]/40 hover:bg-[#F0F7FF]/80 flex flex-col items-center justify-center gap-1 transition-all min-h-[142px] group cursor-pointer text-[#005DAA] shadow-2xs active:scale-98"
-                      >
-                        <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">add_circle</span>
-                        <span className="text-xs font-bold">Ajouter une rubrique</span>
-                        <span className="text-[10px] text-slate-400 font-semibold">+ Nom, Code & Montant Unitaire</span>
-                      </button>
+                        {/* Ajouter une rubrique dotted card */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewRubriqueName('');
+                            setNewRubriqueDescription('');
+                            setNewRubriqueCode('');
+                            setNewRubriqueAmount(0);
+                            setNewRubriqueIsActive(true);
+                            setShowAddRubriqueModal(true);
+                          }}
+                          className="p-4 rounded-xl border border-dashed border-[#005DAA]/40 hover:border-[#005DAA] bg-[#F0F7FF]/40 hover:bg-[#F0F7FF]/80 flex flex-col items-center justify-center gap-1 transition-all min-h-[142px] group cursor-pointer text-[#005DAA] shadow-2xs active:scale-98"
+                        >
+                          <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">add_circle</span>
+                          <span className="text-xs font-bold">Ajouter une rubrique</span>
+                          <span className="text-[10px] text-slate-400 font-semibold">+ Nom, Code & Montant Unitaire</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                </div>
-              ) : (
-                <div className="p-12 text-center text-slate-400 text-xs">
-                  Sélectionnez un type de facture pour afficher sa configuration.
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-slate-400 text-xs">
+                    Sélectionnez un type de facture pour afficher sa configuration.
+                  </div>
+                )}
+              </div>
+
             </div>
 
-          </div>
-
+          )}
         </div>
       )}
 
@@ -3369,7 +3484,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Code Tarifaire</label>
                   <div className="flex items-center gap-1.5">
@@ -3549,7 +3664,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Code Tarifaire</label>
                   <div className="flex items-center gap-1.5">
@@ -3830,7 +3945,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               {/* Type d'Avoir */}
               <div>
                 <label className="block font-extrabold text-slate-700 uppercase mb-1.5">Type de régularisation</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setCreditNoteType('TOTAL')}

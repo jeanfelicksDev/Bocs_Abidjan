@@ -866,7 +866,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       </div>
                     </div>
                     <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                      Manifestes & Escales
+                      Import &amp; Escale
                     </h3>
                     <p className="text-sm text-zinc-600 leading-relaxed font-normal">
                       Parsing automatisé des fichiers XML douaniers, détection des conteneurs SOC/COC, vrac et suivi du registre.
@@ -924,9 +924,22 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours) et facturation certifiée DGI / FNE sans doublon.
                     </p>
                   </div>
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#00875A]">
-                    <span>Facturation & Reçus</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between gap-2">
+                    <span className="text-sm font-black text-[#00875A] flex items-center gap-1">
+                      Facturation & Reçus
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onEnter('facturation_config'); }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-[#00875A]/10 border border-slate-200 hover:border-[#00875A]/30 text-slate-500 hover:text-[#00875A] transition-all text-[11px] font-bold cursor-pointer shrink-0"
+                      title="Paramètres de facturation"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                      </svg>
+                      Paramètres
+                    </button>
                   </div>
                 </div>
               )}

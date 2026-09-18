@@ -97,17 +97,19 @@ em.title-accent {
   letter-spacing: -0.04em !important;
 }
 
-/* Global Cards & Panels — Crisp pure white with fine hairline borders */
+/* Global Cards & Panels — voile « bleu BOCS translucide » : tous les encadrés
+   de l'application sont teintés d'un bleu BOCS transparent (le fond blanc de
+   la page reste visible à travers la teinte). Texte sombre conservé. */
 .glass-panel,
 .bocs-card,
 .ocean-glass-card,
 .ocean-glass-banner {
-  background: #FFFFFF !important;
+  background: rgba(0, 93, 170, 0.07) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border: 1px solid #E4E4E7 !important;
+  border: 1px solid rgba(0, 93, 170, 0.25) !important;
   color: #09090B !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
+  box-shadow: 0 1px 3px rgba(0, 93, 170, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
   border-radius: 1rem !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
@@ -119,12 +121,38 @@ em.title-accent {
   box-shadow: 0 10px 25px -4px rgba(0, 93, 170, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.02) !important;
 }
 
-/* Secondary Panels / Sub-cards */
+/* Bandeau de module — variante « bleu BOCS translucide » renforcée.
+   (La base des encadrés est désormais déjà bleu translucide ; cette variante
+   marque le bandeau avec une teinte légèrement plus profonde.) */
+.ocean-glass-banner.bocs-banner-blue {
+  background: rgba(0, 93, 170, 0.12) !important;
+  border-color: rgba(0, 93, 170, 0.30) !important;
+  box-shadow: 0 1px 3px rgba(0, 93, 170, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Encadrés « inline » de toutes les pages : les cartes écrites en utilitaires
+   Tailwind (`div.bg-white` + bordure) reçoivent la même teinte bleu BOCS
+   translucide, sans retouche fichier par fichier. */
+div.bg-white[class*="border"] {
+  background-color: rgba(0, 93, 170, 0.07) !important;
+  border-color: rgba(0, 93, 170, 0.25) !important;
+}
+
+/* Restauration blanc : tout encadré situé dans une fenêtre superposée
+   (modales, drawers, aperçus d'impression — `fixed` + `z-*`) reste blanc
+   pour préserver la lisibilité des dialogues et des documents. */
+div[class*="fixed"][class*="z-"] div.bg-white[class*="border"],
+div[class*="fixed"][class*="inset-0"] div.bg-white[class*="border"] {
+  background-color: #FFFFFF !important;
+}
+
+/* Secondary Panels / Sub-cards — voile bleu très léger pour rester
+   hiérarchiquement sous les encadrés principaux */
 .bg-slate-50,
 .bg-gray-50,
 .bg-slate-100 {
-  background-color: #FAFAFA !important;
-  border: 1px solid #E4E4E7 !important;
+  background-color: rgba(0, 93, 170, 0.05) !important;
+  border: 1px solid rgba(0, 93, 170, 0.18) !important;
   color: #09090B !important;
 }
 

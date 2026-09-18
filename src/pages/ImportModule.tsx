@@ -2209,7 +2209,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Callsign</label>
                   <input
@@ -2964,7 +2964,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </div>
 
               {/* Poids, Colis, Volume */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Poids Brut (Kg)</label>
                   <input
@@ -3005,7 +3005,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   <span className="material-symbols-outlined text-sm text-[#005DAA]">inventory_2</span>
                   <span>Génération Automatique de Conteneurs Rattachés :</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-zinc-600 mb-1">Conteneurs 20' (20' DRY Standard)</label>
                     <input

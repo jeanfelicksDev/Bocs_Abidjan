@@ -528,7 +528,11 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
 /**
  * Generates Original BL PDF document with digital signature overlay
  */
-export function generateOriginalBlPdf(bl: BL, signatureDataUrl?: string) {
+export function generateOriginalBlPdf(
+  bl: BL,
+  signatureDataUrl?: string,
+  options: { nonNegotiable?: boolean } = {}
+) {
   const hash = generateDigitalHash(bl.numeroBL, new Date().toISOString().split('T')[0]);
 
   const conteneursRows = (bl.conteneurs || []).map(c => `
@@ -548,7 +552,7 @@ export function generateOriginalBlPdf(bl: BL, signatureDataUrl?: string) {
     <html lang="fr">
       <head>
         <meta charset="UTF-8" />
-        <title>Bill of Lading Original - ${bl.numeroBL}</title>
+        <title>${options.nonNegotiable ? 'Bill of Lading Non Négociable' : 'Bill of Lading Original'} - ${bl.numeroBL}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap');
           body { font-family: 'Inter', sans-serif; margin: 0; padding: 24px; color: #1a1c1c; background: white; font-size: 11px; }
@@ -570,12 +574,15 @@ export function generateOriginalBlPdf(bl: BL, signatureDataUrl?: string) {
       <body>
         <div class="header">
           <div>
-            <div class="title">BILL OF LADING ORIGINAL</div>
+            <div class="title">${options.nonNegotiable ? 'BILL OF LADING NON NÉGOCIABLE' : 'BILL OF LADING ORIGINAL'}</div>
             <div class="sub">BOCS MARITIME MANAGEMENT PLATFORM</div>
           </div>
           <div style="text-align: right">
             <div class="bl-num">${bl.numeroBL}</div>
             <div>TYPE: ${bl.typeOperation}</div>
+            ${options.nonNegotiable ? `
+            <div style="margin-top: 6px; display: inline-block; border: 2px solid #b91c1c; color: #b91c1c; font-weight: 900; font-size: 10px; letter-spacing: 1.5px; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Non Négociable</div>
+            ` : ''}
           </div>
         </div>
 
@@ -1691,7 +1698,7 @@ export function generateBocsExportBlLetterheadPdf(
   draft: DraftExport, 
   escale?: Escale, 
   signatureDataUrl?: string, 
-  options: { withLetterheadHeader?: boolean } = { withLetterheadHeader: true }
+  options: { withLetterheadHeader?: boolean; nonNegotiable?: boolean } = { withLetterheadHeader: true }
 ) {
   const blNumber = draft.numeroBlGenere || draft.numeroDraft.replace('DRF', 'BL');
   const dateEmission = draft.dateValidation ? draft.dateValidation.split(' ')[0] : new Date().toISOString().split('T')[0];
@@ -1718,7 +1725,7 @@ export function generateBocsExportBlLetterheadPdf(
     <html lang="fr">
       <head>
         <meta charset="UTF-8" />
-        <title>Connaissement Original BOCS - ${blNumber}</title>
+        <title>${options.nonNegotiable ? 'Connaissement Non Négociable' : 'Connaissement Original'} BOCS - ${blNumber}</title>
         <style>
           @page { size: A4 portrait; margin: 8mm; }
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Playfair+Display:ital,wght@1,600&display=swap');
@@ -1975,9 +1982,12 @@ export function generateBocsExportBlLetterheadPdf(
           </div>
           <div class="doc-type-box">
             <div class="doc-title">BILL OF LADING</div>
-            <div class="doc-sub">CONNAISSEMENT MARITIME EXPORT</div>
+            <div class="doc-sub">CONNAISSEMENT MARITIME EXPORT${options.nonNegotiable ? ' — NON NÉGOCIABLE' : ''}</div>
             <div class="bl-badge">N° ${blNumber}</div>
             <div style="font-size: 7px; color: #64748b; margin-top: 3px;">Réf. Booking : <strong>${draft.bookingRef || 'BKG-ABJ-EXP'}</strong></div>
+            ${options.nonNegotiable ? `
+            <div style="margin-top: 4px; display: inline-block; border: 1.5px solid #b91c1c; color: #b91c1c; font-weight: 900; font-size: 7.5px; letter-spacing: 1px; padding: 2px 6px; border-radius: 3px; text-transform: uppercase;">Non Négociable — Telex Release</div>
+            ` : ''}
           </div>
         </div>
         ` : `

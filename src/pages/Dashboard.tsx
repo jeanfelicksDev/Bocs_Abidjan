@@ -302,12 +302,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Module 4: Calcul des DMDT (Active/Highlighted card as shown in Image 2) */}
+        {/* Module 4: Calcul des DMDT */}
         <div
           onClick={() => handleNavClick('surestarie')}
-          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none relative bg-white ${isAllowed('surestarie')
-              ? 'cursor-pointer group hover:-translate-y-1 shadow-md border-2 border-[#005DAA]'
-              : 'opacity-50 cursor-not-allowed border border-zinc-200'
+          className={`rounded-3xl p-6 flex flex-col justify-between transition-all select-none border bg-white ${isAllowed('surestarie')
+              ? 'cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-zinc-200 hover:border-[#005DAA]'
+              : 'opacity-50 cursor-not-allowed border-zinc-200'
             }`}
         >
           <div>
@@ -316,7 +316,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <Calculator className="w-6 h-6" />
               </div>
             </div>
-            <h3 className="font-black text-lg text-[#005DAA] transition-colors mb-2 font-display">
+            <h3 className="font-black text-lg text-[#002B49] group-hover:text-[#005DAA] transition-colors mb-2 font-display">
               Calcul des DMDT
             </h3>
             <p className="text-xs text-zinc-600 leading-relaxed font-normal">

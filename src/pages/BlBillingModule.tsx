@@ -5,7 +5,7 @@ import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, computeTaxeAdditionnelle, getTaxeAdd
 import { computeTimbreFiscal, getNetAPayerFcfa, getModeReglementLabel, MODES_REGLEMENT } from '../utils/timbreFiscal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
-import { generateProformaPdf, generateDoBadPdf } from '../utils/pdfGenerator';
+import { generateProformaPdf, generateDoBadPdf, generateOriginalBlPdf, generateBocsExportBlLetterheadPdf } from '../utils/pdfGenerator';
 import { 
   Search, 
   CreditCard, 
@@ -364,17 +364,39 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     return `${searchPrefix}${nextCounterStr}`;
   };
 
-  // Helper pour obtenir les types de factures par défaut selon la marchandise :
-  // - Conteneurs : Caution, Echange et Transfert
-  // - Vracs, Roro et Conventionnel : Echange
+  // Détection d'un connaissement export (typeOperation EXPORT).
+  // Les BL export sont matérialisés depuis les drafts export validés — leur identifiant
+  // est négatif (univers distinct des BL import issus des manifestes).
+  const isExportBl = (bl: BL | null | undefined): boolean => {
+    if (!bl) return false;
+    if (bl.typeOperation === 'EXPORT') return true;
+    return bl.id < 0;
+  };
+
+  // Détection du type de facture Telex (Telex Release).
+  // En configuration standard, l'identifiant '3' correspond au type « Telex ».
+  const isTelexTypeConfig = (typeConfig: InvoiceTypeConfig): boolean => {
+    const name = (typeConfig.name || '').toLowerCase();
+    return name.includes('telex') || name.includes('télex') || typeConfig.id === '3';
+  };
+
+  // Helper pour obtenir les types de factures par défaut selon le type d'opération
+  // et la marchandise :
+  // - BL export : uniquement Echange (frais d'échange BL)
+  // - BL import Conteneurs : Caution, Echange et Transfert
+  // - BL import Vracs, Roro et Conventionnel : Echange
   const getDefaultTypeIdsForBl = (bl: BL): string[] => {
     const blCategory = getBlCategory(bl);
+    const exportOperation = isExportBl(bl);
     return invoiceTypeConfigs.filter(typeConfig => {
       const name = typeConfig.name.toLowerCase();
       const isCaution = name.includes('caution');
       const isEchange = name.includes('echange') || name.includes('échange') || typeConfig.id === '2';
       const isTransfert = name.includes('transfert');
 
+      if (exportOperation) {
+        return isEchange;
+      }
       if (blCategory === 'CONTENEUR') {
         return isCaution || isEchange || isTransfert;
       }
@@ -431,13 +453,18 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
         return plannedIds.includes(typeConfig.id);
       }
 
-      // Par défaut : éligibilité selon la catégorie de marchandise
-      // - Pour les conteneurs : Caution, échange et transfert
-      // - Pour les vracs, roro et conventionnel : Echange
+      // Par défaut : éligibilité selon le type d'opération et la catégorie de marchandise
+      // - BL export : uniquement Echange
+      // - BL import conteneurs : Caution, échange et transfert
+      // - BL import vracs, roro et conventionnel : Echange
       const name = typeConfig.name.toLowerCase();
       const isCaution = name.includes('caution');
       const isEchange = name.includes('echange') || name.includes('échange') || typeConfig.id === '2';
       const isTransfert = name.includes('transfert');
+
+      if (isExportBl(activeBl)) {
+        return isEchange;
+      }
 
       if (blCategory === 'CONTENEUR') {
         return isCaution || isEchange || isTransfert;
@@ -446,6 +473,26 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       return isEchange;
     });
   }, [activeBl, invoiceTypeConfigs, blInvoices, plannedInvoicesByBl, excludedTypeIdsByBl]);
+
+  // Libération par télex : dès que la facture Telex est ajoutée au BL export,
+  // le connaissement original devient « Non Négociable ».
+  // Détection : prestation Telex active pour le BL OU facture Telex déjà émise.
+  const hasTelexPrestation = useMemo(() => {
+    if (!activeBl) return false;
+
+    if (activeTypeConfigs.some(isTelexTypeConfig)) return true;
+
+    return blInvoices.some(inv => {
+      if (inv.invoiceTypeId) {
+        const tc = invoiceTypeConfigs.find(t => t.id === inv.invoiceTypeId);
+        if (tc && isTelexTypeConfig(tc)) return true;
+      }
+      const typeFacture = (inv.typeFacture || '').toLowerCase();
+      if (typeFacture.includes('telex') || typeFacture.includes('télex')) return true;
+      // Numérotation : [FA-]TEL<voyage>-BOCS###
+      return /TEL\d/.test((inv.numeroFacture || '').toUpperCase());
+    });
+  }, [activeBl, activeTypeConfigs, blInvoices, invoiceTypeConfigs]);
 
   // Retirer une prestation ou supprimer une proforma
   const handleRemovePrestation = (typeConfig: InvoiceTypeConfig, existingInvoice?: Invoice) => {
@@ -990,11 +1037,44 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     toastSuccess(`Bon à Délivrer (BAD) généré pour le BL ${activeBl.numeroBL}`);
   };
 
+  // Impression du connaissement original export (papier à en-tête BOCS)
+  const handlePrintBl = () => {
+    if (!activeBl) return;
+    const escale = activeEscale || {
+      id: activeBl.escaleId,
+      nomNavire: 'BOCS BREMEN',
+      callsign: 'D5ZW3',
+      numeroVoyage: '25586',
+      portChargement: 'ANVERS (BEANR)',
+      portDechargement: 'ABIDJAN (CIABJ)',
+      dateArrivee: '2025-07-16',
+      statut: 'EN_COURS' as const
+    };
+    // Retrouver le draft export source pour restituer l'édition papier à en-tête.
+    const sourceDraft = drafts.find(d =>
+      (d.numeroBlGenere && d.numeroBlGenere === activeBl.numeroBL) ||
+      (d.numeroDraft && d.numeroDraft === activeBl.numeroBL) ||
+      Math.abs(d.id) === Math.abs(activeBl.id)
+    );
+
+    if (sourceDraft) {
+      generateBocsExportBlLetterheadPdf(sourceDraft, escale, undefined, { withLetterheadHeader: true, nonNegotiable: hasTelexPrestation });
+    } else {
+      generateOriginalBlPdf(activeBl, undefined, { nonNegotiable: hasTelexPrestation });
+    }
+    onLogAudit(
+      'IMPRESSION_BL_EXPORT',
+      'BLOriginal',
+      `Impression du connaissement ${activeBl.numeroBL}${hasTelexPrestation ? ' (Non Négociable — Telex Release)' : ''}`
+    );
+    toastSuccess(`Connaissement ${activeBl.numeroBL} imprimé${hasTelexPrestation ? ' (Non Négociable)' : ''}.`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
       {/* ─── 1. BARRE DE COMMANDE & RECHERCHE UNIVERSELLE MINIMALISTE ─── */}
-      <div className="bg-white rounded-2xl p-3.5 flex flex-col md:flex-row gap-4 items-center border border-zinc-200 shadow-xs">
+      <div className="bg-white rounded-2xl p-3.5 flex flex-col md:flex-row md:flex-wrap gap-4 items-center border border-zinc-200 shadow-xs">
         
         {/* Champ de recherche universel */}
         <div className="relative flex-1 w-full">
@@ -1249,7 +1329,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
             {/* Métriques & Cargaison (3 Piliers) */}
             <div className="glass-panel rounded-2xl p-6 border border-zinc-200 bg-white shadow-xs">
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 <div className="bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 text-center hover:bg-white transition-colors shadow-2xs">
                   <div className="font-black text-[11px] text-zinc-700 uppercase tracking-wider mb-1.5">Poids Brut</div>
                   <div className="text-base font-black text-zinc-950 font-mono">
@@ -1317,7 +1397,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
             {/* Barre de Synthèse Financière du BL Actif */}
             <div className="glass-panel rounded-2xl p-6 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white border border-zinc-200 shadow-xs">
               <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div>
                     <h2 className="text-xl font-black text-[#005DAA] mb-1 font-display tracking-tight">Factures &amp; Prestations</h2>
                     <p className="text-xs text-zinc-500">Émission et suivi des règlements pour ce connaissement.</p>
@@ -1349,7 +1429,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               </div>
 
               {/* Total Financier du BL */}
-              <div className="flex gap-8 text-right bg-zinc-50 p-5 rounded-2xl border border-zinc-200 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-right bg-zinc-50 p-5 rounded-2xl border border-zinc-200 shadow-2xs">
                 <div>
                   <span className="font-black text-[11px] text-zinc-600 uppercase tracking-wider mb-1 block font-mono">Total BL</span>
                   <span className="text-2xl md:text-3xl text-zinc-950 font-black tracking-tight font-mono">
@@ -1357,7 +1437,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     <span className="text-xs font-bold text-zinc-500 ml-0.5">FCFA</span>
                   </span>
                 </div>
-                <div className="w-px bg-zinc-200 my-1"></div>
+                <div className="w-px bg-zinc-200 my-1 hidden sm:block"></div>
                 <div>
                   <span className="font-black text-[11px] text-rose-600 uppercase tracking-wider mb-1 flex items-center justify-end gap-1 font-mono">
                     <span className="material-symbols-outlined text-[15px]">warning</span> Solde Dû
@@ -1377,9 +1457,11 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                 <span>Type de fret : <strong className="text-zinc-950 font-black">{getBlCategory(activeBl)}</strong></span>
               </span>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/20">
-                {getBlCategory(activeBl) === 'CONTENEUR' 
-                  ? 'Facturation par défaut : Caution, Échange et Transfert' 
-                  : 'Facturation par défaut : Échange'}
+                {isExportBl(activeBl) 
+                  ? 'Facturation par défaut : Échange' 
+                  : getBlCategory(activeBl) === 'CONTENEUR' 
+                    ? 'Facturation par défaut : Caution, Échange et Transfert' 
+                    : 'Facturation par défaut : Échange'}
               </span>
             </div>
 
@@ -1637,37 +1719,69 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               )}
             </div>
 
-            {/* Bon à Délivrer (BAD) Status en Pied de Colonne */}
-            <div className="bg-white rounded-2xl p-6 mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-zinc-200 shadow-xs">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-2xs ${
-                  isBadDeliverable 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-zinc-100 text-zinc-500 border-zinc-200'
-                }`}>
-                  <span className="material-symbols-outlined text-[24px]">{isBadDeliverable ? 'lock_open' : 'lock'}</span>
-                </div>
-                <div>
-                  <div className="font-black text-base text-[#005DAA]">Bon à Délivrer (BAD)</div>
-                  <div className="text-xs text-zinc-600 font-medium mt-0.5">
-                    {isBadDeliverable ? 'Toutes les factures sont soldées' : 'Verrouillé jusqu\'au règlement intégral'}
+            {/* BL export : impression du connaissement original — BL import : Bon à Délivrer (BAD) */}
+            {isExportBl(activeBl) ? (
+              <div className="bg-white rounded-2xl p-6 mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-zinc-200 shadow-xs">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-2xs ${
+                    hasTelexPrestation
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-[#F0F7FF] text-[#005DAA] border-[#005DAA]/20'
+                  }`}>
+                    <span className="material-symbols-outlined text-[24px]">{hasTelexPrestation ? 'verified' : 'description'}</span>
+                  </div>
+                  <div>
+                    <div className="font-black text-base text-[#005DAA]">
+                      {hasTelexPrestation ? 'Non Négociable (BL)' : 'Connaissement Original (BL)'}
+                    </div>
+                    <div className="text-xs text-zinc-600 font-medium mt-0.5">
+                      {hasTelexPrestation
+                        ? 'Telex émis — le connaissement original n\'est plus négociable'
+                        : 'Édition du connaissement export sur papier à en-tête BOCS'}
+                    </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={handlePrintBl}
+                  className="px-6 py-3 rounded-xl flex items-center gap-2 font-black text-xs transition-all active:scale-95 border bg-[#005DAA] hover:bg-[#004580] text-white border-transparent cursor-pointer shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[20px]">print</span>
+                  <span>Imprimer BL</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handlePrintBad}
-                disabled={!isBadDeliverable}
-                className={`px-6 py-3 rounded-xl flex items-center gap-2 font-black text-xs transition-all active:scale-95 border ${
-                  isBadDeliverable 
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-transparent cursor-pointer shadow-sm' 
-                    : 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed select-none'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[20px]">print</span>
-                <span>Imprimer BAD</span>
-              </button>
-            </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-6 mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-zinc-200 shadow-xs">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-2xs ${
+                    isBadDeliverable 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                      : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                  }`}>
+                    <span className="material-symbols-outlined text-[24px]">{isBadDeliverable ? 'lock_open' : 'lock'}</span>
+                  </div>
+                  <div>
+                    <div className="font-black text-base text-[#005DAA]">Bon à Délivrer (BAD)</div>
+                    <div className="text-xs text-zinc-600 font-medium mt-0.5">
+                      {isBadDeliverable ? 'Toutes les factures sont soldées' : 'Verrouillé jusqu\'au règlement intégral'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrintBad}
+                  disabled={!isBadDeliverable}
+                  className={`px-6 py-3 rounded-xl flex items-center gap-2 font-black text-xs transition-all active:scale-95 border ${
+                    isBadDeliverable 
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-transparent cursor-pointer shadow-sm' 
+                      : 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed select-none'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">print</span>
+                  <span>Imprimer BAD</span>
+                </button>
+              </div>
+            )}
 
           </div>
 
@@ -1791,7 +1905,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     toastSuccess('Prestations réinitialisées aux valeurs par défaut.');
                   }}
                   className="px-3.5 py-2.5 rounded-xl border border-[#005DAA]/30 bg-[#F0F7FF] text-xs font-bold text-[#005DAA] hover:bg-[#E1EFFF] transition-all cursor-pointer"
-                  title="Appliquer les factures par défaut (Conteneurs: Caution, Échange, Transfert | Vrac/Roro/Conv: Échange)"
+                  title="Appliquer les factures par défaut (Export: Échange | Import Conteneurs: Caution, Échange, Transfert | Import Vrac/Roro/Conv: Échange)"
                 >
                   Rétablir par défaut
                 </button>
@@ -1882,7 +1996,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Mode de Règlement *
@@ -2156,7 +2270,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     const blColis = printPreviewData.bl.nombreColis || 0;
 
                     return (
-                      <div className="grid grid-cols-2 gap-6 my-6 text-[10px] leading-relaxed">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 my-6 text-[10px] leading-relaxed">
                         {/* Detail d'expedition */}
                         <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                           <span className="font-bold text-[#209641] uppercase text-[9px] block mb-2 border-b border-slate-200 pb-1">Détail d'Expédition</span>

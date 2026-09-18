@@ -1527,6 +1527,13 @@ export function App() {
                   activeTab === 'admin_fne' ? 'FNE' :
                     activeTab === 'admin_audit' ? 'AUDIT' : 'USERS'
               }
+              // Resynchronise la navigation globale (Sidebar / Header / URL de
+              // sous-menu) avec l'onglet réellement sélectionné dans la console.
+              onTabChange={tab => setActiveTab(
+                tab === 'RIGHTS' ? 'admin_rights' :
+                  tab === 'FNE' ? 'admin_fne' :
+                    tab === 'AUDIT' ? 'admin_audit' : 'admin_users'
+              )}
               allUsers={allUsers}
               onAddUser={handleAddUser}
               onUpdateUser={handleUpdateUser}

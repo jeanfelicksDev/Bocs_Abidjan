@@ -622,7 +622,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-zinc-700 uppercase mb-1">Callsign / IMO</label>
                   <input
@@ -646,7 +646,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-zinc-700 uppercase mb-1">Port Chargement</label>
                   <input
@@ -724,7 +724,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-zinc-700 uppercase mb-1">Indicatif / N° IMO</label>
                   <input
@@ -747,7 +747,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-zinc-700 uppercase mb-1">Type de Navire</label>
                   <select
@@ -836,7 +836,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-grow border border-zinc-200 rounded-xl">
+            <div className="overflow-x-auto overflow-y-auto flex-grow border border-zinc-200 rounded-xl">
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 font-bold uppercase text-[11px] sticky top-0">
                   <tr>
