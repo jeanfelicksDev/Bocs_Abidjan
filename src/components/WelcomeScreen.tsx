@@ -43,7 +43,11 @@ import {
   Plus,
   Printer,
   LogOut,
-  UserRound
+  UserRound,
+  Download,
+  Bell,
+  Anchor,
+  ArrowRight as ArrowRightIcon
 } from 'lucide-react';
 import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User, TimbreBracket } from '../types';
 import { filterDraftsForUser } from '../utils/draftOwnership';
@@ -130,15 +134,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const canManageEscales = hasPermission(permissionSubject, 'manage_escales');
   const canImportGuce = hasPermission(permissionSubject, 'import_guce_xml');
 
-  // ── Centrage adaptatif du cockpit (VIEW 1) ─────────────────────────────────
-  // Le nombre de cartes réellement affichées dépend du profil connecté (habilitations
-  // effectives de la matrice RBAC). Les grilles à nombre de colonnes fixe laissaient une
-  // colonne vide quand une carte était masquée : les cartes se retrouvaient tassées à
-  // gauche. On utilise donc des rangées flex centrées dont les cartes gardent une largeur
-  // standard par breakpoint (tolérance de 1 à 2px pour absorber les arrondis de pourcentage
-  // sans provoquer de rupture de ligne).
-  const COCKPIT_KPI_CARD = 'w-full sm:w-[calc(50%_-_9px)] lg:w-[calc(25%_-_13px)]';
-  const COCKPIT_PILLAR_CARD = 'w-full sm:w-[calc(50%_-_11px)] md:w-[calc(33.333%_-_15px)] xl:w-[calc(20%_-_17px)]';
+  // ── Grilles du cockpit (VIEW 1) ─────────────────────────────────────────────
+  // KPIs : grille `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4` — les cartes masquées
+  // par le RBAC rééquilibrent naturellement la grille (aucune colonne vide).
+  // Modules : grille `xl:grid-cols-5` — même logique d'adaptation aux habilitations.
 
   // Identité de la personne connectée (nom + rôle lisible), affichée dans l'en-tête
   const connectedUser: User | null = currentUser || null;
@@ -231,6 +230,88 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const pendingDraftsCount = filterDraftsForUser(drafts, currentUser, userRole)
     .filter(d => d.statut === 'SOUMIS' || d.statut === 'BROUILLON').length;
   const totalSoldeDuFcfa = invoices.reduce((acc, inv) => acc + (inv.soldeDuFcfa || 0), 0);
+
+  // ── Données enrichies du tableau de bord (design Stitch « Plateforme Intégrée ») ──
+  // Escale vedette : première escale EN_COURS (accostée en priorité) affichée dans la KPI 1
+  const featuredEscale: Escale | undefined =
+    escales.find(e => e.statut === 'EN_COURS' && e.quai) || escales.find(e => e.statut === 'EN_COURS');
+
+  // Mouvements récents : escales EN_COURS d'abord (accostées puis rade), complétées par les
+  // dernières escales clôturées — maximum 3 lignes comme sur la maquette.
+  const recentMovements: Escale[] = [
+    ...escales.filter(e => e.statut === 'EN_COURS').sort((a, b) => Number(Boolean(b.quai)) - Number(Boolean(a.quai))),
+    ...escales.filter(e => e.statut === 'CLOTUREE').slice(0, 3)
+  ].slice(0, 3);
+
+  // Radar AIS : navires actuellement suivis (escales en cours)
+  const aisShips: Escale[] = escales
+    .filter(e => e.statut === 'EN_COURS')
+    .sort((a, b) => Number(Boolean(b.quai)) - Number(Boolean(a.quai)))
+    .slice(0, 2);
+
+  // Conversion automatique du solde dû : USD (taux serveur) + EUR (parité fixe XOF)
+  const soldeUsd = totalSoldeDuFcfa / (exchangeRateUsd || 600);
+  const soldeEur = totalSoldeDuFcfa / 655.957;
+
+  // Taux de recouvrement global : part du TTC déjà réglée sur les factures actives
+  const activeInvoices = invoices.filter(inv => inv.statutFacture !== 'ANNULEE' && inv.statutFacture !== 'AVOIR');
+  const totalFactureTtc = activeInvoices.reduce((acc, inv) => acc + (inv.montantTtcFcfa || 0), 0);
+  const recoveryRate = totalFactureTtc > 0
+    ? Math.min(100, Math.max(0, ((totalFactureTtc - totalSoldeDuFcfa) / totalFactureTtc) * 100))
+    : 100;
+
+  // Nombre de BLs import déjà facturés (indicateur « traités » de la KPI 2)
+  const facturedBlsCount = bls.filter(b => b.statutImport === 'FACTURE').length;
+
+  // Nombre de modules réellement visibles selon les habilitations RBAC (badge « services connectés »)
+  const visibleModulesCount = [
+    canViewVessels, canViewExport, canViewFacturation, canViewSurestarie, canViewVessels
+  ].filter(Boolean).length;
+
+  // « Nouvelle Escale » : ouvre directement le formulaire intégré si l'utilisateur a le droit,
+  // sinon bascule vers le registre des escales (retour visuel garanti).
+  const handleNouvelleEscale = () => {
+    if (canManageEscales) {
+      setViewState('create-escale');
+    } else if (canViewVessels) {
+      setViewState('escales');
+    } else {
+      onEnter('import');
+    }
+  };
+
+  // « Export Manifeste » : génère le manifeste consolidé de la dernière escale active
+  // (PDF officiel BOCS Abidjan) ; à défaut, ouvre le registre des escales.
+  const handleExportManifeste = () => {
+    const targetEscale = featuredEscale || escales[0];
+    if (targetEscale) {
+      const escBls = bls.filter(b => b.escaleId === targetEscale.id);
+      generateImportManifestPdf(targetEscale, escBls);
+    } else if (canViewVessels) {
+      setViewState('escales');
+    } else {
+      onEnter('import');
+    }
+  };
+
+  // « Détails BL / Facturer » depuis le tableau des mouvements : ouvre l'escale dans le registre
+  const handleOpenEscaleDetail = (escaleId: number) => {
+    if (canViewVessels) {
+      setViewState('escales');
+      setSelectedEscaleId(escaleId);
+    } else {
+      onEnter('import');
+    }
+  };
+
+  // Recherche globale de l'en-tête : bascule vers le registre des escales (VIEW 2) dont le
+  // champ de filtrage dédié (#welcome-search-input) reçoit le focus après le rendu.
+  const handleHeaderSearchFocus = () => {
+    setViewState('escales');
+    setTimeout(() => {
+      document.getElementById('welcome-search-input')?.focus();
+    }, 50);
+  };
 
   // Multi-PDF modal state
   const [showMultiPdfModal, setShowMultiPdfModal] = useState(false);
@@ -636,6 +717,34 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         onChange={handleDirectEscalePdfSelect}
       />
 
+      {/* ─── 0. BARRE DE STATUT PORTUAIRE (PAA / GUCE — Temps réel) ─── */}
+      <div className="w-full bg-[#071D33] text-white z-40 relative shrink-0">
+        <div className="max-w-[2465px] mx-auto px-6 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] sm:text-[11px] font-medium">
+            <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+              PAA / GUCE Côte d'Ivoire : API Opérationnelle
+            </span>
+            <span className="hidden md:inline text-zinc-300">
+              Canal de Vridi : Tirant d'eau autorisé à 13.50 m • Climat Portuaire Favorable
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 text-[10px] sm:text-[11px]">
+            <span
+              className="inline-flex items-center gap-1.5 font-mono font-bold bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-100"
+              title="Horloge GMT — temps universel coordonné"
+            >
+              <Clock className="w-3 h-3 text-cyan-300" />
+              {currentTime || '00:00:00 GMT'}
+            </span>
+            <span className="hidden sm:inline text-zinc-400">Devise :</span>
+            <span className="hidden sm:inline-flex items-center font-black bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-100">
+              XOF (FCFA)
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* ─── 1. TOP EXECUTIVE CLEAN HEADER ─── */}
       <header className="w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md z-30 relative shrink-0 shadow-xs">
         <div className="max-w-[2465px] mx-auto px-6 sm:px-8 py-3.5 flex items-center justify-between">
@@ -647,12 +756,43 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <div className="flex items-center gap-2.5">
                 <span className="text-xl font-black tracking-wider text-zinc-900 font-sans">BOCS CI</span>
               </div>
-              <p className="text-xs text-zinc-500 font-bold mt-0.5">Bremen Overseas Chartering Shipping • Agence Consignataire</p>
+              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-wide mt-0.5 leading-tight">
+                Bremen Overseas Chartering Shipping
+              </p>
+              <p className="text-[10px] text-zinc-400 font-semibold leading-tight">
+                Agence Consignataire &amp; Manutention Portuaire • Port d'Abidjan
+              </p>
             </div>
           </div>
 
           {/* Right Authority & Actions */}
           <div className="flex items-center gap-3 sm:gap-4">
+            {/* Recherche globale (BL, Conteneur, Navire) — focalise l'input du registre */}
+            <div className="hidden md:flex items-center relative">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <input
+                id="welcome-header-search-input"
+                type="text"
+                placeholder="Recherche BL, Conteneur, Navire... (⌘K)"
+                onFocus={handleHeaderSearchFocus}
+                className="w-56 xl:w-72 h-10 pl-10 pr-14 text-xs font-semibold rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#005DAA] focus:bg-white transition-all"
+              />
+              <span className="absolute right-3 text-[9px] font-mono font-black text-zinc-400 bg-white border border-zinc-200 rounded-md px-1.5 py-0.5 pointer-events-none">⌘K</span>
+            </div>
+
+            {/* Notifications (cloche) */}
+            <button
+              type="button"
+              onClick={() => { if (canViewBalance) onEnter('facturation_balance'); }}
+              className="relative p-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-600 hover:text-[#005DAA] transition-all cursor-pointer active:scale-95 shrink-0"
+              title="Notifications & créances à surveiller"
+            >
+              <Bell className="w-4 h-4" />
+              {canViewBalance && totalSoldeDuFcfa > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#005DAA] ring-2 ring-white"></span>
+              )}
+            </button>
+
             <div className="hidden lg:flex items-center gap-3 text-xs">
               <div className="flex items-center gap-2 font-mono text-[#005DAA] bg-[#F0F7FF] px-3.5 py-1.5 rounded-xl border border-[#005DAA]/25 font-black">
                 <Clock className="w-4 h-4 text-[#005DAA]" />
@@ -737,43 +877,83 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         {viewState === 'welcome' && (
           <div className="w-full animate-fade-in">
 
-            {/* ── SECTION A: GRAND HERO BANNER ── */}
-            <div className="bg-white border border-zinc-200 rounded-3xl py-7 px-8 sm:py-8 sm:px-10 shadow-xs relative overflow-hidden">
-
-              <div className="space-y-4 w-full relative z-10">
-
-                <h1 className="text-2xl sm:text-3xl md:text-[28px] lg:text-[36px] xl:text-[42px] font-black tracking-tight leading-tight md:whitespace-nowrap text-[#002B49]">
-                  Plateforme Intégrée de <span className="text-[#00875A] font-serif italic font-normal">Gestion & Facturation Maritime</span>
-                </h1>
-                <p className="text-base text-zinc-600 font-medium leading-relaxed max-w-3xl">
-                  Gestion des escales, suivi des Bls, consolidation des Manifeste et facturation des prestations.
-                </p>
+            {/* ── SECTION A: GRAND HERO BANNER (Hub Portuaire Abidjan CIABJ) ── */}
+            <div className="rounded-3xl border border-zinc-200 bg-gradient-to-br from-[#F0F7FF] via-white to-[#ECFDF5] py-8 px-8 sm:px-10 shadow-xs relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
+                <div className="space-y-4 max-w-3xl">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#005DAA]/30 text-xs font-black text-[#005DAA] shadow-2xs">
+                      <Anchor className="w-3.5 h-3.5" />
+                      Hub Portuaire Abidjan (CIABJ)
+                    </span>
+                    <span className="text-xs font-bold text-zinc-500">Réseau BOCS West Africa Line</span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl md:text-[28px] lg:text-[36px] xl:text-[42px] font-black tracking-tight leading-tight text-[#002B49]">
+                    Plateforme Intégrée de <span className="text-[#00875A] font-serif italic font-normal">Gestion &amp; Facturation Maritime</span>
+                  </h1>
+                  <p className="text-sm sm:text-base text-zinc-600 font-medium leading-relaxed max-w-3xl">
+                    Gestion des escales en rade &amp; à quai, suivi temps réel des BLs, consolidation automatisée du
+                    Manifeste douanier et facturation certifiée DGI / FNE.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleNouvelleEscale}
+                    title="Créer une nouvelle escale portuaire"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-black shadow-md transition-all cursor-pointer active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nouvelle Escale</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportManifeste}
+                    title="Générer le manifeste douanier consolidé (PDF)"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-800 text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <Download className="w-4 h-4 text-[#005DAA]" />
+                    <span>Export Manifeste</span>
+                  </button>
+                </div>
               </div>
-
             </div>
 
             {/* ── SECTION B: 4 KPI BENTO CARDS ── */}
-            <div className="max-w-5xl xl:max-w-6xl mx-auto w-full flex flex-wrap justify-center gap-4 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
 
-              {/* KPI 1 : Escales Actives (RBAC : habilitation Escales/Radar requise) */}
+              {/* KPI 1 : Escales aux Quais (RBAC : habilitation Escales/Radar requise) */}
               {canViewVessels && (
-                <div className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none`}>
-                  <div className="flex justify-between items-start mb-3">
+                <div
+                  onClick={() => setViewState('escales')}
+                  title="Consulter le registre des escales"
+                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
                         Escales aux Quais
                       </h3>
                       <p className="text-[10px] text-zinc-500 mt-0.5">Port d'Abidjan &amp; Rade</p>
                     </div>
-                    <div className="p-2.5 bg-[#005DAA]/10 border border-[#005DAA]/25 rounded-xl text-[#005DAA]">
-                      <span className="material-symbols-outlined text-xl">directions_boat</span>
+                    <div className="p-2.5 bg-[#F0F7FF] border border-[#005DAA]/20 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
+                      <Anchor className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="flex items-baseline space-x-2.5">
-                    <span className="text-4xl font-black text-[#005DAA] font-sans tracking-tight">{activeEscalesCount}</span>
-                    <span className="text-xs font-extrabold text-zinc-800 flex items-center gap-0.5">
-                      <span className="material-symbols-outlined text-sm text-[#00875A]">anchor</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-4xl font-black text-[#002B49] font-sans tracking-tight">{activeEscalesCount}</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#00875A] bg-[#ECFDF5] px-2 py-1 rounded-md border border-[#00875A]/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] animate-pulse shrink-0"></span>
+                      <Anchor className="w-3 h-3" />
                       <span>En cours</span>
+                    </span>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-zinc-800 truncate">
+                      {featuredEscale ? featuredEscale.nomNavire : 'Aucune escale active'}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#005DAA] bg-[#F0F7FF] px-2 py-1 rounded-md border border-[#005DAA]/25 shrink-0">
+                      {featuredEscale?.quai || 'Rade Extérieure'}
                     </span>
                   </div>
                 </div>
@@ -781,22 +961,32 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
               {/* KPI 2 : BLs Import à Traiter (RBAC : habilitation Import GUCE requise) */}
               {canViewImport && (
-                <div className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none`}>
-                  <div className="flex justify-between items-start mb-3">
+                <div
+                  onClick={() => onEnter('import')}
+                  title="Ouvrir le module Import & Escale"
+                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
                         BLs Import à Traiter
                       </h3>
                       <p className="text-[10px] text-zinc-500 mt-0.5">Connaissements ouverts</p>
                     </div>
-                    <div className="p-2.5 bg-[#00875A]/10 border border-[#00875A]/25 rounded-xl text-[#00875A]">
-                      <span className="material-symbols-outlined text-xl">description</span>
+                    <div className="p-2.5 bg-[#ECFDF5] border border-[#00875A]/20 rounded-xl text-[#00875A] group-hover:scale-110 transition-transform">
+                      <FileText className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="flex items-baseline space-x-2.5">
-                    <span className="text-4xl font-black text-[#00875A] font-sans tracking-tight">{pendingImportBlsCount}</span>
-                    <span className="text-[10px] font-bold text-[#00875A] bg-[#ECFDF5] px-2 py-0.5 rounded-md border border-[#00875A]/30">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-4xl font-black text-[#002B49] font-sans tracking-tight">{pendingImportBlsCount}</span>
+                    <span className="text-[10px] font-black text-[#00875A] bg-[#ECFDF5] px-2 py-1 rounded-md border border-[#00875A]/30">
                       À Facturer
+                    </span>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-500">Flux hebdomadaire</span>
+                    <span className="text-[11px] font-black text-[#00875A]" title="Connaissements déjà facturés">
+                      +{facturedBlsCount} traités
                     </span>
                   </div>
                 </div>
@@ -804,21 +994,37 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
               {/* KPI 3 : Drafts Export Soumis (RBAC : habilitation Export requise) */}
               {canViewExport && (
-                <div className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs select-none`}>
-                  <div className="flex justify-between items-start mb-3">
+                <div
+                  onClick={() => onEnter('export')}
+                  title="Ouvrir l'Espace Export & Drafts"
+                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
                         Drafts Export Soumis
                       </h3>
                       <p className="text-[10px] text-zinc-500 mt-0.5">Réservations chargeurs</p>
                     </div>
-                    <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-700">
-                      <span className="material-symbols-outlined text-xl">file_present</span>
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-500 group-hover:scale-110 transition-transform">
+                      <Receipt className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="flex items-baseline space-x-2.5">
-                    <span className="text-4xl font-black text-[#005DAA] font-sans tracking-tight">{pendingDraftsCount}</span>
-                    <span className="text-xs font-semibold text-zinc-600">Attente validation</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-4xl font-black text-[#002B49] font-sans tracking-tight">{pendingDraftsCount}</span>
+                    <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-md border border-zinc-200">
+                      Attente validation
+                    </span>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-500">File de révision</span>
+                    {pendingDraftsCount === 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#00875A]">
+                        Toutes traitées <Check className="w-3.5 h-3.5" />
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-black text-amber-500">{pendingDraftsCount} en attente</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -827,54 +1033,78 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewBalance && (
                 <div
                   onClick={() => onEnter('facturation_balance')}
-                  className={`${COCKPIT_KPI_CARD} bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between hover:border-[#005DAA] transition-all cursor-pointer group shadow-xs hover:shadow-md select-none`}
                   title="Consulter la Balance Âgée & Suivi des Créances"
+                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="flex justify-between items-start mb-3">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 group-hover:text-[#005DAA] transition-colors">
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
                         Créances &amp; Solde Dû
                       </h3>
                       <p className="text-[10px] text-zinc-500 mt-0.5">Règlements attendus</p>
                     </div>
-                    <div className="p-2.5 bg-[#005DAA]/10 border border-[#005DAA]/25 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
-                      <span className="material-symbols-outlined text-xl">payments</span>
+                    <div className="p-2.5 bg-[#F0F7FF] border border-[#005DAA]/20 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
+                      <CreditCard className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xl font-black text-zinc-900 font-sans">{totalSoldeDuFcfa.toLocaleString('fr-FR')} FCFA</span>
-                    <span className="text-[11px] text-[#005DAA] font-bold mt-0.5">~{(totalSoldeDuFcfa / exchangeRateUsd).toFixed(0)} USD</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[26px] xl:text-4xl font-black text-[#002B49] font-sans tracking-tight leading-none">
+                      {totalSoldeDuFcfa.toLocaleString('fr-FR')}
+                    </span>
+                    <span className="text-xs font-black text-zinc-600">FCFA</span>
+                  </div>
+                  <div className="text-[10px] font-mono font-bold mt-1.5">
+                    <span className="text-zinc-400">≈ </span>
+                    <span className="text-[#005DAA]">{soldeUsd.toLocaleString('fr-FR')} USD</span>
+                    <span className="text-zinc-300"> | </span>
+                    <span className="text-zinc-500">{soldeEur.toLocaleString('fr-FR')} EUR</span>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-500">Taux de recouvrement</span>
+                    <span className="text-[11px] font-black text-[#00875A]">{recoveryRate.toFixed(1).replace('.', ',')}%</span>
                   </div>
                 </div>
               )}
 
             </div>
 
-            {/* ── SECTION D: 5 BUSINESS PILLARS (CLEAN MINIMAL CARDS) ── */}
-            <div className="flex flex-wrap justify-center gap-5 mt-8 sm:mt-12 lg:mt-[4cm]">
+            {/* ── SECTION C: MODULES OPÉRATIONNELS & CONSIGNATION ── */}
+            <div className="mt-10">
+              <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-[#002B49] font-display tracking-tight">
+                    Modules Opérationnels &amp; Consignation
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-500 font-medium mt-1">
+                    Accès direct aux workflows maritimes, facturation fiscale et pilotage de flotte
+                  </p>
+                </div>
+                <span className="text-[11px] font-bold text-zinc-400">{visibleModulesCount} services connectés</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
 
               {/* Module 1: Manifestes & Escales (RBAC : habilitation Escales requise) */}
               {canViewVessels && (
                 <div
                   onClick={() => setViewState('escales')}
-                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
+                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
                 >
                   <div>
-                    <div className="mb-5">
-                      <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                        <Layers3 className="w-7 h-7" />
+                    <div className="mb-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
+                        <Layers3 className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
                       Import &amp; Escale
                     </h3>
-                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                      Parsing automatisé des fichiers XML douaniers, détection des conteneurs SOC/COC, vrac et suivi du registre.
+                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
+                      Parsing automatisé des fichiers XML douaniers, détection des conteneurs SOC/COC, vrac et suivi rigoureux du registre.
                     </p>
                   </div>
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
+                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#005DAA]">
                     <span>Consulter le Registre</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               )}
@@ -883,24 +1113,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewExport && (
                 <div
                   onClick={() => onEnter('export')}
-                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
+                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
                 >
                   <div>
-                    <div className="mb-5">
-                      <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                        <Ship className="w-7 h-7" />
+                    <div className="mb-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
+                        <Clock className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                      Drafts & BL Export
+                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
+                      Drafts &amp; BL Export
                     </h3>
-                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
-                      Saisie des instructions de connaissement (Shipping Instructions), validation armateur et émission des BLs.
+                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
+                      Saisie des instructions de connaissement (Shipping Instructions), validation armateur et émission officielle des BLs.
                     </p>
                   </div>
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
+                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#005DAA]">
                     <span>Espace Export</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               )}
@@ -909,36 +1139,38 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewFacturation && (
                 <div
                   onClick={() => onEnter('facturation')}
-                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
+                  className="relative ocean-glass-card rounded-2xl p-5 pt-6 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-2 border-[#00875A]/50 bg-gradient-to-b from-[#ECFDF5]/60 to-white"
                 >
+                  <span className="absolute -top-2.5 right-4 z-10 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00875A] text-white text-[9px] font-black uppercase tracking-wider shadow-sm">
+                    FNE Certifié
+                  </span>
                   <div>
-                    <div className="mb-5">
-                      <div className="w-14 h-14 rounded-2xl bg-[#00875A]/10 border border-[#00875A]/20 flex items-center justify-center text-[#00875A] group-hover:bg-[#00875A] group-hover:text-white transition-all shadow-xs">
-                        <Receipt className="w-7 h-7" />
+                    <div className="mb-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#ECFDF5] border border-[#00875A]/30 flex items-center justify-center text-[#00875A] group-hover:bg-[#00875A] group-hover:text-white transition-all shadow-xs">
+                        <Receipt className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
                       Facturation Maritime
                     </h3>
-                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
                       Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours) et facturation certifiée DGI / FNE sans doublon.
                     </p>
                   </div>
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between gap-2">
-                    <span className="text-sm font-black text-[#00875A] flex items-center gap-1">
-                      Facturation & Reçus
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  <div className="pt-4 mt-4 border-t border-emerald-100 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-[#00875A] flex-1 min-w-0">
+                      Facturation &amp; Reçus
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform shrink-0" />
                     </span>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onEnter('facturation_config'); }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-[#00875A]/10 border border-slate-200 hover:border-[#00875A]/30 text-slate-500 hover:text-[#00875A] transition-all text-[11px] font-bold cursor-pointer shrink-0"
+                      className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#00875A]/10 border border-slate-200 hover:border-[#00875A]/30 text-slate-500 hover:text-[#00875A] transition-all cursor-pointer shrink-0"
                       title="Paramètres de facturation"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                       </svg>
-                      Paramètres
                     </button>
                   </div>
                 </div>
@@ -948,24 +1180,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewSurestarie && (
                 <div
                   onClick={() => onEnter('surestarie')}
-                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white`}
+                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white"
                 >
                   <div>
-                    <div className="mb-5">
-                      <div className="w-14 h-14 rounded-2xl bg-[#D94817]/10 border border-[#D94817]/20 flex items-center justify-center text-[#D94817] group-hover:bg-[#D94817] group-hover:text-white transition-all shadow-xs">
-                        <Calculator className="w-7 h-7" />
+                    <div className="mb-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#FFF4ED] border border-[#D94817]/20 flex items-center justify-center text-[#D94817] group-hover:bg-[#D94817] group-hover:text-white transition-all shadow-xs">
+                        <Calculator className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
+                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
                       Calcul des DMDT
                     </h3>
-                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
                       Calcul dégressif des surestaries &amp; détentions conteneurs, franchises import/export et émission proforma.
                     </p>
                   </div>
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#D94817]">
+                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#D94817]">
                     <span>Calculateur DMDT</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               )}
@@ -974,55 +1206,202 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               {canViewVessels && (
                 <div
                   onClick={() => onEnter('vessels')}
-                  className={`${COCKPIT_PILLAR_CARD} ocean-glass-card rounded-3xl p-6 xl:p-7 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-sm hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white`}
+                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
                 >
                   <div>
-                    <div className="mb-5">
-                      <div className="w-14 h-14 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                        <Compass className="w-7 h-7" />
+                    <div className="mb-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
+                        <Compass className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-black text-xl text-[#005DAA] transition-colors mb-2 font-display">
-                      Radar & Quai Vridi
+                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
+                      Radar &amp; Quai Vridi
                     </h3>
-                    <p className="text-sm text-zinc-600 leading-relaxed font-normal">
+                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
                       Positionnement des navires en rade, programmation des postes à quai et calendrier officiel des mouvements.
                     </p>
                   </div>
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-sm font-black text-[#005DAA]">
+                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#005DAA]">
                     <span>Radar Flotte</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               )}
 
+              </div>
             </div>
 
-            {/* ── SECTION E: FOOTER LEGAL & COMPLIANCE (Matching Image 2) ── */}
-            <footer className="mt-16 sm:mt-20 pt-6 border-t border-zinc-200 flex flex-wrap items-center justify-between text-[11px] font-semibold text-zinc-500 gap-4 select-none">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1.5 text-zinc-700">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#00875A]" />
-                  <span>Conformité Douanière GUCE &amp; DGI FNE (Côte d'Ivoire)</span>
+            {/* ── SECTION D: MOUVEMENTS NAVIRES & BLs RÉCENTS + RADAR AIS LIVE ── */}
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 mt-10">
+
+              {/* Colonne gauche : Mouvements Navires & BLs Récents */}
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 sm:p-7 shadow-xs">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-black text-[#002B49] font-display tracking-tight">
+                      Mouvements Navires &amp; BLs Récents
+                    </h2>
+                    <p className="text-xs text-zinc-500 font-medium mt-1">
+                      Flux d'escales en cours de consignation et déclarations en douane
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewState('escales')}
+                    className="inline-flex items-center gap-1.5 text-xs font-black text-[#005DAA] hover:text-[#004580] transition-colors cursor-pointer"
+                  >
+                    Voir tout le registre
+                    <ArrowRightIcon className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <span className="text-zinc-300">•</span>
-                <div className="flex items-center gap-1.5 text-zinc-700">
-                  <Database className="w-3.5 h-3.5 text-[#005DAA]" />
-                  <span>PostgreSQL Neon Cloud Chiffré</span>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="text-[10px] uppercase tracking-wider text-zinc-400 font-black border-b border-zinc-100">
+                        <th className="pb-3 pr-4 font-black">Navire / Voyage</th>
+                        <th className="pb-3 pr-4 font-black">Poste / Quai</th>
+                        <th className="pb-3 pr-4 font-black hidden md:table-cell">Cargaison / EVP</th>
+                        <th className="pb-3 pr-4 font-black">Statut Escale</th>
+                        <th className="pb-3 font-black text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentMovements.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-xs font-semibold text-zinc-400">
+                            Aucune escale en cours — le registre est vide.
+                          </td>
+                        </tr>
+                      ) : (
+                        recentMovements.map((esc) => {
+                          const escBls = bls.filter(b => b.escaleId === esc.id);
+                          const blFacture = escBls.length > 0 && escBls.every(b => b.statutImport === 'FACTURE');
+                          const evpCount = escBls.reduce((acc, b) => acc + (b.conteneurs?.length || 0), 0);
+                          return (
+                            <tr key={esc.id} className="border-b border-zinc-50 last:border-0 hover:bg-[#F0F7FF]/40 transition-colors">
+                              <td className="py-3.5 pr-4">
+                                <div className="text-xs font-black text-zinc-900">{esc.nomNavire}</div>
+                                <div className="text-[10px] font-mono text-zinc-400 mt-0.5">Voyage {esc.numeroVoyage}</div>
+                              </td>
+                              <td className="py-3.5 pr-4">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-zinc-700">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${esc.quai ? 'bg-[#00875A]' : 'bg-amber-400'}`}></span>
+                                  {esc.quai || 'Rade Extérieure'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 pr-4 hidden md:table-cell">
+                                <span className="text-[11px] font-semibold text-zinc-600">
+                                  {evpCount > 0 ? `${evpCount} EVP` : (escBls[0]?.descriptionGoods?.slice(0, 24) || '—')}
+                                </span>
+                              </td>
+                              <td className="py-3.5 pr-4">
+                                <span className={`text-[10px] font-black px-2 py-1 rounded-md border ${esc.quai
+                                    ? 'text-[#00875A] bg-[#ECFDF5] border-[#00875A]/30'
+                                    : 'text-amber-600 bg-amber-50 border-amber-200'
+                                  }`}>
+                                  {esc.quai ? 'À Quai' : 'Attente Accostage'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleOpenEscaleDetail(esc.id); }}
+                                  className="text-[11px] font-black text-[#005DAA] hover:text-[#004580] hover:underline transition-colors cursor-pointer"
+                                >
+                                  {blFacture ? 'Facturer' : 'Détails BL'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-                {hasPermission(permissionSubject, 'admin_rights_assign') && (
-                  <>
-                    <span className="text-zinc-300">•</span>
+              </div>
+
+              {/* Colonne droite : Radar AIS Live Abidjan (Canal de Vridi & Rade) */}
+              <div className="relative bg-[#071D33] rounded-3xl p-6 sm:p-7 text-white shadow-md overflow-hidden flex flex-col">
+                <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full border border-cyan-400/20 pointer-events-none"></div>
+                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full border border-cyan-400/30 pointer-events-none"></div>
+                <div className="absolute top-8 right-16 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none"></div>
+
+                <div className="relative z-10 flex flex-col h-full">
+                  <span className="inline-flex self-start items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-400/15 border border-cyan-400/30 text-[10px] font-black uppercase tracking-wider text-cyan-300">
+                    <Radio className="w-3 h-3" />
+                    AIS Live Abidjan
+                  </span>
+                  <h3 className="text-lg font-black mt-4 tracking-tight">Canal de Vridi &amp; Rade</h3>
+                  <p className="text-[11px] text-cyan-100/70 font-medium mt-1">
+                    Surveillance AIS des flux entrants BOCS. Entrée canal fluide.
+                  </p>
+
+                  <div className="space-y-2.5 mt-5 flex-1">
+                    {aisShips.length === 0 ? (
+                      <p className="text-[11px] text-cyan-100/60 font-semibold py-4">
+                        Aucun navire détecté — aucune escale active.
+                      </p>
+                    ) : (
+                      aisShips.map((esc, idx) => (
+                        <div key={esc.id} className={`rounded-xl px-4 py-3 border ${idx === 0 ? 'bg-white/[0.07] border-white/10' : 'bg-white/[0.03] border-white/5'}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-xs font-black truncate">{esc.nomNavire}</div>
+                              <div className="text-[10px] text-cyan-100/60 font-mono mt-0.5">
+                                {esc.quai ? 'Position : à quai' : 'Position : en rade'}
+                              </div>
+                            </div>
+                            <span className={`text-[9px] font-black px-2 py-1 rounded-md shrink-0 ${esc.quai
+                                ? 'bg-[#00875A]/25 text-emerald-300 border border-[#00875A]/40'
+                                : 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                              }`}>
+                              {esc.quai ? 'À Quai' : 'En Rade'}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="pt-4 mt-5 border-t border-white/10 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-cyan-100/70">
+                      Marée : <span className="font-black text-white">Haute (+1,4 m)</span>
+                    </span>
                     <button
                       type="button"
-                      onClick={() => onEnter('admin_rights')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all font-bold text-[11px] cursor-pointer hover:shadow-xs active:scale-95"
-                      title="Accéder directement à l'attribution des droits utilisateurs (Admin)"
+                      onClick={() => onEnter('vessels')}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-black text-cyan-300 hover:text-cyan-200 transition-colors cursor-pointer"
                     >
-                      <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Attribution des Profils</span>
+                      Plein écran
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </button>
-                  </>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION E: FOOTER LEGAL & COMPLIANCE ── */}
+            <footer className="mt-10 pt-6 border-t border-zinc-200 flex flex-wrap items-center justify-between text-[11px] font-semibold text-zinc-500 gap-4 select-none">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ECFDF5] border border-[#00875A]/25 text-[#006E48] font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#00875A]" />
+                  <span>Conformité Douanière GUCE &amp; DGI FNE (Côte d'Ivoire)</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 border border-zinc-200 text-zinc-700 font-bold">
+                  <Database className="w-3.5 h-3.5 text-[#005DAA]" />
+                  <span>PostgreSQL Neon Cloud Chiffré</span>
+                </span>
+                {hasPermission(permissionSubject, 'admin_rights_assign') && (
+                  <button
+                    type="button"
+                    onClick={() => onEnter('admin_rights')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all font-bold cursor-pointer hover:shadow-xs active:scale-95"
+                    title="Accéder directement à l'attribution des droits utilisateurs (Admin)"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Attribution des Profils RBAC</span>
+                  </button>
                 )}
               </div>
               <div className="text-zinc-500">

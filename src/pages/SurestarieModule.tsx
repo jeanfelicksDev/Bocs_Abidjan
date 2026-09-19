@@ -201,13 +201,24 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
         }
 
         const isDet = regimeFilter === 'DETENTION';
-        const existingInvoice = invoices.find(inv =>
-          (inv.blId === bl.id || inv.numeroBL === bl.numeroBL) &&
-          inv.statutFacture !== 'ANNULEE' &&
-          (inv.invoiceTypeId === sureTypeConfig.id ||
-           (isDet ? inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET')
-                  : inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR')))
-        );
+        // Rapprochement de la proforma existante : match PRÉCIS d'abord (même type de
+        // facture — id de config ou libellé exact), puis fallback régime (factures legacy).
+        // Sans cette hiérarchie, une proforma « Détention Import » fait apparaître le badge
+        // « Proforma OK » sur les lignes « Détention Export » du même BL (deux types de
+        // facture distincts partageant le régime DETENTION).
+        const existingInvoice =
+          invoices.find(inv =>
+            (inv.blId === bl.id || inv.numeroBL === bl.numeroBL) &&
+            inv.statutFacture !== 'ANNULEE' &&
+            (inv.invoiceTypeId === sureTypeConfig.id || inv.typeFacture === sureTypeConfig.name)
+          ) ||
+          invoices.find(inv =>
+            (inv.blId === bl.id || inv.numeroBL === bl.numeroBL) &&
+            inv.statutFacture !== 'ANNULEE' &&
+            (isDet
+              ? inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET')
+              : inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR'))
+          );
 
         rows.push({
           blId: bl.id,
@@ -308,8 +319,25 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
     const dateStr = now.toISOString().split('T')[0];
     const isDet = regimeFilter === 'DETENTION';
     const prefix = isDet ? 'PROF-DET' : 'PROF-SUR';
+    // Code discriminant du type de facture : « Détention Import » et « Détention Export »
+    // partagent le même régime (DETENTION) — sans ce segment, deux proformas distinctes
+    // reçoivent le même numéro (PROF-DET-<BL>-<AAAAMM>), ce qui viole l'unicité fiscale
+    // exigée par la certification DGI / FNE.
+    const typeName = (sureTypeConfig.name || '').toLowerCase();
+    const typeCode = typeName.includes('import') ? 'IMP' : typeName.includes('export') ? 'EXP' : '';
     const cleanBL = row.numeroBL.replace(/[^a-zA-Z0-9-]/g, '-');
-    const numeroProforma = `${prefix}-${cleanBL}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const periode = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const baseNumero = [prefix, typeCode, cleanBL, periode].filter(Boolean).join('-');
+
+    // Garde-fou anti-collision : un numéro de facture n'est jamais réutilisé (même après
+    // annulation). Une ré-émission du même couple (type, BL) sur la même période — après
+    // annulation, ou pour un autre conteneur facturé séparément — reçoit un suffixe -02, -03…
+    let numeroProforma = baseNumero;
+    let seq = 1;
+    while (invoices.some(inv => inv.numeroFacture === numeroProforma)) {
+      seq += 1;
+      numeroProforma = `${baseNumero}-${String(seq).padStart(2, '0')}`;
+    }
 
     const lines = calc.details.flatMap((det: any, idx: number) =>
       det.breakdown?.length > 0
@@ -356,7 +384,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
       lignes: lines as any,
       devise: 'FCFA',
       tauxChangeUsd: 600,
-      fneReference: `FNE-BOCS-${prefix}-${bl.numeroBL}-${ttc}`
+      fneReference: `FNE-BOCS-${numeroProforma}-${ttc}`
     };
 
     onGenerateInvoice(newInvoice);
