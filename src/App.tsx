@@ -53,6 +53,11 @@ import {
 } from './utils/taxeAdditionnelle';
 import { applyTimbreFiscalToInvoice } from './utils/timbreFiscal';
 import { snapshotContenuDraft } from './utils/draftDiff';
+import {
+  getInvoiceTypePrefix,
+  getInvoiceTypeDiscriminant,
+  resolveUniqueInvoiceNumber
+} from './utils/invoiceMatching';
 
 export function App() {
   // Global Application & Auth State
@@ -898,21 +903,10 @@ export function App() {
     }
   };
 
-  // Dérive un préfixe court (3 lettres) depuis le nom du type de facture
-  const getInvoiceTypePrefix = (typeName: string): string => {
-    const n = (typeName || '').toLowerCase();
-    if (n.includes('telex') || n.includes('télex')) return 'TEL';
-    if (n.includes('surestarie') || n.includes('suréstarie')) return 'SUR';
-    if (n.includes('detention') || n.includes('détention')) return 'DET';
-    if (n.includes('echange') || n.includes('échange')) return 'ECH';
-    if (n.includes('caution')) return 'CAU';
-    if (n.includes('transfert')) return 'TRF';
-    if (n.includes('fret')) return 'FRT';
-    // Fallback : 3 premières lettres capitalisées
-    const clean = n.replace(/^facture\s+/i, '').trim();
-    return clean.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '') || 'FAC';
-  };
-
+  // Numérotation : [FA-]<PRÉFIXE><DISCRIMINANT><voyage>-BOCS###
+  // Le discriminant (IMP/EXP) départage les types partageant un préfixe —
+  // sans lui, « Détention Import » et « Détention Export » d'un même BL
+  // produisaient des références identiques (doublon fiscal).
   const getNextInvoiceNumber = (
     type: 'PROFORMA' | 'FACTURE',
     voyageNumber: string,
@@ -921,9 +915,10 @@ export function App() {
   ): string => {
     const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
     const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
+    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
     const faPrefix = type === 'FACTURE' ? 'FA-' : '';
     // Format : [FA-]TEL25586-BOCS001
-    const searchPrefix = `${faPrefix}${typePrefix}${cleanVoyage}-BOCS`;
+    const searchPrefix = `${faPrefix}${typePrefix}${typeDiscriminant}${cleanVoyage}-BOCS`;
 
     const matchedNumbers = existingInvoices
       .map(inv => inv.numeroFacture || '')
@@ -974,7 +969,11 @@ export function App() {
         }
         // Récupérer le nom du type de facture pour le préfixe
         const invTypeName = invoiceTypeConfigs.find(t => t.id === targetInvoice.invoiceTypeId)?.name || '';
-        newFinalNumber = getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName);
+        newFinalNumber = resolveUniqueInvoiceNumber(
+          getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName),
+          invoices,
+          targetInvoice.id
+        );
         numeroFacture = newFinalNumber;
       }
 
@@ -1046,7 +1045,11 @@ export function App() {
         }
       }
       const invTypeName = invoiceTypeConfigs.find(t => t.id === target.invoiceTypeId)?.name || '';
-      numeroFacture = getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName);
+      numeroFacture = resolveUniqueInvoiceNumber(
+        getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName),
+        invoices,
+        target.id
+      );
 
       if (typeFacture === 'PROFORMA_IMPORT') typeFacture = 'DEFINITIVE_IMPORT';
       if (typeFacture === 'PROFORMA_EXPORT') typeFacture = 'DEFINITIVE_EXPORT';
@@ -1135,7 +1138,10 @@ export function App() {
       }
     }
     const origTypeName = invoiceTypeConfigs.find(t => t.id === originalInvoice.invoiceTypeId)?.name || '';
-    const newInvoiceNumber = getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, origTypeName);
+    const newInvoiceNumber = resolveUniqueInvoiceNumber(
+      getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, origTypeName),
+      invoices
+    );
 
     const newInvoice: Invoice = applyTaxeAdditionnelleToInvoice({
       ...originalInvoice,

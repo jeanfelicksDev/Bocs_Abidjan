@@ -3,6 +3,14 @@ import { BL, Escale, Invoice, UserRole, InvoiceTypeConfig, RubriqueConfig, Conta
 import { isValidatedExportDraft, mapDraftToExportBl } from '../utils/exportBlMapper';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel } from '../utils/taxeAdditionnelle';
 import { computeTimbreFiscal, getNetAPayerFcfa, getModeReglementLabel, MODES_REGLEMENT } from '../utils/timbreFiscal';
+import {
+  getInvoiceTypePrefix,
+  invoiceMatchesType,
+  findInvoiceForType,
+  resolveUniqueInvoiceNumber,
+  getInvoiceTypeDiscriminant,
+  rememberIssuedNumber
+} from '../utils/invoiceMatching';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { generateProformaPdf, generateDoBadPdf, generateOriginalBlPdf, generateBocsExportBlLetterheadPdf } from '../utils/pdfGenerator';
@@ -321,19 +329,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     }
   };
 
-  // Helper prefix
-  const getInvoiceTypePrefix = (typeName: string): string => {
-    const n = (typeName || '').toLowerCase();
-    if (n.includes('telex') || n.includes('télex')) return 'TEL';
-    if (n.includes('surestarie') || n.includes('suréstarie')) return 'SUR';
-    if (n.includes('detention') || n.includes('détention')) return 'DET';
-    if (n.includes('echange') || n.includes('échange')) return 'ECH';
-    if (n.includes('caution')) return 'CAU';
-    if (n.includes('transfert')) return 'TRF';
-    if (n.includes('fret')) return 'FRT';
-    const clean = n.replace(/^facture\s+/i, '').trim();
-    return clean.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '') || 'FAC';
-  };
+  // Helper prefix : voir `utils/invoiceMatching` (source unique de vérité,
+  // partagée avec FacturationModule / ImportModule / SurestarieModule).
 
   const getNextInvoiceNumber = (
     type: 'PROFORMA' | 'FACTURE',
@@ -343,13 +340,18 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
   ): string => {
     const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
     const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
+    // Segment discriminant : « Détention Import » et « Détention Export » partagent
+    // le préfixe `DET`. Sans ce segment, leurs proformas se disputent le même numéro
+    // (une seule carte pouvait alors afficher la facture de l'autre type — le doublon).
+    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
+    const typeSegment = `${typePrefix}${typeDiscriminant}`;
     const faPrefix = type === 'FACTURE' ? 'FA-' : '';
-    const searchPrefix = `${faPrefix}${typePrefix}${cleanVoyage}-BOCS`;
-    
+    const searchPrefix = `${faPrefix}${typeSegment}${cleanVoyage}-BOCS`;
+
     const matchedNumbers = existingInvoices
       .map(inv => inv.numeroFacture || '')
       .filter(num => num.startsWith(searchPrefix));
-      
+
     let maxCounter = 0;
     matchedNumbers.forEach(num => {
       const suffix = num.replace(searchPrefix, '');
@@ -358,10 +360,17 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
         maxCounter = counterVal;
       }
     });
-    
-    const nextCounter = maxCounter + 1;
-    const nextCounterStr = String(nextCounter).padStart(3, '0');
-    return `${searchPrefix}${nextCounterStr}`;
+
+    // Le compteur est calculé sur les numéros présents en base ; on y ajoute une
+    // seconde barrière (registre de session) pour couvrir les émissions successives
+    // effectuées avant le re-rendu React, qui réutilisaient le même compteur.
+    let nextCounter = maxCounter + 1;
+    let candidate = `${searchPrefix}${String(nextCounter).padStart(3, '0')}`;
+    while (existingInvoices.some(inv => inv.numeroFacture === candidate)) {
+      nextCounter += 1;
+      candidate = `${searchPrefix}${String(nextCounter).padStart(3, '0')}`;
+    }
+    return candidate;
   };
 
   // Détection d'un connaissement export (typeOperation EXPORT).
@@ -418,11 +427,10 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     // 2. Garantir que toute facture existant pour ce BL (ex: Proforma Détention ou Surestarie émise)
     // dispose impérativement d'un typeConfig pour être obligatoirement affichée dans la liste
     blInvoices.forEach(inv => {
-      const match = allConfigs.find(t => 
-        t.id === inv.invoiceTypeId ||
-        (inv.typeFacture && t.name.toLowerCase() === inv.typeFacture.toLowerCase()) ||
-        (inv.numeroFacture && inv.numeroFacture.includes(getInvoiceTypePrefix(t.name)))
-      );
+      // Rapprochement strict : un préfixe commun (`DET`) ne suffit pas à rattacher
+      // une facture à un type — sinon « Détention Export » absorberait la proforma
+      // « Détention Import » et masquerait la vraie configuration.
+      const match = allConfigs.find(t => invoiceMatchesType(inv, t, allConfigs));
       if (!match) {
         const isDet = inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET');
         const isSur = inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR');
@@ -435,12 +443,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     });
 
     return allConfigs.filter(typeConfig => {
-      const prefix = getInvoiceTypePrefix(typeConfig.name);
-      const existingInvoice = blInvoices.find(inv => 
-        inv.invoiceTypeId === typeConfig.id ||
-        (inv.numeroFacture && inv.numeroFacture.includes(prefix)) ||
-        (inv.typeFacture && inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-      );
+      const existingInvoice = findInvoiceForType(blInvoices, typeConfig, allConfigs);
 
       // RÈGLE ABSOLUE : Si une facture existe déjà (proforma ou validée ou payée), TOUJOURS L'AFFICHER !
       if (existingInvoice) return true;
@@ -795,7 +798,13 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     const escale = escales.find(e => e.id === bl.escaleId);
     const voyageNum = escale?.numeroVoyage || '25586';
 
-    const proformaNumber = existingInvoice?.numeroFacture || getNextInvoiceNumber('PROFORMA', voyageNum, invoices, typeConfig.name);
+    const proformaNumber = existingInvoice
+      ? existingInvoice.numeroFacture
+      : resolveUniqueInvoiceNumber(
+          getNextInvoiceNumber('PROFORMA', voyageNum, invoices, typeConfig.name),
+          invoices
+        );
+    if (!existingInvoice) rememberIssuedNumber(proformaNumber);
     const now = new Date().toISOString().split('T')[0];
 
     return {
@@ -941,7 +950,15 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     const escale = escales.find(e => e.id === bl.escaleId);
     const voyageNum = escale?.numeroVoyage || '25586';
 
-    const proformaNumber = existingInvoice?.numeroFacture || getNextInvoiceNumber('PROFORMA', voyageNum, invoices, typeConfig.name);
+    // Numéro unique : base calculée sur la séquence officielle (compteur voyage + type
+    // discriminant), puis barrière anti-collision DGI/FNE (suffixe -02, -03…).
+    const proformaNumber = existingInvoice
+      ? existingInvoice.numeroFacture
+      : resolveUniqueInvoiceNumber(
+          getNextInvoiceNumber('PROFORMA', voyageNum, invoices, typeConfig.name),
+          invoices
+        );
+    if (!existingInvoice) rememberIssuedNumber(proformaNumber);
     const now = new Date().toISOString().split('T')[0];
 
     const invoicePayload: Invoice = {
@@ -1498,12 +1515,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     typeConfig.name.toLowerCase().includes('detention') || 
                     typeConfig.name.toLowerCase().includes('détention');
 
-                  const prefix = getInvoiceTypePrefix(typeConfig.name);
-                  const existingInvoice = blInvoices.find(inv => 
-                    inv.invoiceTypeId === typeConfig.id ||
-                    (inv.numeroFacture && inv.numeroFacture.includes(prefix)) ||
-                    (inv.typeFacture && inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-                  );
+                  const existingInvoice = findInvoiceForType(blInvoices, typeConfig, invoiceTypeConfigs);
 
                   const isProforma = existingInvoice && !(existingInvoice.numeroFacture || '').startsWith('FA-') && existingInvoice.statutFacture !== 'VALIDEE';
                   const isValidated = existingInvoice && (existingInvoice.statutFacture === 'VALIDEE' || (existingInvoice.numeroFacture || '').startsWith('FA-'));

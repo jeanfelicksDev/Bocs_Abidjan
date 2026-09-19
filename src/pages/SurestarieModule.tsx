@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { BL, Escale, Invoice, InvoiceTypeConfig, Payment, UserRole } from '../types';
 import { DEFAULT_TARIFS, DEFAULT_FRANCHISES } from '../utils/dmdtCalculator';
+import { resolveUniqueInvoiceNumber } from '../utils/invoiceMatching';
 import { toastSuccess, toastError } from '../components/common/Toast';
 import {
   Search, Calculator, FileText, CheckCircle2, Clock, AlertTriangle,
@@ -332,12 +333,9 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
     // Garde-fou anti-collision : un numéro de facture n'est jamais réutilisé (même après
     // annulation). Une ré-émission du même couple (type, BL) sur la même période — après
     // annulation, ou pour un autre conteneur facturé séparément — reçoit un suffixe -02, -03…
-    let numeroProforma = baseNumero;
-    let seq = 1;
-    while (invoices.some(inv => inv.numeroFacture === numeroProforma)) {
-      seq += 1;
-      numeroProforma = `${baseNumero}-${String(seq).padStart(2, '0')}`;
-    }
+    // `resolveUniqueInvoiceNumber` consulte en outre le registre de session, ce qui couvre
+    // les émissions successives d'un même cycle de rendu (état React encore périmé).
+    const numeroProforma = resolveUniqueInvoiceNumber(baseNumero, invoices);
 
     const lines = calc.details.flatMap((det: any, idx: number) =>
       det.breakdown?.length > 0

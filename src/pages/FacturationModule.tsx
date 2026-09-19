@@ -5,6 +5,10 @@ import { BL, Escale, Invoice, CreditNote, Payment, UserRole, TarifSurestarie, Co
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, normalizeTaxeAdditionnelleConfig, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel, getTaxeAdditionnelleModeLabel } from '../utils/taxeAdditionnelle';
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf, generateDoBadPdf, generateCreditNotePdf } from '../utils/pdfGenerator';
+import {
+  invoiceMatchesType,
+  findInvoiceForType
+} from '../utils/invoiceMatching';
 import { BlBillingModule } from './BlBillingModule';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 
@@ -87,18 +91,8 @@ export function suggestTariffCode(name: string): string {
   return `${words[0].slice(0, 2)}-${words[1].slice(0, 2)}${words[2].slice(0, 2)}`;
 }
 
-function getInvoiceTypePrefix(typeName: string): string {
-  const n = (typeName || '').toLowerCase();
-  if (n.includes('telex') || n.includes('télex')) return 'TEL';
-  if (n.includes('surestarie') || n.includes('suréstarie')) return 'SUR';
-  if (n.includes('detention') || n.includes('détention')) return 'DET';
-  if (n.includes('echange') || n.includes('échange')) return 'ECH';
-  if (n.includes('caution')) return 'CAU';
-  if (n.includes('transfert')) return 'TRF';
-  if (n.includes('fret')) return 'FRT';
-  const clean = n.replace(/^facture\s+/i, '').trim();
-  return clean.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '') || 'FAC';
-}
+// `getInvoiceTypePrefix` provient désormais de `utils/invoiceMatching`
+// (source unique de vérité partagée avec BlBillingModule / ImportModule).
 
 function getPlannedTypeIdsForBl(bl: BL | undefined, invoiceTypeConfigs: InvoiceTypeConfig[]): string[] {
   if (!bl) return [];
@@ -1002,12 +996,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
         plannedIds.forEach(id => {
           const typeConfig = invoiceTypeConfigs.find(t => t.id === id);
           if (typeConfig) {
-            const prefix = getInvoiceTypePrefix(typeConfig.name);
-            const inv = groupInvoices.find(invoice => 
-              invoice.invoiceTypeId === typeConfig.id ||
-              (invoice.numeroFacture && prefix && invoice.numeroFacture.toUpperCase().includes(prefix.toUpperCase())) ||
-              (invoice.typeFacture && invoice.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-            );
+            const inv = findInvoiceForType(groupInvoices, typeConfig, invoiceTypeConfigs);
             if (inv) {
               generatedCount++;
               if (inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE') {
@@ -1328,11 +1317,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
                     // 2. S'assurer que chaque facture existante dans ce groupe de factures possède une configuration
                     g.invoices.forEach(inv => {
-                      const match = allConfigs.find(t => 
-                        t.id === inv.invoiceTypeId ||
-                        (inv.typeFacture && t.name.toLowerCase() === inv.typeFacture.toLowerCase()) ||
-                        (inv.numeroFacture && inv.numeroFacture.toUpperCase().includes(getInvoiceTypePrefix(t.name).toUpperCase()))
-                      );
+                      const match = allConfigs.find(t => invoiceMatchesType(inv, t, allConfigs));
                       if (!match) {
                         const isDet = inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET');
                         const isSur = inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR');
@@ -1347,26 +1332,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     // 3. Filtrer les types à afficher :
                     // - Tout type ayant déjà une facture émise (RÈGLE ABSOLUE : toujours affiché)
                     // - Ou tout type faisant partie des prestations planifiées pour ce BL
-                    const configsToDisplay = allConfigs.filter(typeConfig => {
-                      const prefix = getInvoiceTypePrefix(typeConfig.name);
-                      const existingInvoice = g.invoices.find(inv => 
-                        inv.invoiceTypeId === typeConfig.id ||
-                        (inv.numeroFacture && prefix && inv.numeroFacture.toUpperCase().includes(prefix.toUpperCase())) ||
-                        (inv.typeFacture && inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-                      );
-
-                      if (existingInvoice) return true;
-                      return plannedIds.includes(typeConfig.id);
-                    });
+                    const configsToDisplay = allConfigs.filter(typeConfig =>
+                      !!findInvoiceForType(g.invoices, typeConfig, allConfigs) ||
+                      plannedIds.includes(typeConfig.id)
+                    );
 
                     // On vérifie si toutes les factures planifiées sont générées et payées (vertes)
                     const allInvoicesPaidAndGreen = configsToDisplay.length > 0 && configsToDisplay.every(typeConfig => {
-                      const prefix = getInvoiceTypePrefix(typeConfig.name);
-                      const inv = g.invoices.find(invoice => 
-                        invoice.invoiceTypeId === typeConfig.id ||
-                        (invoice.numeroFacture && prefix && invoice.numeroFacture.toUpperCase().includes(prefix.toUpperCase())) ||
-                        (invoice.typeFacture && invoice.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-                      );
+                      const inv = findInvoiceForType(g.invoices, typeConfig, allConfigs);
                       return inv && (inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE') && inv.statutFacture !== 'ANNULEE' && inv.statutFacture !== 'AVOIR';
                     });
 
@@ -1384,13 +1357,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             const unissuedCount = plannedIds.filter(id => {
                               const typeConfig = invoiceTypeConfigs.find(t => t.id === id);
                               if (!typeConfig) return false;
-                              const prefix = getInvoiceTypePrefix(typeConfig.name);
-                              const found = g.invoices.some(inv => 
-                                inv.invoiceTypeId === id ||
-                                (inv.numeroFacture && prefix && inv.numeroFacture.toUpperCase().includes(prefix.toUpperCase())) ||
-                                (inv.typeFacture && inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-                              );
-                              return !found;
+                              return !findInvoiceForType(g.invoices, typeConfig, allConfigs);
                             }).length;
                             if (unissuedCount > 0) {
                               return (
@@ -1412,12 +1379,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex flex-wrap items-center justify-end gap-1.5">
                             {configsToDisplay.map(typeConfig => {
-                              const prefix = getInvoiceTypePrefix(typeConfig.name);
-                              const inv = g.invoices.find(invoice => 
-                                invoice.invoiceTypeId === typeConfig.id ||
-                                (invoice.numeroFacture && prefix && invoice.numeroFacture.toUpperCase().includes(prefix.toUpperCase())) ||
-                                (invoice.typeFacture && invoice.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase()))
-                              );
+                              const inv = findInvoiceForType(g.invoices, typeConfig, allConfigs);
 
                               let typeName = typeConfig.name.replace(/^Facture\s+/i, '');
 

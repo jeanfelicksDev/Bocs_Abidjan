@@ -6,6 +6,14 @@ import { generateProformaPdf, generateDoBadPdf, generateImportManifestPdf } from
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { MultiPdfImportModal, EscaleCommitGroup } from '../components/import/MultiPdfImportModal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import {
+  getInvoiceTypePrefix,
+  getInvoiceTypeDiscriminant,
+  findInvoiceForType,
+  invoiceMatchesType,
+  resolveUniqueInvoiceNumber,
+  rememberIssuedNumber
+} from '../utils/invoiceMatching';
 
 interface ImportModuleProps {
   escales: Escale[];
@@ -674,20 +682,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
     return Array.from(new Set(categories));
   };
 
-  // Dérive un préfixe court (3 lettres) depuis le nom du type de facture
-  const getInvoiceTypePrefix = (typeName: string): string => {
-    const n = (typeName || '').toLowerCase();
-    if (n.includes('telex') || n.includes('télex')) return 'TEL';
-    if (n.includes('surestarie') || n.includes('suréstarie')) return 'SUR';
-    if (n.includes('detention') || n.includes('détention')) return 'DET';
-    if (n.includes('echange') || n.includes('échange')) return 'ECH';
-    if (n.includes('caution')) return 'CAU';
-    if (n.includes('transfert')) return 'TRF';
-    if (n.includes('fret')) return 'FRT';
-    const clean = n.replace(/^facture\s+/i, '').trim();
-    return clean.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '') || 'FAC';
-  };
-
+  // Numérotation : [FA-]<PRÉFIXE><DISCRIMINANT><voyage>-BOCS###
+  // Le discriminant (IMP/EXP) départage les types partageant un préfixe —
+  // sans lui, « Détention Import » et « Détention Export » d'un même BL
+  // produisaient des références identiques (doublon fiscal).
   const getNextInvoiceNumber = (
     type: 'PROFORMA' | 'FACTURE',
     voyageNumber: string,
@@ -696,8 +694,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   ): string => {
     const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
     const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
+    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
     const faPrefix = type === 'FACTURE' ? 'FA-' : '';
-    const searchPrefix = `${faPrefix}${typePrefix}${cleanVoyage}-BOCS`;
+    const searchPrefix = `${faPrefix}${typePrefix}${typeDiscriminant}${cleanVoyage}-BOCS`;
     
     const matchedNumbers = existingInvoices
       .map(inv => inv.numeroFacture || '')
@@ -740,11 +739,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           // Ne jamais cocher les surestaries/détentions par défaut sauf si déjà calculées ou réglées
           const calcKey = `${bl.id}-${typeConfig.id}`;
           const isCalcValidated = validatedCalculations[calcKey] !== undefined;
-          const matchingInv = invoices.find(inv => 
-            (inv.blId === bl.id || inv.numeroBL === bl.numeroBL) &&
-            (inv.invoiceTypeId === typeConfig.id || inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase())) &&
-            inv.statutFacture !== 'ANNULEE' &&
-            (inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE')
+          const matchingInv = findInvoiceForType(
+            invoices,
+            typeConfig,
+            invoiceTypeConfigs,
+            inv =>
+              (inv.blId === bl.id || inv.numeroBL === bl.numeroBL) &&
+              inv.statutFacture !== 'ANNULEE' &&
+              (inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE')
           );
           if (!isCalcValidated && !matchingInv) return false;
         }
@@ -790,9 +792,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
     const paidTypeIds = invoiceTypeConfigs
       .filter(t => {
-        const inv = invoices.find(i => 
+        const inv = invoices.find(i =>
           (i.blId === blForInvoiceSelection.id || i.numeroBL === blForInvoiceSelection.numeroBL) &&
-          (i.invoiceTypeId === t.id || i.typeFacture.toLowerCase().includes(t.name.toLowerCase())) &&
+          invoiceMatchesType(i, t, invoiceTypeConfigs) &&
           i.statutFacture !== 'ANNULEE' &&
           (i.soldeDuFcfa === 0 || i.statutPaiement === 'PAYE')
         );
@@ -972,7 +974,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
     const targetEscale = escales.find(e => e.id === bl.escaleId);
     const voyageNumber = targetEscale ? targetEscale.numeroVoyage : 'VOYAGE';
-    const nextProformaNumber = getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, typeConfig.name);
+    const nextProformaNumber = resolveUniqueInvoiceNumber(
+      getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, typeConfig.name),
+      invoices
+    );
     const today = new Date().toISOString().split('T')[0];
 
     const invoice: Invoice = {
@@ -1306,29 +1311,19 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   const plannedTypeIds = plannedInvoicesByBl[bl.id] || bl.selectedInvoiceTypeIds || [];
                   const plannedConfigs = invoiceTypeConfigs.filter(t => plannedTypeIds.includes(t.id));
                   
-                  const generatedConfigs = plannedConfigs.filter(t => 
-                    activeBlInvoices.some(i => 
-                       i.invoiceTypeId === t.id || 
-                       i.typeFacture.toLowerCase().includes(t.name.toLowerCase())
-                    )
+                  const generatedConfigs = plannedConfigs.filter(t =>
+                    activeBlInvoices.some(i => invoiceMatchesType(i, t, invoiceTypeConfigs))
                   );
 
                   const paidConfigs = plannedConfigs.filter(t => {
-                    const inv = activeBlInvoices.find(i => 
-                      i.invoiceTypeId === t.id || 
-                      i.typeFacture.toLowerCase().includes(t.name.toLowerCase())
-                    );
+                    const inv = findInvoiceForType(activeBlInvoices, t, invoiceTypeConfigs);
                     return inv && (inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE');
                   });
 
                   const cancelledConfigs = plannedConfigs.filter(t => {
-                    const hasActive = activeBlInvoices.some(i => 
-                      i.invoiceTypeId === t.id || 
-                      i.typeFacture.toLowerCase().includes(t.name.toLowerCase())
-                    );
-                    const hasCancelled = blInvoices.some(i => 
-                      (i.invoiceTypeId === t.id || 
-                       i.typeFacture.toLowerCase().includes(t.name.toLowerCase())) &&
+                    const hasActive = activeBlInvoices.some(i => invoiceMatchesType(i, t, invoiceTypeConfigs));
+                    const hasCancelled = blInvoices.some(i =>
+                      invoiceMatchesType(i, t, invoiceTypeConfigs) &&
                       (i.statutFacture === 'ANNULEE' || i.statutFacture === 'AVOIR')
                     );
                     return !hasActive && hasCancelled;
@@ -1572,16 +1567,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         {plannedConfigs.length > 0 && (
                           <>
                             {plannedConfigs.map(typeConfig => {
-                              const activeInv = activeBlInvoices.find(inv => 
-                                inv.invoiceTypeId === typeConfig.id || 
-                                inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase())
-                              );
+                              const activeInv = findInvoiceForType(activeBlInvoices, typeConfig, invoiceTypeConfigs);
 
-                              const cancelledInv = !activeInv ? blInvoices.find(inv => 
-                                (inv.invoiceTypeId === typeConfig.id || 
-                                 inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase())) &&
-                                (inv.statutFacture === 'ANNULEE' || inv.statutFacture === 'AVOIR')
-                              ) : undefined;
+                              const cancelledInv = !activeInv
+                                ? findInvoiceForType(
+                                    blInvoices,
+                                    typeConfig,
+                                    invoiceTypeConfigs,
+                                    inv => inv.statutFacture === 'ANNULEE' || inv.statutFacture === 'AVOIR'
+                                  )
+                                : undefined;
 
                               const isGen = !!activeInv;
                               const isPaid = activeInv ? (activeInv.soldeDuFcfa === 0 || activeInv.statutPaiement === 'PAYE') : false;
@@ -2046,11 +2041,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   {(() => {
                     const plannedIds = plannedInvoicesByBl[selectedBlDetails.id] || [];
                     const plannedConfigs = invoiceTypeConfigs.filter(t => plannedIds.includes(t.id));
-                    const pendingConfigs = plannedConfigs.filter(t => 
-                      !blInvoices.some(inv => 
-                        inv.invoiceTypeId === t.id || 
-                        inv.typeFacture.toLowerCase().includes(t.name.toLowerCase())
-                      )
+                    const pendingConfigs = plannedConfigs.filter(t =>
+                      !blInvoices.some(inv => invoiceMatchesType(inv, t, invoiceTypeConfigs))
                     );
                     return (
                       <>
@@ -2441,11 +2433,13 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       return !isSurestarie && !isDetention;
                     })
                     .map(typeConfig => {
-                    const matchingInv = invoices.find(inv => 
-                      (inv.blId === blForInvoiceSelection.id || inv.numeroBL === blForInvoiceSelection.numeroBL) &&
-                      (inv.invoiceTypeId === typeConfig.id || 
-                       inv.typeFacture.toLowerCase().includes(typeConfig.name.toLowerCase())) &&
-                      inv.statutFacture !== 'ANNULEE'
+                    const matchingInv = findInvoiceForType(
+                      invoices,
+                      typeConfig,
+                      invoiceTypeConfigs,
+                      inv =>
+                        (inv.blId === blForInvoiceSelection.id || inv.numeroBL === blForInvoiceSelection.numeroBL) &&
+                        inv.statutFacture !== 'ANNULEE'
                     );
                     const isAlreadyPaid = matchingInv ? (matchingInv.soldeDuFcfa === 0 || matchingInv.statutPaiement === 'PAYE') : false;
                     const isDangerousBl = blForInvoiceSelection.conteneurs?.some(c => c.isDangerous) || false;
