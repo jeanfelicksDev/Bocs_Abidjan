@@ -251,6 +251,9 @@
   --c-blue-50:   rgb(var(--night-accent-soft));
 
   --focus-ring-color: rgb(var(--night-link));
+  /* --c-white devient une surface en sombre : le texte sur accent reste blanc. */
+  --text-on-accent: #ffffff;
+  --text-on-inverse: rgb(var(--night-ink));
 
   --surface-canvas: rgb(var(--night-canvas));
   --surface-sunken: rgb(var(--night-sunken));

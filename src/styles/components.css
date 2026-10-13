@@ -413,10 +413,7 @@ textarea[aria-invalid='true'] {
               transform var(--duration-base) var(--ease-out);
 }
 
-.bocs-strip-cell:hover:not(:disabled) { 
-  background-color: var(--deck-ground); 
-  transform: translateY(-2px);
-}
+.bocs-strip-cell:hover:not(:disabled) { background-color: var(--deck-ground); }
 
 .bocs-strip-cell:disabled {
   cursor: not-allowed;
@@ -475,6 +472,8 @@ textarea[aria-invalid='true'] {
 }
 
 .bocs-deck-head__title {
+  color: inherit;
+  margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -602,7 +601,7 @@ textarea[aria-invalid='true'] {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  border: 1px solid rgba(11, 27, 43, 0.12);
+  border: 1px solid var(--cell-rule);
   flex-shrink: 0;
 }
 
@@ -636,15 +635,7 @@ textarea[aria-invalid='true'] {
 }
 
 .bocs-register-row:last-child { border-bottom: 0; }
-.bocs-register-row:hover:not(:disabled) { 
-  background-color: var(--deck-ground);
-  transform: scale(1.005) translateX(4px);
-  border-color: transparent;
-  box-shadow: var(--elevation-1);
-  border-radius: var(--radius-md);
-  z-index: 10;
-  position: relative;
-}
+.bocs-register-row:hover:not(:disabled) { background-color: var(--deck-ground); }
 .bocs-register-row:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .bocs-register-row__no {
@@ -679,3 +670,107 @@ textarea[aria-invalid='true'] {
   min-width: 34px;
   text-align: right;
 }
+
+/* --- Le pont, suite : sélection, cale vide, fiche d'inspection ----------- */
+
+/* En sombre, le bandeau du pont ne s'inverse pas en aplat clair : il reste une
+   surface relevée, l'encre fait le contraste. */
+.dark .bocs-deck-head {
+  background-color: rgb(var(--night-raised));
+  color: var(--ink);
+}
+
+.bocs-deck-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.bocs-deck-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(196px, 1fr);
+  gap: 1px;
+  background-color: var(--cell-rule);
+  min-width: 100%;
+}
+
+.bocs-cell {
+  position: relative;
+  padding-right: 52px; /* place de la coordonnée */
+}
+
+.bocs-cell .bocs-coord {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+}
+
+.bocs-cell[aria-pressed="true"] {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+  filter: none;
+}
+
+/* Une cellule vide garde sa coordonnée : la cale vide reste une cale. */
+.bocs-cell--empty {
+  cursor: default;
+  min-height: 44px;
+  background-image: repeating-linear-gradient(
+    -45deg, transparent 0 6px, var(--border-subtle) 6px 7px
+  );
+}
+.bocs-cell--empty:hover { filter: none; }
+
+/* Remplissage baie par baie, une seule fois, à l'arrivée sur le plan. */
+@keyframes bocs-cell-fill {
+  from { opacity: 0; background-color: var(--cell-bg); }
+}
+.bocs-cell--enter {
+  animation: bocs-cell-fill 260ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+.bocs-cell-more {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-align: left;
+  color: var(--text-link);
+  background-color: var(--cell-bg);
+  border: 0;
+  cursor: pointer;
+}
+.bocs-cell-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.bocs-hold-fill { flex: 1; background-color: var(--cell-bg); }
+
+/* Fiche d'inspection : la cellule sélectionnée, lisible, puis ouvrable. */
+.bocs-inspector {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--cell-bg);
+  border-top: 1px solid var(--cell-rule);
+}
+
+@media (max-width: 640px) {
+  .bocs-inspector { grid-template-columns: minmax(0, 1fr); }
+}
+
+.bocs-inspector__swatch {
+  width: 14px;
+  height: 36px;
+  border-radius: 3px;
+  border: 1px solid var(--cell-rule);
+}
+
+/* La pastille de clé porte aussi le filet de son état : lisible sur le bandeau
+   sombre comme sur le clair. */
+.bocs-legend__swatch--ok { border-color: var(--state-ok-line); }
+.bocs-legend__swatch--todo { border-color: var(--state-todo-line); }
+.bocs-legend__swatch--wait { border-color: var(--state-wait-line); }
+.bocs-legend__swatch--late { border-color: var(--state-late-line); }

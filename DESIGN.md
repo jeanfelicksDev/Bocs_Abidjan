@@ -60,3 +60,23 @@ Tous les textes sont ≥ 4,5:1 sur leur surface. Le sombre dérive du bleu nuit 
 - ~1 900 tailles de texte fractionnaires (`text-[14.4px]`) héritées de l'ancien `zoom: 0.75`.
 - Hex clairs en dur dans les modules (thème clair) — à migrer vers les rôles.
 - `legacy.css` et `dark-safety.css` disparaissent quand les modules consomment les rôles.
+
+## 7. Cockpit d'accueil : le plan de chargement
+`src/components/cockpit/CockpitPlan.tsx`, monté par `WelcomeScreen` (vue « welcome »).
+Brief : `.impeccable/surfaces/src-components-welcomescreen-tsx.md`.
+
+- **Adapté au métier** : le plan montre les BL (Administration, Agent import), les drafts
+  (Agent export, Client export) ou les factures (Comptabilité). Bande de comptes, libellés
+  d'état et action principale changent avec le profil.
+- **Bande de liquidation** (`.bocs-strip`) : quatre comptes jointifs, valeur à droite en
+  chiffres tabulaires, coordonnée `L-0n`.
+- **Pont** (`.bocs-deck`) : colonnes = escales (baies `B0n`, triées par urgence), cellules
+  `.bocs-cell--{late|todo|wait|ok}` = dossiers, coordonnée `baie·rang`. Clé avec effectifs.
+  Cale vide : grille hachurée qui garde ses coordonnées + l'action du métier.
+- **Fiche d'inspection** (`.bocs-inspector`) : la cellule sélectionnée (clic / clavier) se lit,
+  puis « Ouvrir » ou double-clic mène au module.
+- **Registre des modules** (`.bocs-register`) : lignes numérotées, effectif réel par module,
+  filtrées par les habilitations.
+- **Mouvement** : remplissage baie par baie à l'arrivée (`.bocs-cell--enter`), une seule fois.
+- Aucune valeur non mesurée : les anciennes mentions de marée, tirant d'eau et état d'API
+  ont été retirées.
