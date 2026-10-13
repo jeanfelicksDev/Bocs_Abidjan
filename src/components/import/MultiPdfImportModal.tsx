@@ -126,8 +126,8 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
       volumeM3: 0,
       typeMarchandise: 'CONVENTIONNEL',
       conteneurs: [],
-      nomNavire: currentTargetEscale ? currentTargetEscale.nomNavire : 'BOCS BREMEN',
-      numeroVoyage: currentTargetEscale ? currentTargetEscale.numeroVoyage : '25586'
+      nomNavire: currentTargetEscale ? currentTargetEscale.nomNavire : '',
+      numeroVoyage: currentTargetEscale ? currentTargetEscale.numeroVoyage : ''
     }));
 
     setItems(prev => [...prev, ...placeholders]);
@@ -290,33 +290,34 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in font-sans" onClick={overlayClickClose(onClose)}>
-      <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in font-sans" onClick={overlayClickClose(onClose)}>
+      <div className="bg-surface-canvas dark:bg-night-surface rounded-lg w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden">
         
         {/* ── HEADER MODALE ── */}
-        <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/70">
+        <div className="px-6 py-4 border-b border-border-default dark:border-night-line flex items-center justify-between bg-surface-base dark:bg-night-sunken/70">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#005DAA]/10 text-[#005DAA] flex items-center justify-center border border-[#005DAA]/20 shadow-xs">
+            <div className="w-10 h-10 rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-ink flex items-center justify-center border border-[#005DAA] dark:border-night-line/20 shadow-1">
               <Upload className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-zinc-950 font-display tracking-tight flex items-center gap-2">
+              <h2 className="text-xl font-black text-zinc-950 font-display tracking-tight flex items-center gap-2">
                 <span>Centre de Chargement &amp; Extraction des Manifestes</span>
-                <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30 flex items-center gap-1">
+                <span className="text-sm font-mono font-black px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30 flex items-center gap-1">
                   <Scan className="w-3 h-3" />
                   Multi-BLs &amp; OCR
                 </span>
               </h2>
-              <p className="text-xs text-zinc-500 font-medium">
+              <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium">
                 Sélectionnez les manifestes à charger. Tous les connaissements extraits seront rattachés à l'escale sélectionnée.
               </p>
             </div>
           </div>
 
           <button
+            aria-label="Fermer"
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-xl hover:bg-zinc-200 text-zinc-400 hover:text-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
+            className="w-9 h-9 rounded-md hover:bg-zinc-200 text-text-muted dark:text-night-ink-3 hover:text-text-primary transition-colors flex items-center justify-center cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -326,17 +327,17 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
           {/* 1. Sélecteur Majeur d'Escale (L'utilisateur choisit son escale de rattachement) */}
-          <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4.5 space-y-3">
+          <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-4.5 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#005DAA]/10 text-[#005DAA] flex items-center justify-center border border-[#005DAA]/20 shrink-0">
+                <div className="w-9 h-9 rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link flex items-center justify-center border border-[#005DAA] dark:border-night-line/20 shrink-0">
                   <Ship className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#005DAA] font-mono block">
+                  <span className="text-2xs font-black uppercase tracking-wider text-[#005DAA] dark:text-night-link font-mono block">
                     Escale Maritime de Rattachement (Sélection Utilisateur)
                   </span>
-                  <span className="text-xs text-zinc-600 font-medium">
+                  <span className="text-sm text-text-secondary dark:text-night-ink font-medium">
                     Tous les connaissements de ces manifestes seront rattachés à cette escale :
                   </span>
                 </div>
@@ -348,7 +349,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                   <select
                     value={selectedTargetEscaleId}
                     onChange={(e) => setSelectedTargetEscaleId(Number(e.target.value))}
-                    className="w-full bg-white border border-zinc-300 rounded-xl px-3.5 py-2 font-bold text-xs text-zinc-900 focus:outline-none focus:border-[#005DAA] shadow-2xs cursor-pointer"
+                    className="w-full bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md px-3.5 py-2 font-bold text-sm text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] shadow-1 cursor-pointer"
                   >
                     {escales.map((esc) => (
                       <option key={esc.id} value={esc.id}>
@@ -358,7 +359,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                   </select>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl">
+                    <span className="text-sm font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-md">
                       Aucune escale disponible. L'escale doit être créée avant l'import.
                     </span>
                     {onRequestCreateEscale && (
@@ -368,7 +369,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                           onClose();
                           onRequestCreateEscale();
                         }}
-                        className="px-3 py-1.5 bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-bold rounded-xl transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        className="px-3 py-1.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white text-sm font-bold rounded-md transition-all cursor-pointer inline-flex items-center gap-1 shadow-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Créer une escale</span>
@@ -381,28 +382,28 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
 
             {/* Fiche récapitulative de l'escale sélectionnée */}
             {currentTargetEscale && (
-              <div className="pt-2 border-t border-zinc-200 flex flex-wrap items-center gap-4 text-xs font-mono">
+              <div className="pt-2 border-t border-border-default dark:border-night-line flex flex-wrap items-center gap-4 text-sm font-mono">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-500 font-bold text-[11px]">Navire :</span>
-                  <span className="font-black text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                  <span className="text-text-muted dark:text-night-ink-2 font-bold text-xs">Navire :</span>
+                  <span className="font-black text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface px-2 py-0.5 rounded border border-border-default dark:border-night-line">
                     {currentTargetEscale.nomNavire}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-500 font-bold text-[11px]">Voyage :</span>
-                  <span className="font-black text-[#005DAA] bg-[#F0F7FF] px-2 py-0.5 rounded border border-[#005DAA]/30">
+                  <span className="text-text-muted dark:text-night-ink-2 font-bold text-xs">Voyage :</span>
+                  <span className="font-black text-[#005DAA] dark:text-night-link bg-[#F0F7FF] px-2 py-0.5 rounded border border-[#005DAA] dark:border-night-line/30">
                     {currentTargetEscale.numeroVoyage}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-500 font-bold text-[11px]">Ligne :</span>
-                  <span className="text-zinc-700 font-medium">
+                  <span className="text-text-muted dark:text-night-ink-2 font-bold text-xs">Ligne :</span>
+                  <span className="text-text-secondary dark:text-night-ink font-medium">
                     {currentTargetEscale.portChargement} → {currentTargetEscale.portDechargement}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-500 font-bold text-[11px]">Date prévue :</span>
-                  <span className="text-zinc-700 font-medium">
+                  <span className="text-text-muted dark:text-night-ink-2 font-bold text-xs">Date prévue :</span>
+                  <span className="text-text-secondary dark:text-night-ink font-medium">
                     {currentTargetEscale.dateArrivee || 'Non fixée'}
                   </span>
                 </div>
@@ -415,10 +416,10 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-3xl p-6 sm:p-7 text-center transition-all cursor-pointer ${
+            className={`border-2 border-dashed rounded-lg p-6 sm:p-7 text-center transition-all cursor-pointer ${
               isDragOver 
-                ? 'border-[#005DAA] bg-[#F0F7FF]/60 scale-[0.99]' 
-                : 'border-zinc-300 hover:border-[#005DAA] bg-zinc-50/50 hover:bg-zinc-50'
+                ? 'border-[#005DAA] dark:border-night-line bg-[#F0F7FF]/60 scale-[0.99]' 
+                : 'border-zinc-300 dark:border-night-line-strong hover:border-[#005DAA] bg-surface-base dark:bg-night-sunken/50 hover:bg-surface-base '
             }`}
             onClick={() => {
               if (escales.length === 0) {
@@ -441,26 +442,26 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
             />
 
             <div className="max-w-md mx-auto space-y-2.5">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#005DAA]/10 text-[#005DAA] border border-[#005DAA]/20 flex items-center justify-center shadow-xs">
+              <div className="w-12 h-12 mx-auto rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center shadow-1">
                 <FileText className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-black text-zinc-950">
+                <p className="text-base font-black text-zinc-950">
                   {escales.length > 0 
                     ? `Sélectionnez les manifestes PDF à rattacher à ${currentTargetEscale?.nomNavire || 'l\'escale'}`
                     : "Veuillez d'abord créer une escale avant de sélectionner des manifestes"}
                 </p>
-                <p className="text-xs text-zinc-500 font-medium">
+                <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium">
                   {escales.length > 0
                     ? `Tous les connaissements extraits seront directement rattachés à l'escale (Voyage ${currentTargetEscale?.numeroVoyage || ''}).`
                     : "L'escale maritime doit être préalablement créée par l'utilisateur."}
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2 pt-1 text-[11px] font-mono text-zinc-500">
-                <span className="px-2 py-0.5 rounded-md bg-white border border-zinc-200">1 PDF = N BLs</span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-zinc-200">Conteneurs ISO</span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-zinc-200">Vrac &amp; Silos</span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-zinc-200">BSC / FDI</span>
+              <div className="flex items-center justify-center gap-2 pt-1 text-xs font-mono text-text-muted dark:text-night-ink-2">
+                <span className="px-2 py-0.5 rounded-md bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line">1 PDF = N BLs</span>
+                <span className="px-2 py-0.5 rounded-md bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line">Conteneurs ISO</span>
+                <span className="px-2 py-0.5 rounded-md bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line">Vrac &amp; Silos</span>
+                <span className="px-2 py-0.5 rounded-md bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line">BSC / FDI</span>
               </div>
             </div>
           </div>
@@ -469,7 +470,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
           {items.length > 0 && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 font-mono text-xs">
+                <div className="flex items-center gap-2 font-mono text-sm">
                   <span className="font-black text-zinc-950 uppercase tracking-wider">
                     Connaissements détectés ({validCount})
                   </span>
@@ -479,7 +480,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                     <>
                       <span className="h-3.5 w-px bg-zinc-300" />
                       <span className="font-bold text-sky-600 flex items-center gap-1.5">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#005DAA]" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#005DAA] dark:text-night-link" />
                         <span>Extraction en cours ({extractingCount} document(s)...)</span>
                       </span>
                     </>
@@ -490,15 +491,15 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3.5 py-1.5 bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-800 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95"
+                    className="px-3.5 py-1.5 bg-surface-canvas dark:bg-night-surface hover:bg-surface-base border border-zinc-300 dark:border-night-line-strong text-text-primary dark:text-night-ink rounded-md text-sm font-black flex items-center gap-1.5 transition-all shadow-1 cursor-pointer active:scale-95"
                   >
-                    <Plus className="w-3.5 h-3.5 text-[#005DAA]" />
+                    <Plus className="w-3.5 h-3.5 text-[#005DAA] dark:text-night-link" />
                     <span>Ajouter d'autres manifestes PDF</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleClearAll}
-                    className="px-3 py-1.5 text-zinc-500 hover:text-rose-600 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-text-muted dark:text-night-ink-2 hover:text-rose-600 rounded-md text-sm font-bold transition-colors cursor-pointer"
                   >
                     Vider la liste
                   </button>
@@ -506,11 +507,11 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
               </div>
 
               {/* Table de vérification & ajustement des BLs avant validation */}
-              <div className="border border-zinc-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+              <div className="border border-border-default dark:border-night-line rounded-md overflow-hidden bg-surface-canvas dark:bg-night-surface shadow-1">
                 <div className="overflow-x-auto max-h-[440px] bocs-scrollbar">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full text-left border-collapse text-sm">
                     <thead>
-                      <tr className="bg-zinc-100/80 border-b border-zinc-200 sticky top-0 z-10 text-[11px] font-mono uppercase tracking-wider text-zinc-700">
+                      <tr className="bg-surface-sunken/80 border-b border-border-default dark:border-night-line sticky top-0 z-10 text-xs font-mono uppercase tracking-wider text-text-secondary dark:text-night-ink">
                         <th className="p-3 pl-4">Manifeste Source</th>
                         <th className="p-3">N° Connaissement (BL)</th>
                         <th className="p-3">Fret / Marchandise</th>
@@ -521,7 +522,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                         <th className="p-3 text-right pr-4">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-200">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-night-line">
                       {items.map((item) => {
                         const isExtracting = item.status === 'EXTRACTING';
                         const isError = item.status === 'ERROR';
@@ -541,7 +542,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                                     ? 'bg-sky-50 text-sky-600 border border-sky-200' 
                                     : isError 
                                       ? 'bg-rose-50 text-rose-600 border border-rose-200' 
-                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 border border-emerald-200 dark:border-night-positive-line'
                                 }`}>
                                   {isExtracting ? (
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -552,18 +553,18 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                                   )}
                                 </div>
                                 <div className="truncate">
-                                  <p className="font-mono font-bold text-zinc-900 truncate group-hover:text-[#005DAA] transition-colors" title={item.fileName}>
+                                  <p className="font-mono font-bold text-text-primary dark:text-night-ink truncate group-hover:text-[#005DAA] transition-colors" title={item.fileName}>
                                     {item.fileName}
                                   </p>
                                   <div className="flex items-center gap-1 mt-0.5">
                                     {item.status === 'SUCCESS' && (
                                       item.wasOcr ? (
-                                        <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-mono font-bold flex items-center gap-0.5">
+                                        <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200 text-2xs font-mono font-bold flex items-center gap-0.5">
                                           <Scan className="w-2.5 h-2.5" />
                                           OCR Scanné
                                         </span>
                                       ) : (
-                                        <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-mono font-bold">
+                                        <span className="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 border border-emerald-200 dark:border-night-positive-line text-2xs font-mono font-bold">
                                           PDF Texte
                                         </span>
                                       )
@@ -576,13 +577,13 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* N° BL (Éditable en ligne) */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-28 bg-zinc-100 animate-pulse rounded-md" />
+                                <div className="h-6 w-28 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
                               ) : (
                                 <input
                                   type="text"
                                   value={item.numeroBL}
                                   onChange={e => handleUpdateItemField(item.fileId, 'numeroBL', e.target.value.toUpperCase())}
-                                  className="font-mono font-black text-xs text-[#005DAA] bg-zinc-50 border border-zinc-200 hover:border-zinc-300 focus:border-[#005DAA] px-2.5 py-1 rounded-lg w-36 uppercase focus:bg-white focus:outline-none transition-colors"
+                                  className="font-mono font-black text-sm text-[#005DAA] dark:text-night-link bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line hover:border-zinc-300 focus:border-[#005DAA] px-2.5 py-1 rounded-lg w-36 uppercase focus:bg-surface-canvas focus:outline-none transition-colors"
                                   placeholder="N° BL"
                                 />
                               )}
@@ -591,18 +592,18 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Catégorie Fret & Description */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-28 bg-zinc-100 animate-pulse rounded-md" />
+                                <div className="h-6 w-28 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
                               ) : (
                                 <div className="space-y-1 max-w-[210px]">
                                   <div className="flex items-center gap-1">
                                     <select
                                       value={item.typeMarchandise}
                                       onChange={e => handleUpdateItemField(item.fileId, 'typeMarchandise', e.target.value as FretCategory)}
-                                      className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border cursor-pointer focus:outline-none ${
+                                      className={`text-2xs font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border cursor-pointer focus:outline-none ${
                                         item.typeMarchandise === 'CONTENEUR' 
-                                          ? 'bg-blue-50 text-blue-900 border-blue-300' 
+                                          ? 'bg-blue-50 dark:bg-night-accent-soft text-blue-900 border-blue-300' 
                                           : item.typeMarchandise === 'RORO' 
-                                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300' 
+                                            ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-900 border-emerald-300' 
                                             : item.typeMarchandise === 'VRAC' 
                                               ? 'bg-amber-50 text-amber-900 border-amber-300' 
                                               : 'bg-indigo-50 text-indigo-900 border-indigo-300'
@@ -619,7 +620,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-zinc-600 truncate font-medium" title={item.descriptionGoods}>
+                                  <p className="text-2xs text-text-secondary dark:text-night-ink truncate font-medium" title={item.descriptionGoods}>
                                     {item.descriptionGoods}
                                   </p>
                                 </div>
@@ -629,13 +630,13 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Destinataire Consignee (Éditable en ligne) */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-36 bg-zinc-100 animate-pulse rounded-md" />
+                                <div className="h-6 w-36 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
                               ) : (
                                 <input
                                   type="text"
                                   value={item.consigneeNom}
                                   onChange={e => handleUpdateItemField(item.fileId, 'consigneeNom', e.target.value)}
-                                  className="font-black text-xs text-zinc-950 bg-zinc-50 border border-zinc-200 hover:border-zinc-300 focus:border-[#005DAA] px-2 py-1 rounded-lg w-36 focus:bg-white focus:outline-none transition-colors truncate"
+                                  className="font-black text-sm text-zinc-950 bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line hover:border-zinc-300 focus:border-[#005DAA] px-2 py-1 rounded-lg w-36 focus:bg-surface-canvas focus:outline-none transition-colors truncate"
                                   placeholder="Nom du Destinataire"
                                   title={item.consigneeNom}
                                 />
@@ -645,16 +646,16 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Poids Brut (Éditable en ligne) */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-20 bg-zinc-100 animate-pulse rounded-md" />
+                                <div className="h-6 w-20 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
                               ) : (
                                 <div className="flex items-center gap-1">
                                   <input
                                     type="number"
                                     value={item.poidsBrutKg || ''}
                                     onChange={e => handleUpdateItemField(item.fileId, 'poidsBrutKg', parseFloat(e.target.value) || 0)}
-                                    className="font-mono font-black text-xs text-zinc-950 bg-zinc-50 border border-zinc-200 hover:border-zinc-300 focus:border-[#005DAA] px-2 py-1 rounded-lg w-24 text-right focus:bg-white focus:outline-none transition-colors"
+                                    className="font-mono font-black text-sm text-zinc-950 bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line hover:border-zinc-300 focus:border-[#005DAA] px-2 py-1 rounded-lg w-24 text-right focus:bg-surface-canvas focus:outline-none transition-colors"
                                   />
-                                  <span className="text-[10px] font-mono text-zinc-500 font-bold">kg</span>
+                                  <span className="text-2xs font-mono text-text-muted dark:text-night-ink-2 font-bold">kg</span>
                                 </div>
                               )}
                             </td>
@@ -662,14 +663,14 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Colis / Volume */}
                             <td className="p-3">
                               {isExtracting ? (
-                                <div className="h-6 w-16 bg-zinc-100 animate-pulse rounded-md" />
+                                <div className="h-6 w-16 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
                               ) : (
                                 <div className="space-y-0.5">
-                                  <span className="font-mono font-black text-zinc-800 text-xs block">
-                                    {item.nombreColis} <span className="text-zinc-500 font-normal text-[10px]">{item.typeEmballage}</span>
+                                  <span className="font-mono font-black text-text-primary dark:text-night-ink text-sm block">
+                                    {item.nombreColis} <span className="text-text-muted dark:text-night-ink-2 font-normal text-2xs">{item.typeEmballage}</span>
                                   </span>
                                   {item.volumeM3 > 0 && (
-                                    <span className="text-[10px] font-mono text-zinc-500 block">
+                                    <span className="text-2xs font-mono text-text-muted dark:text-night-ink-2 block">
                                       {item.volumeM3} m³
                                     </span>
                                   )}
@@ -680,21 +681,21 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Références Réglementaires */}
                             <td className="p-3">
                               {isExtracting ? (
-                                <div className="h-6 w-20 bg-zinc-100 animate-pulse rounded-md" />
+                                <div className="h-6 w-20 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
                               ) : (
-                                <div className="space-y-0.5 font-mono text-[10px]">
+                                <div className="space-y-0.5 font-mono text-2xs">
                                   {item.bscNumero ? (
-                                    <span className="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 block truncate" title={`BSC: ${item.bscNumero}`}>
+                                    <span className="px-1.5 py-0.5 rounded bg-surface-sunken dark:bg-night-sunken text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line block truncate" title={`BSC: ${item.bscNumero}`}>
                                       BSC: {item.bscNumero}
                                     </span>
                                   ) : null}
                                   {item.fdiNumero ? (
-                                    <span className="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 block truncate" title={`FDI: ${item.fdiNumero}`}>
+                                    <span className="px-1.5 py-0.5 rounded bg-surface-sunken dark:bg-night-sunken text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line block truncate" title={`FDI: ${item.fdiNumero}`}>
                                       FDI: {item.fdiNumero}
                                     </span>
                                   ) : null}
                                   {!item.bscNumero && !item.fdiNumero && (
-                                    <span className="text-zinc-400 italic text-[10px]">-</span>
+                                    <span className="text-text-muted dark:text-night-ink-3 italic text-2xs">-</span>
                                   )}
                                 </div>
                               )}
@@ -706,7 +707,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => setEditingDetailItem(item)}
-                                  className="p-1.5 text-zinc-500 hover:text-[#005DAA] hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                                  className="p-1.5 text-text-muted dark:text-night-ink-2 hover:text-[#005DAA] hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
                                   title="Consulter et ajuster tous les champs du BL"
                                 >
                                   <Edit3 className="w-4 h-4" />
@@ -714,7 +715,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveItem(item.fileId)}
-                                  className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  className="p-1.5 text-text-muted dark:text-night-ink-3 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                   title="Retirer ce connaissement"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -734,11 +735,11 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
         </div>
 
         {/* ── PIED DE LA MODALE AVEC BOUTON D'ACTION ── */}
-        <div className="px-6 py-4 border-t border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-50/90">
-          <div className="text-xs text-zinc-600 font-medium">
+        <div className="px-6 py-4 border-t border-border-default dark:border-night-line flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-base dark:bg-night-sunken/90">
+          <div className="text-sm text-text-secondary dark:text-night-ink font-medium">
             {validCount > 0 ? (
-              <span className="flex items-center gap-1.5 font-bold text-zinc-900">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span className="flex items-center gap-1.5 font-bold text-text-primary dark:text-night-ink">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-night-positive" />
                 <span>
                   {validCount} connaissement(s) prêt(s) à être rattaché(s) à l'escale <strong>{currentTargetEscale?.nomNavire}</strong> (Voyage <strong>{currentTargetEscale?.numeroVoyage}</strong>).
                 </span>
@@ -752,7 +753,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-700 font-bold text-xs transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-md border border-zinc-300 dark:border-night-line-strong bg-surface-canvas dark:bg-night-surface hover:bg-surface-sunken text-text-secondary dark:text-night-ink font-bold text-sm transition-colors cursor-pointer"
             >
               Annuler
             </button>
@@ -760,10 +761,10 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
               type="button"
               onClick={handleCommit}
               disabled={validCount === 0 || extractingCount > 0 || !currentTargetEscale}
-              className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95 ${
+              className={`px-6 py-2.5 rounded-md text-sm font-black transition-all flex items-center gap-2 cursor-pointer shadow-md  active:scale-95 ${
                 validCount > 0 && extractingCount === 0 && currentTargetEscale
-                  ? 'bg-[#005DAA] hover:bg-[#004580] text-white'
-                  : 'bg-zinc-200 text-zinc-400 cursor-not-allowed border border-zinc-300'
+                  ? 'bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white'
+                  : 'bg-zinc-200 text-text-muted dark:text-night-ink-3 cursor-not-allowed border border-zinc-300 dark:border-night-line-strong'
               }`}
             >
               <Sparkles className="w-4 h-4" />

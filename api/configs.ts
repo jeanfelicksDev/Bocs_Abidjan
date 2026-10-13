@@ -1,7 +1,6 @@
-import { sql } from './_db.js';
+import { prisma } from './_db.js';
 
 export default async function handler(req: any, res: any) {
-  // Safe Body Parsing
   let body = req.body;
   if (typeof body === 'string') {
     try {
@@ -14,41 +13,33 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'GET') {
     try {
-      const types = await sql`
-        SELECT 
-          id, 
-          name, 
-          description 
-        FROM invoice_type_configs 
-        ORDER BY 
-          CASE WHEN id ~ '^[0-9]+$' THEN id::bigint ELSE 9999999999 END, 
-          id ASC;
-      `;
+      const types = await prisma.invoice_type_configs.findMany();
+      // Sorting purely in JS since alphanumeric ID sorting in Postgres is complex with Prisma
+      types.sort((a: any, b: any) => {
+        const aNum = /^\d+$/.test(a.id) ? Number(a.id) : 9999999999;
+        const bNum = /^\d+$/.test(b.id) ? Number(b.id) : 9999999999;
+        if (aNum !== bNum) return aNum - bNum;
+        return a.id.localeCompare(b.id);
+      });
 
-      const rubriques = await sql`
-        SELECT 
-          id, 
-          invoice_type_id as "invoiceTypeId", 
-          category, 
-          name, 
-          description, 
-          code, 
-          is_active as "isActive", 
-          montant_unitaire as "montantUnitaire", 
-          base_calcul as "baseCalcul" 
-        FROM rubrique_configs 
-        ORDER BY 
-          invoice_type_id ASC, 
-          CASE WHEN id ~ '^[0-9]+$' THEN id::bigint ELSE 9999999999 END, 
-          id ASC;
-      `;
+      const rubriques = await prisma.rubrique_configs.findMany();
+      rubriques.sort((a: any, b: any) => {
+        if (a.invoice_type_id !== b.invoice_type_id) {
+          return String(a.invoice_type_id).localeCompare(String(b.invoice_type_id));
+        }
+        const aNum = /^\d+$/.test(a.id) ? Number(a.id) : 9999999999;
+        const bNum = /^\d+$/.test(b.id) ? Number(b.id) : 9999999999;
+        if (aNum !== bNum) return aNum - bNum;
+        return a.id.localeCompare(b.id);
+      });
 
       const mappedRubriques = rubriques.map((r: any) => ({
         ...r,
         id: String(r.id),
-        invoiceTypeId: String(r.invoiceTypeId),
-        isActive: Boolean(r.isActive),
-        montantUnitaire: Number(r.montantUnitaire) || 0
+        invoiceTypeId: String(r.invoice_type_id),
+        isActive: Boolean(r.is_active),
+        montantUnitaire: Number(r.montant_unitaire) || 0,
+        baseCalcul: String(r.base_calcul)
       }));
 
       const mappedTypes = types.map((t: any) => ({
@@ -73,52 +64,33 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      // 1. Update Types if provided
       if (Array.isArray(types)) {
-        await sql`DELETE FROM invoice_type_configs;`;
-        for (const t of types) {
-          if (!t.id || !t.name) continue;
-          await sql`
-            INSERT INTO invoice_type_configs (id, name, description)
-            VALUES (${String(t.id)}, ${String(t.name).trim()}, ${String(t.description || '').trim()});
-          `;
+        await prisma.invoice_type_configs.deleteMany();
+        if (types.length > 0) {
+          const typesToInsert = types.filter(t => t.id && t.name).map(t => ({
+            id: String(t.id),
+            name: String(t.name).trim(),
+            description: String(t.description || '').trim()
+          }));
+          await prisma.invoice_type_configs.createMany({ data: typesToInsert });
         }
       }
 
-      // 2. Update Rubriques if provided
       if (Array.isArray(rubriques)) {
-        await sql`DELETE FROM rubrique_configs;`;
-        for (const r of rubriques) {
-          if (!r.id || !r.invoiceTypeId || !r.name) continue;
-          const isActive = r.isActive !== false;
-          const montant = Math.round(Number(r.montantUnitaire)) || 0;
-          const code = String(r.code || 'DIV').trim().toUpperCase();
-          const category = String(r.category || 'CONTENEUR').toUpperCase();
-          const baseCalcul = String(r.baseCalcul || 'BL');
-
-          await sql`
-            INSERT INTO rubrique_configs (
-              id, 
-              invoice_type_id, 
-              category, 
-              name, 
-              description, 
-              code, 
-              is_active, 
-              montant_unitaire, 
-              base_calcul
-            ) VALUES (
-              ${String(r.id)}, 
-              ${String(r.invoiceTypeId)}, 
-              ${category}, 
-              ${String(r.name).trim()}, 
-              ${String(r.description || '').trim()}, 
-              ${code}, 
-              ${isActive}, 
-              ${montant}, 
-              ${baseCalcul}
-            );
-          `;
+        await prisma.rubrique_configs.deleteMany();
+        if (rubriques.length > 0) {
+          const rubriquesToInsert = rubriques.filter(r => r.id && r.invoiceTypeId && r.name).map(r => ({
+            id: String(r.id),
+            invoice_type_id: String(r.invoiceTypeId),
+            category: String(r.category || 'CONTENEUR').toUpperCase(),
+            name: String(r.name).trim(),
+            description: String(r.description || '').trim(),
+            code: String(r.code || 'DIV').trim().toUpperCase(),
+            is_active: r.isActive !== false,
+            montant_unitaire: Math.round(Number(r.montantUnitaire)) || 0,
+            base_calcul: String(r.baseCalcul || 'BL')
+          }));
+          await prisma.rubrique_configs.createMany({ data: rubriquesToInsert });
         }
       }
 
@@ -135,9 +107,8 @@ export default async function handler(req: any, res: any) {
       const rubriqueId = req.query.rubriqueId || body.rubriqueId;
 
       if (typeId) {
-        // Cascade delete rubriques first, then type
-        await sql`DELETE FROM rubrique_configs WHERE invoice_type_id = ${String(typeId)};`;
-        await sql`DELETE FROM invoice_type_configs WHERE id = ${String(typeId)};`;
+        await prisma.rubrique_configs.deleteMany({ where: { invoice_type_id: String(typeId) } });
+        await prisma.invoice_type_configs.deleteMany({ where: { id: String(typeId) } });
         return res.status(200).json({ 
           success: true, 
           message: `Type de facture #${typeId} et ses rubriques associées ont été supprimés.` 
@@ -145,21 +116,19 @@ export default async function handler(req: any, res: any) {
       }
 
       if (rubriqueId) {
-        await sql`DELETE FROM rubrique_configs WHERE id = ${String(rubriqueId)};`;
+        await prisma.rubrique_configs.deleteMany({ where: { id: String(rubriqueId) } });
         return res.status(200).json({ 
           success: true, 
-          message: `Rubrique #${rubriqueId} supprimée avec succès.` 
+          message: `Rubrique de tarification #${rubriqueId} supprimée avec succès.` 
         });
       }
 
-      return res.status(400).json({ 
-        success: false, 
-        error: "Paramètre 'typeId' ou 'rubriqueId' requis pour la suppression." 
-      });
+      return res.status(400).json({ success: false, error: "Identifiant manquant pour la suppression." });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
     }
   } else {
-    return res.status(405).json({ success: false, error: "Méthode non autorisée." });
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    return res.status(405).json({ success: false, error: "Method not allowed." });
   }
 }

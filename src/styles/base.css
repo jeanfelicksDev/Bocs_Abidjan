@@ -1,0 +1,438 @@
+/* ==========================================================================
+   BOCS MARITIME — BASE
+   Reset + styles d'éléments natifs. Règle structurante : on style par nom
+   d'élément et par classe, jamais par sélecteur d'attribut de classe
+   (`[class*="bg-white"]`). Ces derniers rendaient le style impossible à
+   prédire et ont été supprimés.
+
+   Ce fichier ne produit pas de cascade layers : Tailwind v3 compile en CSS
+   plat et un `@layer base` disparaît au build. La précédence se joue donc par
+   la SPÉCIFICITÉ, pas par l'ordre. Deux conséquences appliquées ici :
+     • le reset global `* { padding: 0 }` reste specificity (0,0,0) : il perd
+       face à n'importe quel utilitaire (`pl-10` sur un champ à icône) ;
+     • tout style par défaut posé sur un sélecteur d'attribut est écrit avec
+       `:where()` pour valoir (0,0,1) — voir la section « Contrôles ».
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  background-color: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+/* -------------------------------------------------------------------------
+   Typographie
+   Le titre porte son propre poids. Aucun « eyebrow » au-dessus d'un titre :
+   l'étiquette ajoute un niveau de lecture sans rien apporter.
+   ------------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-xl); }
+h3 { font-size: var(--text-base); }
+h4, h5, h6 { font-size: var(--text-sm); }
+
+p {
+  max-width: var(--measure-prose);
+  text-wrap: pretty;
+}
+
+strong, b { font-weight: 700; }
+
+small { font-size: var(--text-xs); }
+
+/* Les chiffres financiers s'alignent colonne par colonne : c'est la
+   fonction du mono en chiffres tabulaires, pas un costume « technique ». */
+table,
+.tabular-nums,
+.currency-display,
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+code, kbd, pre, .font-mono {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+abbr[title] {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+/* -------------------------------------------------------------------------
+   Liens
+   ------------------------------------------------------------------------- */
+a {
+  color: var(--text-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--c-blue-600) 40%, transparent);
+  transition: text-decoration-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* -------------------------------------------------------------------------
+   Contrôles de formulaire
+
+   Les sélecteurs d'attribut (`input[type='email']`) valent (0,1,1) : ils
+   battent TOUT utilitaire Tailwind de padding (0,1,0), y compris le `pl-10`
+   d'un champ à icône. Écrire ces règles « dans la couche base » ne suffit
+   pas : `@layer` est une directive de compilation, Tailwind v3 produit du CSS
+   plat et le calque disparaît au build (0 occurrence de `@layer` dans le
+   bundle). Sans couche réelle, seule la spécificité décide.
+
+   `:where()` contribue zéro à la spécificité : `input:where([type='email'])`
+   vaut (0,0,1), donc n'importe quel utilitaire l'emporte. C'est la seule
+   façon d'écrire un style par défaut qui reste surchargeable.
+   ------------------------------------------------------------------------- */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+input:where(
+    [type='text'],
+    [type='search'],
+    [type='email'],
+    [type='url'],
+    [type='tel'],
+    [type='number'],
+    [type='date'],
+    [type='time'],
+    [type='datetime-local'],
+    [type='password'],
+    [type='file']
+  ),
+select,
+textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+  appearance: none;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+select {
+  padding-right: var(--space-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364778c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-placeholder);
+  opacity: 1; /* Firefox applique 0.54 par défaut */
+}
+
+input:where(:disabled),
+select:where(:disabled),
+textarea:where(:disabled) {
+  background-color: var(--surface-sunken);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Case à cocher et bouton radio : l'accent natif aligné sur la palette */
+input[type='checkbox'],
+input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--c-blue-600);
+  cursor: pointer;
+}
+
+label {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: var(--tracking-wide);
+}
+
+fieldset {
+  border: none;
+  min-width: 0;
+}
+
+legend {
+  padding: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* Montants, poids, quantités : chiffres à chasse fixe pour qu'une colonne
+   de FCFA s'aligne au chiffre près. */
+td, th, input[type="number"], .font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------------
+   Focus clavier — un seul anneau pour toute l'application.
+   :focus-visible uniquement : le pointeur n'allume pas d'anneau.
+   ------------------------------------------------------------------------- */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-xs);
+}
+
+/* `outline-none` (216 occurrences héritées) éteignait cet anneau : un
+   changement de couleur de bordure seul ne suffit pas à voir le focus.
+   On le rallume, sauf là où un `focus:ring-*` dessine déjà un anneau. */
+.outline-none:focus-visible:not([class*="focus:ring"]),
+.focus\:outline-none:focus-visible:not([class*="focus:ring"]) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+/* Interrupteurs : la case réelle est masquée, l'anneau va sur la piste. */
+.peer:focus-visible ~ .peer-focus\:outline-none {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Sur surface inverse, l'anneau se teinte depuis la surface */
+.on-inverse :focus-visible,
+.surface-inverse :focus-visible {
+  outline-color: var(--c-blue-200);
+}
+
+/* -------------------------------------------------------------------------
+   Surfaces navigateur
+   Sélection, caret, scrollbars, espacement de soulignement : ces éléments
+   appartiennent à aucun design system tant qu'on ne les stylise pas.
+   ------------------------------------------------------------------------- */
+::selection {
+  background-color: var(--c-blue-100);
+  color: var(--c-navy-800);
+}
+
+:root {
+  caret-color: var(--c-blue-600);
+  accent-color: var(--c-blue-600);
+  scrollbar-color: var(--c-slate-300) transparent;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--c-slate-300);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--c-slate-500);
+}
+
+/* -------------------------------------------------------------------------
+   Tableaux — la grille de données de l'application. En-tête posé une fois.
+   ------------------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+  font-family: var(--font-data);
+  text-align: left;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-secondary);
+  background-color: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+}
+
+tbody td,
+tbody th {
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+tbody tr:hover {
+  background-color: var(--surface-accent-soft);
+}
+
+tbody tr:last-child td,
+tbody tr:last-child th {
+  border-bottom: none;
+}
+
+/* -------------------------------------------------------------------------
+   Utilitaires de mouvement
+   L'état par défaut est déjà visible ; l'animation part de là.
+   ------------------------------------------------------------------------- */
+@keyframes bocs-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bocs-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-in {
+  animation: bocs-enter var(--duration-slow) var(--ease-out) both;
+}
+
+.animate-slide-in-right {
+  animation: bocs-slide-in var(--duration-slow) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Impression — les comptes BOCS s'impriment. Le chrome disparaît,
+   la donnée reste lisible en noir sur blanc.
+   ------------------------------------------------------------------------- */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 10pt;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .bocs-card,
+  .bocs-panel,
+  .glass-panel,
+  .ocean-glass-card {
+    background: #fff !important;
+    border: 1px solid #999 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    color: #000 !important;
+  }
+
+  thead th {
+    background: #eee !important;
+    color: #000 !important;
+  }
+}
+

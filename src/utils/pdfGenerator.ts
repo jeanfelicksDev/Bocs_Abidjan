@@ -222,7 +222,8 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
     ? bl.conteneurs.map(c => `${c.typeConteneur} N° ${c.numeroConteneur} - Pb N° ${c.numeroScelle}`).join(' &nbsp;&nbsp; ')
     : (bl ? '' : '05x40\' HC COC, STC 48 REELS - KLB KRAFTLINER BROWN, WTKL ROYAL WHITE');
 
-  const titleText = isPaid ? 'FACTURE' : 'PROFORMA';
+  const isValidatedInvoice = invoice.statutFacture === 'VALIDEE';
+  const titleText = isValidatedInvoice ? 'FACTURE' : 'PROFORMA';
 
   // ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
   // Bloc imprimé uniquement si la taxe a été appliquée à l'émission de la facture.
@@ -2039,7 +2040,7 @@ export function generateBocsExportBlLetterheadPdf(
         <div class="routing-grid">
           <div class="routing-cell">
             <div class="bl-cell-title">OCEAN VESSEL &amp; VOYAGE</div>
-            <div class="bl-cell-content">${draft.navireNom || escale?.nomNavire || 'BOCS BREMEN'} V.${draft.numeroVoyage || escale?.numeroVoyage || '25586'}</div>
+            <div class="bl-cell-content">${draft.navireNom || escale?.nomNavire || '—'} V.${draft.numeroVoyage || escale?.numeroVoyage || '—'}</div>
           </div>
 
           <div class="routing-cell">
@@ -2346,7 +2347,7 @@ export function generateExportManifestPdf(escale: Escale, validatedDrafts: Draft
           </div>
           <div style="text-align: right;">
             <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800; color: #005daa;">
-              MANIFESTE N° MAN-EXP-${escale.numeroVoyage || '25586'}
+              MANIFESTE N° MAN-EXP-${escale.numeroVoyage || '000'}
             </div>
             <div style="font-size: 7.5px; color: #475569; font-weight: 700;">Date d'édition : ${dateGeneration}</div>
           </div>

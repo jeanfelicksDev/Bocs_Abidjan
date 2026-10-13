@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { mutate } from 'swr';
 import { ArrowLeft } from 'lucide-react';
 import { ToastContainer, toastError } from './components/common/Toast';
 import {
   INITIAL_USERS,
   INITIAL_ESCALES,
   INITIAL_BLS,
-  INITIAL_DRAFTS_EXPORT,
   INITIAL_INVOICES,
   INITIAL_PAYMENTS,
   INITIAL_FNE_PARAMS,
@@ -18,17 +18,11 @@ import {
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './pages/Dashboard';
-import { VesselTrackingModule } from './pages/VesselTrackingModule';
-import { ImportModule } from './pages/ImportModule';
-import { ExportModule } from './pages/ExportModule';
-import { FacturationModule } from './pages/FacturationModule';
-import { SurestarieModule } from './pages/SurestarieModule';
-import { AdminModule } from './pages/AdminModule';
 import { AuthModal } from './components/common/AuthModal';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProfileModal } from './components/auth/ProfileModal';
-import { isTabAllowed, usePermissionsSync } from './utils/permissions';
+import { isTabAllowed, usePermissionsSync, fetchPermissionsMatrix } from './utils/permissions';
 import {
   InvoiceTypeConfig,
   RubriqueConfig,
@@ -52,12 +46,26 @@ import {
   getTaxeAdditionnelleValeurLabel
 } from './utils/taxeAdditionnelle';
 import { applyTimbreFiscalToInvoice } from './utils/timbreFiscal';
+import { useDialogFocus } from './hooks/useDialogFocus';
 import { snapshotContenuDraft } from './utils/draftDiff';
 import {
   getInvoiceTypePrefix,
   getInvoiceTypeDiscriminant,
   resolveUniqueInvoiceNumber
 } from './utils/invoiceMatching';
+
+// Modules métier chargés à la première ouverture : le démarrage ne paie que
+// l'accueil et le cockpit.
+const VesselTrackingModule = lazy(() => import('./pages/VesselTrackingModule').then((m) => ({ default: m.VesselTrackingModule })));
+const ImportModule = lazy(() => import('./pages/ImportModule').then((m) => ({ default: m.ImportModule })));
+const ExportModule = lazy(() => import('./pages/ExportModule').then((m) => ({ default: m.ExportModule })));
+const FacturationModule = lazy(() => import('./pages/FacturationModule').then((m) => ({ default: m.FacturationModule })));
+const SurestarieModule = lazy(() => import('./pages/SurestarieModule').then((m) => ({ default: m.SurestarieModule })));
+const AdminModule = lazy(() => import('./pages/AdminModule').then((m) => ({ default: m.AdminModule })));
+
+const ModuleLoading = () => (
+  <p role="status" className="mt-16 text-center text-sm font-medium text-text-muted">Chargement du module…</p>
+);
 
 export function App() {
   // Global Application & Auth State
@@ -78,64 +86,26 @@ export function App() {
 
   // RBAC : force le re-rendu lorsque la matrice des droits est sauvegardée/réinitialisée
   usePermissionsSync();
+  useDialogFocus(); // focus des modales (role="dialog")
+
+  useEffect(() => {
+    fetchPermissionsMatrix();
+  }, []);
 
   // Persistence en Base LocalStorage avec déduplication automatique
-  const [escales, setEscales] = useState<Escale[]>(() => {
-    const saved = localStorage.getItem('bocs_escales');
-    if (saved) {
-      try {
-        const parsed: Escale[] = JSON.parse(saved);
-        if (parsed.length > 0) {
-          return parsed.reduce((acc: Escale[], current: Escale) => {
-            const exists = acc.find(e =>
-              e.id === current.id ||
-              (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() &&
-                e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
-            );
-            if (!exists) acc.push(current);
-            return acc;
-          }, []);
-        }
-      } catch (e) { console.error('Erreur chargement escales local', e); }
-    }
-    return [];
-  });
+  const [escales, setEscales] = useState<Escale[]>([]);
 
-  const [bls, setBls] = useState<BL[]>(() => {
-    const saved = localStorage.getItem('bocs_bls');
-    if (saved) {
-      try {
-        const parsed: BL[] = JSON.parse(saved);
-        if (parsed.length > 0) {
-          return parsed.reduce((acc: BL[], current: BL) => {
-            const exists = acc.find(b => b.id === current.id || (b.numeroBL === current.numeroBL && b.escaleId === current.escaleId));
-            if (!exists) acc.push(current);
-            return acc;
-          }, []);
-        }
-      } catch (e) { console.error('Erreur chargement bls local', e); }
-    }
-    return [];
-  });
+  const [bls, setBls] = useState<BL[]>([]);
 
-  const [drafts, setDrafts] = useState<DraftExport[]>(() => {
-    const saved = localStorage.getItem('bocs_drafts');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement drafts local', e); }
-    }
-    return INITIAL_DRAFTS_EXPORT;
-  });
+  // Drafts export : persistés en base Neon (100% cloud) — plus de stockage local seul.
+  const [drafts, setDrafts] = useState<DraftExport[]>([]);
 
   const normalizeInvoice = (inv: Invoice): Invoice => {
     const soldeDuFcfa = Number(inv.soldeDuFcfa || 0);
     const montantTtcFcfa = Number(inv.montantTtcFcfa || 0);
-    const isPaid = soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE';
-    const isDefinitive = Boolean(inv.numeroFacture && inv.numeroFacture.startsWith('FA-'));
-    const isPartial = inv.statutPaiement === 'PARTIEL';
-    let statutFacture = inv.statutFacture || 'BROUILLON';
-    if (statutFacture !== 'ANNULEE' && statutFacture !== 'AVOIR' && (isPaid || isDefinitive || isPartial)) {
-      statutFacture = 'VALIDEE';
-    }
+    // Validation explicite uniquement (handleValidateInvoice) : aucun statut dérivé
+    // (ni FA-, ni PAYE, ni PARTIEL) ne doit auto-promouvoir une proforma en VALIDEE.
+    const statutFacture = inv.statutFacture || 'BROUILLON';
     return {
       ...inv,
       id: Number(inv.id),
@@ -169,59 +139,22 @@ export function App() {
     };
   };
 
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('bocs_invoices');
-    if (saved) {
-      try {
-        const parsed: Invoice[] = JSON.parse(saved);
-        return parsed.map(normalizeInvoice);
-      } catch (e) { console.error('Erreur chargement invoices local', e); }
-    }
-    return INITIAL_INVOICES.map(normalizeInvoice);
-  });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => {
-    const saved = localStorage.getItem('bocs_credit_notes');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement credit_notes local', e); }
-    }
-    return [];
-  });
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
 
-  const [payments, setPayments] = useState<Payment[]>(() => {
-    const saved = localStorage.getItem('bocs_payments');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement payments local', e); }
-    }
-    return INITIAL_PAYMENTS;
-  });
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   const [fneParams, setFneParams] = useState<FneParam[]>(INITIAL_FNE_PARAMS);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('bocs_audit_logs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement audit_logs local', e); }
-    }
-    return INITIAL_AUDIT_LOGS;
-  });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [exchangeRateUsd, setExchangeRateUsd] = useState<number>(600.00);
   const [invoiceTypeConfigs, setInvoiceTypeConfigs] = useState<InvoiceTypeConfig[]>(() => {
     const saved = localStorage.getItem('bocs_invoice_types');
     if (saved) {
       try {
-        const parsed: InvoiceTypeConfig[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const missing = INITIAL_INVOICE_TYPE_CONFIGS.filter(
-            init => !parsed.some(p => p.id === init.id || p.name.toLowerCase().trim() === init.name.toLowerCase().trim())
-          );
-          if (missing.length > 0) {
-            const merged = [...parsed, ...missing];
-            localStorage.setItem('bocs_invoice_types', JSON.stringify(merged));
-            return merged;
-          }
-          return parsed;
-        }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) { console.error('Erreur chargement invoice_types local', e); }
     }
     return INITIAL_INVOICE_TYPE_CONFIGS;
@@ -231,18 +164,8 @@ export function App() {
     const saved = localStorage.getItem('bocs_rubriques');
     if (saved) {
       try {
-        const parsed: RubriqueConfig[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const missing = INITIAL_RUBRIQUE_CONFIGS.filter(
-            init => !parsed.some(p => p.id === init.id)
-          );
-          if (missing.length > 0) {
-            const merged = [...parsed, ...missing];
-            localStorage.setItem('bocs_rubriques', JSON.stringify(merged));
-            return merged;
-          }
-          return parsed;
-        }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) { console.error('Erreur chargement rubriques local', e); }
     }
     return INITIAL_RUBRIQUE_CONFIGS;
@@ -293,6 +216,10 @@ export function App() {
     localStorage.setItem('bocs_invoice_types', JSON.stringify(invoiceTypeConfigs));
   }, [invoiceTypeConfigs]);
 
+  useEffect(() => {
+    localStorage.setItem('bocs_rubriques', JSON.stringify(rubriqueConfigs));
+  }, [rubriqueConfigs]);
+
   const handleAddVessel = (vessel: Vessel) => {
     setVessels(prev => {
       const exists = prev.some(v => v.nom.trim().toLowerCase() === vessel.nom.trim().toLowerCase());
@@ -303,8 +230,14 @@ export function App() {
   };
 
   const handleDeleteVessel = (vesselId: number) => {
+    const target = vessels.find(v => v.id === vesselId);
     setVessels(prev => prev.filter(v => v.id !== vesselId));
-    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', `ID: ${vesselId}`);
+    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', target ? `${target.nom} (ID: ${vesselId})` : `ID: ${vesselId}`);
+  };
+
+  const handleUpdateVessel = (updated: Vessel) => {
+    setVessels(prev => prev.map(v => (v.id === updated.id ? updated : v)));
+    logAuditAction('MODIFICATION_NAVIRE', 'VESSEL', `${updated.nom} (ID: ${updated.id})`);
   };
 
   const handleUpdateTimbreBrackets = (brackets: TimbreBracket[]) => {
@@ -325,47 +258,15 @@ export function App() {
     );
   };
 
-  useEffect(() => {
-    localStorage.setItem('bocs_rubriques', JSON.stringify(rubriqueConfigs));
-  }, [rubriqueConfigs]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_escales', JSON.stringify(escales));
-  }, [escales]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_bls', JSON.stringify(bls));
-  }, [bls]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_drafts', JSON.stringify(drafts));
-  }, [drafts]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_invoices', JSON.stringify(invoices));
-  }, [invoices]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_credit_notes', JSON.stringify(creditNotes));
-  }, [creditNotes]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_payments', JSON.stringify(payments));
-  }, [payments]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
-
   // Initialisation et chargement des données depuis Neon Postgres
   useEffect(() => {
     const initAndLoad = async () => {
       try {
         // 1. Initialise les tables si nécessaire
-        await fetch('/api/init-db');
+        // await fetch('/api/init-db');
 
         // 2. Charge les factures, avoirs, utilisateurs et données
-        const [invoicesRes, creditNotesRes, paymentsRes, auditRes, configsRes, escalesRes, blsRes, usersRes] = await Promise.all([
+        const [invoicesRes, creditNotesRes, paymentsRes, auditRes, configsRes, escalesRes, blsRes, draftsRes, usersRes] = await Promise.all([
           fetch('/api/invoices').catch(() => null),
           fetch('/api/credit-notes').catch(() => null),
           fetch('/api/payments').catch(() => null),
@@ -373,6 +274,7 @@ export function App() {
           fetch('/api/configs').catch(() => null),
           fetch('/api/escales').catch(() => null),
           fetch('/api/bls').catch(() => null),
+          fetch('/api/drafts').catch(() => null),
           fetch('/api/users').catch(() => null)
         ]);
 
@@ -447,6 +349,13 @@ export function App() {
           }
         }
 
+        if (draftsRes && draftsRes.ok) {
+          const draftData = await draftsRes.json();
+          if (draftData.success && Array.isArray(draftData.drafts)) {
+            setDrafts(draftData.drafts);
+          }
+        }
+
         if (auditRes && auditRes.ok) {
           const auditData = await auditRes.json();
           if (auditData.success && auditData.auditLogs) {
@@ -490,15 +399,19 @@ export function App() {
       entite,
       details,
       dateAction: formattedDate,
-      ip: '160.155.20.14'
+      ip: ''
     };
     setAuditLogs(prev => [newLog, ...prev]);
     try {
-      await fetch('/api/audit', {
+      const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog)
       });
+      const data = await res.json();
+      if (data?.ip) {
+        setAuditLogs(prev => prev.map(l => l.id === newLog.id ? { ...l, ip: data.ip } : l));
+      }
     } catch (e) {
       console.error("Erreur lors de la sauvegarde du log d'audit sur Neon", e);
     }
@@ -692,62 +605,65 @@ export function App() {
 
   // --- BUSINESS DOMAIN HANDLERS ---
 
+  const postJson = async (url: string, body: unknown) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || `Erreur serveur (${response.status})`);
+    }
+    return result;
+  };
+
   // Add Escale
   const handleAddEscale = async (escale: Escale) => {
-    setEscales(prev => [
-      escale,
-      ...prev.filter(e => e.id !== escale.id && (e.numeroVoyage !== escale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== escale.nomNavire.trim().toLowerCase()))
-    ]);
     try {
-      await fetch('/api/escales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(escale)
-      });
+      const result = await postJson('/api/escales', escale);
+      const savedEscale = (result.escale || escale) as Escale;
+      setEscales(prev => [
+        savedEscale,
+        ...prev.filter(e => e.id !== savedEscale.id && (e.numeroVoyage !== savedEscale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== savedEscale.nomNavire.trim().toLowerCase()))
+      ]);
     } catch (e) {
       console.error("Erreur lors de la sauvegarde de l'escale", e);
+      toastError(`L'escale n'a pas été enregistrée : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
     }
   };
 
   // Update Escale
   const handleUpdateEscale = async (updatedEscale: Escale) => {
-    setEscales(prev => prev.map(e => e.id === updatedEscale.id ? updatedEscale : e));
     try {
-      await fetch('/api/escales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedEscale)
-      });
+      const result = await postJson('/api/escales', updatedEscale);
+      const savedEscale = (result.escale || updatedEscale) as Escale;
+      setEscales(prev => prev.map(e => e.id === updatedEscale.id ? savedEscale : e));
+      logAuditAction('MODIFICATION_ESCALE', 'Escale', `Mise à jour des informations de l'escale ${updatedEscale.nomNavire} (Voyage ${updatedEscale.numeroVoyage})`);
     } catch (e) {
       console.error("Erreur lors de la mise à jour de l'escale sur Neon", e);
+      toastError(`La modification n'a pas été enregistrée : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
     }
-    logAuditAction('MODIFICATION_ESCALE', 'Escale', `Mise à jour des informations de l'escale ${updatedEscale.nomNavire} (Voyage ${updatedEscale.numeroVoyage})`);
   };
 
   // Import XML Manifest
   const handleImportManifest = async (escale: Escale, newBls: BL[]) => {
-    setEscales(prev => [
-      escale,
-      ...prev.filter(e => e.id !== escale.id && (e.numeroVoyage !== escale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== escale.nomNavire.trim().toLowerCase()))
-    ]);
-    setBls(prev => {
-      const newBlNums = new Set(newBls.map(b => b.numeroBL));
-      const filtered = prev.filter(b => !newBlNums.has(b.numeroBL));
-      return [...newBls, ...filtered];
-    });
     try {
-      await fetch('/api/escales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(escale)
-      });
-      await fetch('/api/bls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bls: newBls })
+      const result = await postJson('/api/escales', escale);
+      const savedEscale = (result.escale || escale) as Escale;
+      const savedBls = newBls.map(bl => ({ ...bl, escaleId: savedEscale.id }));
+      await postJson('/api/bls', { bls: savedBls });
+      setEscales(prev => [
+        savedEscale,
+        ...prev.filter(e => e.id !== savedEscale.id && (e.numeroVoyage !== savedEscale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== savedEscale.nomNavire.trim().toLowerCase()))
+      ]);
+      setBls(prev => {
+        const newBlNums = new Set(savedBls.map(b => b.numeroBL));
+        return [...savedBls, ...prev.filter(b => !newBlNums.has(b.numeroBL))];
       });
     } catch (e) {
       console.error("Erreur lors de la sauvegarde du manifeste importé", e);
+      toastError(`Le manifeste n'a pas été enregistré : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
     }
   };
 
@@ -761,9 +677,15 @@ export function App() {
     // Identify all invoices/proformas linked to any of the deleted BLs
     const targetInvoices = invoices.filter(inv =>
       (inv.blId !== undefined && targetBlIds.includes(inv.blId)) ||
-      (inv.numeroBL !== undefined && targetBlNumbers.includes(inv.numeroBL))
+      (inv.numeroBL !== undefined && targetBlNumbers.includes(inv.numeroBL)) ||
+      (inv.escaleInfo && targetEscale && (inv.escaleInfo.includes(targetEscale.numeroVoyage) || inv.escaleInfo.includes(targetEscale.nomNavire)))
     );
     const targetInvoiceIds = targetInvoices.map(inv => inv.id);
+
+    if (currentUser.role !== 'ADMIN' && targetInvoices.length > 0) {
+      toastError("Seul l'administrateur est autorisé à supprimer une escale comportant des proformas ou factures éditées.");
+      return;
+    }
 
     // Filter state
     setEscales(prev => prev.filter(e => e.id !== escaleId));
@@ -789,34 +711,61 @@ export function App() {
     }
   };
 
+  // Persistance cloud d'un draft export (upsert Neon via /api/drafts)
+  const persistDraft = async (draft: DraftExport) => {
+    try {
+      await fetch('/api/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft)
+      });
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde du draft sur Neon", e);
+    }
+  };
+
   // Add Export Draft
   const handleAddDraft = (draft: DraftExport) => {
-    setDrafts(prev => [draft, ...prev]);
+    setDrafts(prev => [draft, ...prev.filter(d => d.id !== draft.id)]);
+    void persistDraft(draft);
   };
 
   // Update Draft Status
   const handleUpdateDraftStatus = (draftId: number, status: any, motif?: string, blNumber?: string) => {
-    setDrafts(prev => prev.map(d => {
-      if (d.id === draftId) {
-        // Déverrouillage pour correction : on capture l'instantané du contenu AVANT
-        // toute modification client (base du diff coloré ajoutés/conservés).
-        const needsSnapshot = status === 'CORRECTION_AUTORISEE' && !d.contenuOriginal;
-        return {
-          ...d,
-          statut: status,
-          motifDemandeModification: motif || d.motifDemandeModification,
-          numeroBlGenere: blNumber || d.numeroBlGenere,
-          dateValidation: status === 'VALIDE' ? new Date().toISOString() : d.dateValidation,
-          ...(needsSnapshot ? { contenuOriginal: snapshotContenuDraft(d) } : {})
-        };
-      }
-      return d;
-    }));
+    const target = drafts.find(d => d.id === draftId);
+    if (!target) return;
+    // Déverrouillage pour correction : on capture l'instantané du contenu AVANT
+    // toute modification client (base du diff coloré ajoutés/conservés).
+    const needsSnapshot = status === 'CORRECTION_AUTORISEE' && !target.contenuOriginal;
+    const updatedDraft: DraftExport = {
+      ...target,
+      statut: status,
+      motifDemandeModification: motif || target.motifDemandeModification,
+      numeroBlGenere: blNumber || target.numeroBlGenere,
+      dateValidation: status === 'VALIDE' ? new Date().toISOString() : target.dateValidation,
+      ...(needsSnapshot ? { contenuOriginal: snapshotContenuDraft(target) } : {})
+    };
+    setDrafts(prev => prev.map(d => d.id === draftId ? updatedDraft : d));
+    void persistDraft(updatedDraft);
   };
 
   // Update Full Draft
   const handleUpdateDraft = (updatedDraft: DraftExport) => {
     setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+    void persistDraft(updatedDraft);
+  };
+
+  // Delete Export Draft (Admin only)
+  const handleDeleteDraft = async (draftId: number) => {
+    const target = drafts.find(d => d.id === draftId);
+    setDrafts(prev => prev.filter(d => d.id !== draftId));
+    try {
+      await fetch(`/api/drafts?id=${draftId}`, { method: 'DELETE' });
+      mutate('/api/drafts');
+    } catch (e) {
+      console.error("Erreur lors de la suppression du draft en base", e);
+    }
+    logAuditAction('SUPPRESSION_DRAFT', 'DraftExport', `Suppression du draft ${target?.numeroDraft || draftId} (${target?.clientNom || ''})`);
   };
 
   // Generate Invoice
@@ -897,7 +846,14 @@ export function App() {
     setAuditLogs([]);
 
     try {
-      await fetch('/api/clear-db');
+      await fetch('/api/clear-db?mode=purge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': 'bocs-admin-secure-2026'
+        },
+        body: JSON.stringify({ mode: 'purge' })
+      });
     } catch (e) {
       console.error('Erreur purge DB', e);
     }
@@ -938,56 +894,20 @@ export function App() {
     return `${searchPrefix}${nextCounterStr}`;
   };
 
-  // Add Payment
+  // Add Payment — le règlement n'attribue JAMAIS le numéro FA- ni la VALIDEE :
+  // seule handleValidateInvoice prononce la validation explicite (Comptabilité/Admin).
   const handleAddPayment = async (payment: Payment) => {
     let updatedInvoice: Invoice | null = null;
-    let newFinalNumber = '';
 
     const targetInvoice = invoices.find(inv => inv.id === payment.factureId);
     if (targetInvoice) {
       const newSolde = Math.max(0, targetInvoice.soldeDuFcfa - payment.montantFcfa);
       const newStatus = newSolde === 0 ? 'PAYE' : 'PARTIEL';
 
-      let typeFacture = targetInvoice.typeFacture;
-      let numeroFacture = targetInvoice.numeroFacture;
-
-      // Dès qu'un règlement est perçu, la facture devient définitive avec son numéro fiscal officiel
-      if (!numeroFacture.startsWith('FA-')) {
-        if (typeFacture === 'PROFORMA_IMPORT') typeFacture = 'DEFINITIVE_IMPORT';
-        if (typeFacture === 'PROFORMA_EXPORT') typeFacture = 'DEFINITIVE_EXPORT';
-
-        let voyageNumber = 'VOYAGE';
-        const targetBl = bls.find(b => b.id === targetInvoice.blId || b.numeroBL === targetInvoice.numeroBL);
-        const targetEscale = targetBl ? escales.find(e => e.id === targetBl.escaleId) : null;
-        if (targetEscale) {
-          voyageNumber = targetEscale.numeroVoyage;
-        } else if (targetInvoice.escaleInfo) {
-          const parts = targetInvoice.escaleInfo.split(/V\./i);
-          if (parts.length > 1) {
-            voyageNumber = parts[1].trim();
-          }
-        }
-        // Récupérer le nom du type de facture pour le préfixe
-        const invTypeName = invoiceTypeConfigs.find(t => t.id === targetInvoice.invoiceTypeId)?.name || '';
-        newFinalNumber = resolveUniqueInvoiceNumber(
-          getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName),
-          invoices,
-          targetInvoice.id
-        );
-        numeroFacture = newFinalNumber;
-      }
-
-      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
       updatedInvoice = {
         ...targetInvoice,
         soldeDuFcfa: newSolde,
         statutPaiement: newStatus,
-        statutFacture: targetInvoice.statutFacture === 'ANNULEE' ? 'ANNULEE' : 'VALIDEE',
-        typeFacture,
-        numeroFacture,
-        validatedBy: targetInvoice.validatedBy || currentUser.nomComplet,
-        validatedAt: targetInvoice.validatedAt || now
       };
     }
 
@@ -997,7 +917,7 @@ export function App() {
 
     const finalPayment = {
       ...payment,
-      numeroFacture: newFinalNumber || payment.numeroFacture
+      numeroFacture: payment.numeroFacture
     };
     setPayments(prev => [finalPayment, ...prev]);
 
@@ -1187,16 +1107,19 @@ export function App() {
     }
   };
 
-  // Suppression autorisée uniquement sur un Brouillon / Proforma (avec suppression en cascade des pièces rattachées)
+  // Suppression autorisée uniquement sur un Brouillon / Proforma non réglé (avec suppression en cascade des pièces rattachées)
   const handleDeleteInvoice = async (invoiceId: number) => {
     const target = invoices.find(i => i.id === invoiceId);
     if (!target) return;
 
+    const hasPayment = target.soldeDuFcfa === 0 ||
+      target.statutPaiement === 'PAYE' ||
+      target.statutPaiement === 'PARTIEL';
     const isProforma = !(target.numeroFacture || '').startsWith('FA-') &&
       target.statutFacture !== 'VALIDEE' &&
       target.statutFacture !== 'ANNULEE' &&
       target.statutFacture !== 'AVOIR' &&
-      target.statutPaiement !== 'PAYE';
+      !hasPayment;
 
     if (!isProforma) {
       toastError(`Conformité fiscale : La facture ${target.numeroFacture} est inaltérable. Veuillez émettre un Avoir pour l'annuler.`);
@@ -1239,6 +1162,8 @@ export function App() {
 
     try {
       await fetch(`/api/invoices?id=${invoiceId}`, { method: 'DELETE' });
+      mutate('/api/invoices');
+      mutate('/api/payments');
     } catch (e) {
       console.error("Erreur lors de la suppression de la proforma sur Neon", e);
     }
@@ -1328,8 +1253,8 @@ export function App() {
         <WelcomeScreen
         escales={escales}
         bls={bls}
-        drafts={drafts}
         invoices={invoices}
+        drafts={drafts}
         invoiceTypeConfigs={invoiceTypeConfigs}
         rubriqueConfigs={rubriqueConfigs}
         exchangeRateUsd={exchangeRateUsd}
@@ -1359,9 +1284,12 @@ export function App() {
         onUpdateInvoice={handleUpdateInvoice}
         onValidateInvoice={handleValidateInvoice}
         onDeleteInvoice={handleDeleteInvoice}
+        onDeleteEscale={handleDeleteEscaleIntegration}
         onAddPayment={handleAddPayment}
         onLogAudit={logAuditAction}
         timbreBrackets={timbreBrackets}
+        vessels={vessels}
+        onAddVessel={handleAddVessel}
       />
         {/* Notifications globales (toasts succès/erreur également sur la plateforme) */}
         <ToastContainer />
@@ -1373,7 +1301,7 @@ export function App() {
   const accessDenied = !isTabAllowed(currentUser, activeTab);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-sans text-on-surface antialiased">
+    <div className="min-h-screen bg-[#eaeff4] dark:bg-night-canvas flex flex-col font-sans text-slate-900 dark:text-night-ink antialiased">
 
       {/* Unified Premium Header Navigation */}
       <Header
@@ -1400,14 +1328,15 @@ export function App() {
 
         {/* Content Main Panel */}
         <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">
+          <Suspense fallback={<ModuleLoading />}>
 
           {/* RBAC : écran de refus lorsque l'habilitation requise est absente de la matrice */}
           {accessDenied && (
-            <div className="max-w-lg mx-auto mt-12 bg-white border border-rose-200 rounded-2xl p-8 text-center shadow-sm animate-fade-in">
-              <span className="material-symbols-outlined text-5xl text-rose-500 block mb-3">lock</span>
-              <h2 className="text-lg font-black text-zinc-900 mb-1">Accès refusé</h2>
-              <p className="text-xs text-zinc-600 font-medium leading-relaxed">
-                Votre profil <span className="font-black text-[#005DAA] font-mono">{currentUser.role}</span> ne dispose pas de
+            <div className="max-w-lg mx-auto mt-12 bg-white dark:bg-night-surface border border-rose-200 rounded-2xl p-8 text-center shadow-sm dark:shadow-black/30 animate-fade-in">
+              <span aria-hidden="true" className="material-symbols-outlined text-5xl text-rose-500 block mb-3">lock</span>
+              <h2 className="text-xl font-black text-zinc-900 dark:text-night-ink mb-1">Accès refusé</h2>
+              <p className="text-sm text-zinc-600 dark:text-night-ink font-medium leading-relaxed">
+                Votre profil <span className="font-black text-[#005DAA] dark:text-night-ink font-mono">{currentUser.role}</span> ne dispose pas de
                 l'habilitation requise pour ce module. Contactez l'administrateur ou ajustez la matrice des droits.
               </p>
             </div>
@@ -1415,13 +1344,14 @@ export function App() {
 
           {!accessDenied && activeTab === 'vessels' && (
             <VesselTrackingModule
-              escales={escales}
-              bls={bls}
-              invoices={invoices}
-              payments={payments}
-              vessels={vessels}
+
+
+
+
+
               onAddVessel={handleAddVessel}
               onDeleteVessel={handleDeleteVessel}
+              onUpdateVessel={handleUpdateVessel}
               userRole={currentUser.role}
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
@@ -1432,8 +1362,8 @@ export function App() {
 
           {!accessDenied && activeTab === 'import' && (
             <ImportModule
-              escales={escales}
-              bls={bls}
+
+
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
               onDeleteEscaleIntegration={handleDeleteEscaleIntegration}
@@ -1443,7 +1373,7 @@ export function App() {
               userRole={currentUser.role}
               rubriqueConfigs={rubriqueConfigs}
               invoiceTypeConfigs={invoiceTypeConfigs}
-              invoices={invoices}
+
               onUpdateBl={handleUpdateBl}
               onNavigateToBilling={(bl) => {
                 setSelectedBlIdForBilling(bl.id);
@@ -1459,12 +1389,13 @@ export function App() {
                   activeTab === 'export_list' ? 'ESPACE_CLIENT' :
                     activeTab === 'export_consolidation' ? 'CONSOLIDATION' : 'ESPACE_CLIENT'
               }
-              drafts={drafts}
-              escales={escales}
+
+
               currentUser={currentUser}
               onAddDraft={handleAddDraft}
               onUpdateDraft={handleUpdateDraft}
               onUpdateDraftStatus={handleUpdateDraftStatus}
+              onDeleteDraft={handleDeleteDraft}
               onGenerateInvoice={handleGenerateInvoice}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
@@ -1480,12 +1411,12 @@ export function App() {
                       activeTab === 'facturation_config' ? 'CONFIG' :
                         activeTab === 'facturation_avoirs' ? 'AVOIRS' : 'FACTURATION_BL'
               }
-              invoices={invoices}
-              creditNotes={creditNotes}
-              payments={payments}
-              bls={bls}
-              drafts={drafts}
-              escales={escales}
+
+
+
+
+
+
               selectedBlId={selectedBlIdForBilling}
               onSelectBl={setSelectedBlIdForBilling}
               onNavigateToImport={() => setActiveTab('import')}
@@ -1498,6 +1429,7 @@ export function App() {
               exchangeRateUsd={exchangeRateUsd}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
+              currentUser={currentUser}
               invoiceTypeConfigs={invoiceTypeConfigs}
               onUpdateInvoiceTypeConfigs={handleUpdateInvoiceTypeConfigs}
               rubriqueConfigs={rubriqueConfigs}
@@ -1515,9 +1447,9 @@ export function App() {
 
           {!accessDenied && activeTab === 'surestarie' && (
             <SurestarieModule
-              bls={bls}
-              escales={escales}
-              invoices={invoices}
+
+
+
               invoiceTypeConfigs={invoiceTypeConfigs}
               userRole={currentUser.role}
               onGenerateInvoice={handleGenerateInvoice}
@@ -1558,6 +1490,7 @@ export function App() {
             />
           )}
 
+          </Suspense>
         </main>
 
       </div>
@@ -1591,16 +1524,16 @@ export function App() {
             setShowWelcome(true);
             setActiveTab('dashboard');
           }}
-          className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/95 hover:bg-white text-[#002B49] hover:text-[#005DAA] shadow-xl border border-zinc-200 hover:border-[#005DAA]/50 backdrop-blur-md transition-all cursor-pointer active:scale-95 group font-bold text-xs"
+          className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/95 hover:bg-white dark:bg-night-surface dark:hover:bg-night-raised text-[#002B49] hover:text-[#005DAA] dark:text-night-link shadow-xl dark:shadow-black/60 border border-zinc-200 dark:border-night-line hover:border-[#005DAA] backdrop-blur-md transition-all cursor-pointer active:scale-95 group font-bold text-sm"
           title="Retour à la plateforme intégrée de gestion et facturation maritime"
           aria-label="Retour à la plateforme intégrée de gestion et facturation maritime"
         >
-          <span className="w-7 h-7 rounded-xl bg-[#F0F7FF] text-[#005DAA] flex items-center justify-center group-hover:bg-[#005DAA] group-hover:text-white transition-colors shadow-2xs shrink-0">
+          <span className="w-7 h-7 rounded-xl bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink flex items-center justify-center group-hover:bg-[#005DAA] group-hover:text-white transition-colors shadow-2xs shrink-0">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           </span>
           <div className="text-left hidden md:block">
-            <div className="text-[9px] uppercase font-black text-[#00875A] tracking-wider leading-none">Accueil</div>
-            <div className="text-xs font-black text-[#002B49] group-hover:text-[#005DAA] leading-tight mt-0.5 whitespace-nowrap">Plateforme Intégrée</div>
+            <div className="text-2xs uppercase font-black text-[#00875A] tracking-wider leading-none">Accueil</div>
+            <div className="text-sm font-black text-[#002B49] dark:text-night-ink group-hover:text-[#005DAA] dark:group-hover:text-white leading-tight mt-0.5 whitespace-nowrap">Plateforme Intégrée</div>
           </div>
         </button>
       )}

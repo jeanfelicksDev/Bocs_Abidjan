@@ -7,6 +7,7 @@ import {
   Search, Calculator, FileText, CheckCircle2, Clock, AlertTriangle,
   ArrowRight, Ship, Package, Calendar, DollarSign, Filter, RotateCcw
 } from 'lucide-react';
+import { useEscales, useBls, useInvoices } from '../hooks/useData';
 
 /* ─── Types locaux ─── */
 interface ContainerRow {
@@ -30,9 +31,6 @@ interface ContainerRow {
 }
 
 interface SurestarieModuleProps {
-  bls: BL[];
-  escales: Escale[];
-  invoices: Invoice[];
   invoiceTypeConfigs: InvoiceTypeConfig[];
   userRole: UserRole;
   onGenerateInvoice: (invoice: Invoice) => void;
@@ -116,15 +114,16 @@ function stayDaysFrom(entree: string, sortie: string): number {
 
 /* ════════════════════════════════════════════════════════════════════════ */
 export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
-  bls,
-  escales,
-  invoices,
   invoiceTypeConfigs,
   userRole,
   onGenerateInvoice,
   onAddPayment,
   onLogAudit,
 }) => {
+  const { escales } = useEscales();
+  const { bls } = useBls();
+  const { invoices } = useInvoices();
+
   const [searchQ, setSearchQ] = useState('');
   const [regimeFilter, setRegimeFilter] = useState<'SURESTARIE' | 'DETENTION'>('SURESTARIE');
   const [opFilter, setOpFilter] = useState<'ALL' | 'IMPORT' | 'EXPORT'>('ALL');
@@ -392,74 +391,74 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
 
   /* ══════════════ RENDER ══════════════ */
   return (
-    <div className="flex flex-col h-full bg-zinc-50">
+    <div className="flex flex-col h-full bg-surface-base dark:bg-night-sunken">
 
       {/* Header */}
-      <div className="bg-white border-b border-zinc-200 px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+      <div className="bg-surface-canvas dark:bg-night-surface border-b border-border-default dark:border-night-line px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#ECFDF5] border border-[#00875A]/30 flex items-center justify-center shadow-xs">
-            <span className="material-symbols-outlined text-2xl text-[#00875A]">timer</span>
+          <div className="w-12 h-12 rounded-md bg-[#ECFDF5] border border-[#00875A]/30 flex items-center justify-center shadow-1">
+            <span aria-hidden="true" className="material-symbols-outlined text-2xl text-[#00875A]">timer</span>
           </div>
           <div>
-            <h1 className="text-xl font-black text-[#005DAA] font-display tracking-tight">Surestaries &amp; Détentions</h1>
-            <p className="text-xs text-zinc-500 font-medium mt-0.5">Calcul dégressif DMDT · Émission des factures · Suivi par conteneur</p>
+            <h1 className="text-2xl font-black text-[#005DAA] dark:text-night-ink font-display tracking-tight">Surestaries &amp; Détentions</h1>
+            <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium mt-0.5">Calcul dégressif DMDT · Émission des factures · Suivi par conteneur</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-rose-50 border border-rose-200">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-md bg-rose-50 border border-rose-200">
             <AlertTriangle className="w-4 h-4 text-rose-500" />
             <div>
-              <div className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Montant Total</div>
-              <div className="text-sm font-black text-rose-700 font-mono">{totalMontant.toLocaleString('fr-FR')} FCFA</div>
+              <div className="text-2xs font-bold text-rose-500 uppercase tracking-wider">Montant Total</div>
+              <div className="text-base font-black text-rose-700 font-mono">{totalMontant.toLocaleString('fr-FR')} FCFA</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-50 border border-blue-200">
-            <Package className="w-4 h-4 text-[#005DAA]" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line">
+            <Package className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
             <div>
-              <div className="text-[10px] font-bold text-[#005DAA] uppercase tracking-wider">En Surestarie</div>
-              <div className="text-sm font-black text-[#005DAA] font-mono">{billableCount} cont.</div>
+              <div className="text-2xs font-bold text-[#005DAA] dark:text-night-link uppercase tracking-wider">En Surestarie</div>
+              <div className="text-base font-black text-[#005DAA] dark:text-night-link font-mono">{billableCount} cont.</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-200">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-50 dark:bg-night-positive-soft border border-emerald-200 dark:border-night-positive-line">
             <CheckCircle2 className="w-4 h-4 text-[#00875A]" />
             <div>
-              <div className="text-[10px] font-bold text-[#00875A] uppercase tracking-wider">En Franchise</div>
-              <div className="text-sm font-black text-[#00875A] font-mono">{franchiseCount} cont.</div>
+              <div className="text-2xs font-bold text-[#00875A] uppercase tracking-wider">En Franchise</div>
+              <div className="text-base font-black text-[#00875A] font-mono">{franchiseCount} cont.</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white border-b border-zinc-100 px-6 py-3 flex flex-wrap items-center gap-3 shrink-0">
+      <div className="bg-surface-canvas dark:bg-night-surface border-b border-border-default px-6 py-3 flex flex-wrap items-center gap-3 shrink-0">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-night-ink-3" />
           <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)}
             placeholder="BL, conteneur, consignataire…"
-            className="w-full h-9 pl-9 pr-3 text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:border-[#005DAA] focus:bg-white transition-all" />
+            className="w-full h-9 pl-9 pr-3 text-base bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md focus:outline-none focus:border-[#005DAA] focus:bg-surface-canvas transition-all" />
         </div>
-        <div className="flex rounded-xl border border-zinc-200 overflow-hidden">
+        <div className="flex rounded-md border border-border-default dark:border-night-line overflow-hidden">
           {(['SURESTARIE', 'DETENTION'] as const).map(r => (
             <button key={r} type="button" onClick={() => setRegimeFilter(r)}
-              className={`px-3 py-1.5 text-xs font-black transition-all cursor-pointer ${regimeFilter === r ? 'bg-[#005DAA] text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}>
+              className={`px-3 py-1.5 text-sm font-black transition-all cursor-pointer ${regimeFilter === r ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white' : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink hover:bg-surface-base '}`}>
               {r === 'SURESTARIE' ? '⏳ Surestaries' : '🔒 Détentions'}
             </button>
           ))}
         </div>
-        <div className="flex rounded-xl border border-zinc-200 overflow-hidden">
+        <div className="flex rounded-md border border-border-default dark:border-night-line overflow-hidden">
           {(['ALL', 'IMPORT', 'EXPORT'] as const).map(op => (
             <button key={op} type="button" onClick={() => setOpFilter(op)}
-              className={`px-3 py-1.5 text-xs font-black transition-all cursor-pointer ${opFilter === op ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}>
+              className={`px-3 py-1.5 text-sm font-black transition-all cursor-pointer ${opFilter === op ? 'bg-zinc-800 text-white dark:text-night-ink' : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink hover:bg-surface-base '}`}>
               {op === 'ALL' ? 'Tous' : op}
             </button>
           ))}
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" className="w-4 h-4 accent-[#005DAA]" checked={onlyBillable} onChange={e => setOnlyBillable(e.target.checked)} />
-          <span className="text-xs font-bold text-zinc-700">Uniquement facturables</span>
+          <span className="text-sm font-bold text-text-secondary dark:text-night-ink">Uniquement facturables</span>
         </label>
         {searchQ && (
-          <button type="button" onClick={() => setSearchQ('')} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-400 cursor-pointer">
+          <button aria-label="Effacer la recherche" type="button" onClick={() => setSearchQ('')} className="p-2 rounded-md hover:bg-surface-sunken dark:bg-night-sunken text-text-muted dark:text-night-ink-3 cursor-pointer">
             <RotateCcw className="w-4 h-4" />
           </button>
         )}
@@ -471,89 +470,89 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
           /* ── CALCULATEUR ── */
           <div className="max-w-3xl mx-auto space-y-5">
             <button type="button" onClick={() => setSelectedRow(null)}
-              className="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer">
+              className="flex items-center gap-2 text-base font-bold text-text-muted dark:text-night-ink-2 hover:text-text-primary transition-colors cursor-pointer">
               <ArrowRight className="w-4 h-4 rotate-180" /> Retour au tableau
             </button>
 
-            <div className="bg-white rounded-3xl border border-zinc-200 shadow-xs p-6">
-              <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-zinc-100">
+            <div className="bg-surface-canvas dark:bg-night-surface rounded-lg border border-border-default dark:border-night-line shadow-1 p-6">
+              <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-border-default">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#F0F7FF] border border-[#005DAA]/30 flex items-center justify-center">
-                    <Calculator className="w-6 h-6 text-[#005DAA]" />
+                  <div className="w-12 h-12 rounded-md bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/30 flex items-center justify-center">
+                    <Calculator className="w-6 h-6 text-[#005DAA] dark:text-night-link" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-[#005DAA]">Calculateur {regimeFilter === 'DETENTION' ? 'Détention' : 'Surestarie'}</h2>
-                    <p className="text-xs text-zinc-500 font-mono font-bold mt-0.5">
+                    <h2 className="text-xl font-black text-[#005DAA] dark:text-night-link">Calculateur {regimeFilter === 'DETENTION' ? 'Détention' : 'Surestarie'}</h2>
+                    <p className="text-sm text-text-muted dark:text-night-ink-2 font-mono font-bold mt-0.5">
                       {selectedRow.numeroConteneur} · {selectedRow.typeConteneur} · BL {selectedRow.numeroBL}
                     </p>
                   </div>
                 </div>
-                <span className={`px-3 py-1.5 rounded-xl text-xs font-black border ${selectedRow.typeOperation === 'IMPORT' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                <span className={`px-3 py-1.5 rounded-md text-sm font-black border ${selectedRow.typeOperation === 'IMPORT' ? 'bg-blue-50 dark:bg-night-accent-soft border-blue-200 dark:border-night-accent-line text-blue-800' : 'bg-emerald-50 dark:bg-night-positive-soft border-emerald-200 dark:border-night-positive-line text-emerald-800'}`}>
                   {selectedRow.typeOperation}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5">
+                  <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase tracking-wider mb-1.5">
                     {regimeFilter === 'DETENTION' ? 'Date Enlèvement (Sortie Parc)' : 'Date Entrée Parc'}
                   </label>
                   <input type="date" value={editEntry} onChange={e => setEditEntry(e.target.value)}
-                    className="w-full h-10 px-3 border border-zinc-300 rounded-xl text-sm bg-zinc-50 focus:outline-none focus:border-[#005DAA] focus:bg-white transition-all" />
+                    className="w-full h-10 px-3 border border-zinc-300 dark:border-night-line-strong rounded-md text-base bg-surface-base dark:bg-night-sunken focus:outline-none focus:border-[#005DAA] focus:bg-surface-canvas transition-all" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5">
+                  <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase tracking-wider mb-1.5">
                     {regimeFilter === 'DETENTION' ? 'Date Restitution Vide' : 'Date Sortie / Livraison'}
                   </label>
                   <input type="date" value={editExit} onChange={e => setEditExit(e.target.value)}
-                    className="w-full h-10 px-3 border border-zinc-300 rounded-xl text-sm bg-zinc-50 focus:outline-none focus:border-[#005DAA] focus:bg-white transition-all" />
+                    className="w-full h-10 px-3 border border-zinc-300 dark:border-night-line-strong rounded-md text-base bg-surface-base dark:bg-night-sunken focus:outline-none focus:border-[#005DAA] focus:bg-surface-canvas transition-all" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5">Franchise (jours gratuits)</label>
+                  <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase tracking-wider mb-1.5">Franchise (jours gratuits)</label>
                   <input type="number" min={0} max={60} value={editFranchise} onChange={e => setEditFranchise(Number(e.target.value))}
-                    className="w-full h-10 px-3 border border-zinc-300 rounded-xl text-sm font-mono font-bold bg-zinc-50 focus:outline-none focus:border-[#005DAA] focus:bg-white transition-all" />
+                    className="w-full h-10 px-3 border border-zinc-300 dark:border-night-line-strong rounded-md text-base font-mono font-bold bg-surface-base dark:bg-night-sunken focus:outline-none focus:border-[#005DAA] focus:bg-surface-canvas transition-all" />
                 </div>
               </div>
 
-              <div className="mt-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-200 flex flex-wrap gap-6 text-sm">
+              <div className="mt-4 p-4 rounded-md bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line flex flex-wrap gap-6 text-base">
                 <div>
-                  <div className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">Séjour total</div>
-                  <div className="text-2xl font-black text-zinc-950 font-mono">{liveStay}<span className="text-sm text-zinc-500 font-bold ml-1">j</span></div>
+                  <div className="text-2xs text-text-muted dark:text-night-ink-3 uppercase font-bold tracking-wider mb-0.5">Séjour total</div>
+                  <div className="text-2xl font-black text-zinc-950 font-mono">{liveStay}<span className="text-base text-text-muted dark:text-night-ink-2 font-bold ml-1">j</span></div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">Franchise</div>
-                  <div className="text-2xl font-black text-[#00875A] font-mono">{editFranchise}<span className="text-sm font-bold ml-1">j</span></div>
+                  <div className="text-2xs text-text-muted dark:text-night-ink-3 uppercase font-bold tracking-wider mb-0.5">Franchise</div>
+                  <div className="text-2xl font-black text-[#00875A] font-mono">{editFranchise}<span className="text-base font-bold ml-1">j</span></div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">Jours facturables</div>
-                  <div className={`text-2xl font-black font-mono ${liveBillable > 0 ? 'text-rose-600' : 'text-[#00875A]'}`}>{liveBillable}<span className="text-sm font-bold ml-1">j</span></div>
+                  <div className="text-2xs text-text-muted dark:text-night-ink-3 uppercase font-bold tracking-wider mb-0.5">Jours facturables</div>
+                  <div className={`text-2xl font-black font-mono ${liveBillable > 0 ? 'text-rose-600' : 'text-[#00875A]'}`}>{liveBillable}<span className="text-base font-bold ml-1">j</span></div>
                 </div>
                 <div className="ml-auto text-right">
-                  <div className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">Total {regimeFilter}</div>
+                  <div className="text-2xs text-text-muted dark:text-night-ink-3 uppercase font-bold tracking-wider mb-0.5">Total {regimeFilter}</div>
                   <div className={`text-3xl font-black font-mono ${liveCalc.totalAmount > 0 ? 'text-rose-600' : 'text-[#00875A]'}`}>
-                    {liveCalc.totalAmount.toLocaleString('fr-FR')}<span className="text-base ml-1">FCFA</span>
+                    {liveCalc.totalAmount.toLocaleString('fr-FR')}<span className="text-lg ml-1">FCFA</span>
                   </div>
                 </div>
               </div>
 
               {liveCalc.breakdown.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <div className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">Détail par tranche dégressive</div>
+                  <div className="text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase tracking-wider">Détail par tranche dégressive</div>
                   {liveCalc.breakdown.map((b, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-blue-50/60 border border-blue-200/60 text-sm">
+                    <div key={i} className="flex items-center justify-between p-3 rounded-md bg-blue-50 dark:bg-night-accent-soft/60 border border-blue-200 dark:border-night-accent-line/60 text-base">
                       <div>
                         <span className="font-black text-[#002B49]">{b.label}</span>
-                        {b.dateString && <span className="text-[10px] text-zinc-400 ml-2 font-mono">{b.dateString}</span>}
-                        <span className="text-xs text-zinc-500 ml-2">· {b.days}j × {b.rate.toLocaleString('fr-FR')} FCFA/j</span>
+                        {b.dateString && <span className="text-2xs text-text-muted dark:text-night-ink-3 ml-2 font-mono">{b.dateString}</span>}
+                        <span className="text-sm text-text-muted dark:text-night-ink-2 ml-2">· {b.days}j × {b.rate.toLocaleString('fr-FR')} FCFA/j</span>
                       </div>
-                      <span className="font-black text-[#005DAA] font-mono">{b.amount.toLocaleString('fr-FR')} FCFA</span>
+                      <span className="font-black text-[#005DAA] dark:text-night-link font-mono">{b.amount.toLocaleString('fr-FR')} FCFA</span>
                     </div>
                   ))}
                 </div>
               )}
 
               {liveBillable === 0 && (
-                <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-[#00875A] font-bold flex items-center gap-2">
+                <div className="mt-4 p-3 rounded-md bg-emerald-50 dark:bg-night-positive-soft border border-emerald-200 dark:border-night-positive-line text-sm text-[#00875A] font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#00875A]" />
                   Séjour de {liveStay}j ≤ franchise de {editFranchise}j. Aucun frais dû.
                 </div>
@@ -562,11 +561,11 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
 
             <div className="flex items-center justify-end gap-3">
               <button type="button" onClick={() => setSelectedRow(null)}
-                className="px-5 py-2.5 rounded-xl border border-zinc-200 bg-white text-sm font-bold text-zinc-700 hover:bg-zinc-50 cursor-pointer transition-all">
+                className="px-5 py-2.5 rounded-md border border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-surface text-base font-bold text-text-secondary dark:text-night-ink hover:bg-surface-base cursor-pointer transition-all">
                 Annuler
               </button>
               <button type="button" onClick={validateCalc}
-                className="px-6 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white rounded-xl text-sm font-black flex items-center gap-2 cursor-pointer shadow-sm transition-all active:scale-95">
+                className="px-6 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white rounded-md text-base font-black flex items-center gap-2 cursor-pointer shadow-sm dark:shadow-black/30 transition-all active:scale-95">
                 <Calculator className="w-4 h-4" /> Valider le calcul
               </button>
               {liveBillable > 0 && (
@@ -579,7 +578,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                       handleEmettreProforma(row, res.calc);
                     }
                   }}
-                  className="px-6 py-2.5 bg-[#00875A] hover:bg-[#006E48] text-white rounded-xl text-sm font-black flex items-center gap-2 cursor-pointer shadow-sm transition-all active:scale-95"
+                  className="px-6 py-2.5 bg-[#00875A] hover:bg-[#006E48] text-white dark:text-night-ink rounded-md text-base font-black flex items-center gap-2 cursor-pointer shadow-sm dark:shadow-black/30 transition-all active:scale-95"
                 >
                   <FileText className="w-4 h-4" /> Valider &amp; Émettre Proforma
                 </button>
@@ -591,25 +590,25 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
           <div className="space-y-4">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-200 flex items-center justify-center mb-4">
-                  <span className="material-symbols-outlined text-3xl text-[#005DAA]">timer_off</span>
+                <div className="w-16 h-16 rounded-lg bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line flex items-center justify-center mb-4">
+                  <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#005DAA] dark:text-night-link">timer_off</span>
                 </div>
-                <h3 className="text-base font-black text-zinc-700">Aucun conteneur trouvé</h3>
-                <p className="text-xs text-zinc-400 mt-1">Modifiez vos filtres ou importez des BL avec conteneurs.</p>
+                <h3 className="text-lg font-black text-text-secondary dark:text-night-ink">Aucun conteneur trouvé</h3>
+                <p className="text-sm text-text-muted dark:text-night-ink-3 mt-1">Modifiez vos filtres ou importez des BL avec conteneurs.</p>
               </div>
             ) : (
               <>
-                <div className="text-xs text-zinc-500 font-bold px-1">
+                <div className="text-sm text-text-muted dark:text-night-ink-2 font-bold px-1">
                   {filtered.length} conteneur(s) · {regimeFilter === 'DETENTION' ? 'DÉTENTION' : 'SURESTARIE'} · {opFilter === 'ALL' ? 'Import &amp; Export' : opFilter}
                 </div>
                 {/* Table avec Ascenseur Vertical & Horizontal (Scrollbar) */}
-                <div className="bg-white rounded-2xl border border-zinc-200 shadow-xs overflow-hidden">
+                <div className="bg-surface-canvas dark:bg-night-surface rounded-md border border-border-default dark:border-night-line shadow-1 overflow-hidden">
                   <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-310px)] min-h-[460px] bocs-scrollbar relative">
-                    <table className="w-full text-xs border-collapse">
-                      <thead className="sticky top-0 z-10 bg-zinc-100/95 backdrop-blur-md shadow-2xs">
-                        <tr className="border-b border-zinc-200 bg-zinc-50/90 select-none">
+                    <table className="w-full text-sm border-collapse">
+                      <thead className="sticky top-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 backdrop-blur-md shadow-1">
+                        <tr className="border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken/90 select-none">
                           {['Conteneur', 'BL / Navire', regimeFilter === 'DETENTION' ? 'Enlèvement' : 'Entrée Parc', regimeFilter === 'DETENTION' ? 'Retour Vide' : 'Sortie', 'Séjour', 'Factur.', 'Montant estimé', 'Actions'].map(h => (
-                            <th key={h} className="text-left px-4 py-3.5 font-black text-zinc-700 uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
+                            <th key={h} className="text-left px-4 py-3.5 font-black text-text-secondary dark:text-night-ink uppercase tracking-wider text-2xs whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -620,58 +619,58 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                           const hasValidatedCalc = !!validatedCalcs[calcKey];
                           return (
                             <tr key={`${row.blId}-${row.containerId}-${idx}`}
-                              className={`hover:bg-zinc-50/80 transition-colors ${row.billableDays > 0 ? 'bg-rose-50/25' : ''}`}>
+                              className={`hover:bg-surface-base dark:bg-night-sunken/80 transition-colors ${row.billableDays > 0 ? 'bg-rose-50/25' : ''}`}>
                               <td className="px-4 py-3">
                                 <div className="font-mono font-black text-zinc-950">{row.numeroConteneur}</div>
                                 <div className="flex items-center gap-1 mt-0.5">
-                                  <span className={`inline-block px-1.5 py-0.5 rounded font-bold text-[9px] ${row.typeOperation === 'IMPORT' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  <span className={`inline-block px-1.5 py-0.5 rounded font-bold text-2xs ${row.typeOperation === 'IMPORT' ? 'bg-blue-100 dark:bg-night-accent-soft text-blue-700 dark:text-night-link' : 'bg-emerald-100 text-emerald-700'}`}>
                                     {row.typeOperation}
                                   </span>
-                                  <span className="text-[10px] text-zinc-400">{row.typeConteneur}</span>
+                                  <span className="text-2xs text-text-muted dark:text-night-ink-3">{row.typeConteneur}</span>
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <div className="font-mono font-black text-zinc-900">{row.numeroBL}</div>
-                                <div className="flex items-center gap-1 text-[10px] text-zinc-400 mt-0.5">
+                                <div className="font-mono font-black text-text-primary dark:text-night-ink">{row.numeroBL}</div>
+                                <div className="flex items-center gap-1 text-2xs text-text-muted dark:text-night-ink-3 mt-0.5">
                                   <Ship className="w-3 h-3" />{row.nomNavire}
                                 </div>
-                                <div className="text-[10px] text-zinc-500 truncate max-w-[140px]">{row.consigneeNom}</div>
+                                <div className="text-2xs text-text-muted dark:text-night-ink-2 truncate max-w-[140px]">{row.consigneeNom}</div>
                               </td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1 text-zinc-700 font-mono font-bold text-[11px]">
-                                  <Calendar className="w-3 h-3 text-zinc-400" />
+                                <div className="flex items-center gap-1 text-text-secondary dark:text-night-ink font-mono font-bold text-xs">
+                                  <Calendar className="w-3 h-3 text-text-muted dark:text-night-ink-3" />
                                   {row.dateEntree ? new Date(row.dateEntree).toLocaleDateString('fr-FR') : '—'}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1 text-zinc-700 font-mono font-bold text-[11px]">
-                                  <Calendar className="w-3 h-3 text-zinc-400" />
+                                <div className="flex items-center gap-1 text-text-secondary dark:text-night-ink font-mono font-bold text-xs">
+                                  <Calendar className="w-3 h-3 text-text-muted dark:text-night-ink-3" />
                                   {row.dateSortie ? new Date(row.dateSortie).toLocaleDateString('fr-FR') : '—'}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
                                 <span className="font-black text-zinc-950 font-mono">{row.stayDays}</span>
-                                <span className="text-zinc-400 text-[10px] ml-0.5">j</span>
-                                <div className="text-[10px] text-zinc-400">franchise {row.franchise}j</div>
+                                <span className="text-text-muted dark:text-night-ink-3 text-2xs ml-0.5">j</span>
+                                <div className="text-2xs text-text-muted dark:text-night-ink-3">franchise {row.franchise}j</div>
                               </td>
                               <td className="px-4 py-3">
-                                <span className={`font-black font-mono text-sm ${row.billableDays > 0 ? 'text-rose-600' : 'text-[#00875A]'}`}>{row.billableDays}</span>
-                                <span className="text-[10px] ml-0.5 text-zinc-400">j</span>
+                                <span className={`font-black font-mono text-base ${row.billableDays > 0 ? 'text-rose-600' : 'text-[#00875A]'}`}>{row.billableDays}</span>
+                                <span className="text-2xs ml-0.5 text-text-muted dark:text-night-ink-3">j</span>
                               </td>
                               <td className="px-4 py-3">
                                 {row.montant > 0 ? (
                                   <div>
                                     <div className="font-black text-rose-600 font-mono">{row.montant.toLocaleString('fr-FR')}</div>
-                                    <div className="text-[10px] text-zinc-400">FCFA</div>
+                                    <div className="text-2xs text-text-muted dark:text-night-ink-3">FCFA</div>
                                   </div>
                                 ) : (
-                                  <span className="text-[10px] text-[#00875A] font-bold">Aucun frais</span>
+                                  <span className="text-2xs text-[#00875A] font-bold">Aucun frais</span>
                                 )}
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-1.5">
                                   <button type="button" onClick={() => openCalc(row)}
-                                    className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#005DAA] cursor-pointer transition-all shadow-2xs"
+                                    className="p-2 rounded-md bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line border border-blue-200 dark:border-night-accent-line text-[#005DAA] dark:text-night-link cursor-pointer transition-all shadow-1"
                                     title={`Calculateur ${regimeFilter === 'DETENTION' ? 'Détention' : 'Surestarie'}`}>
                                     <Calculator className="w-3.5 h-3.5" />
                                   </button>
@@ -679,12 +678,12 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                                     <button type="button" onClick={() => handleEmettreProforma(row)}
                                       disabled={!hasValidatedCalc}
                                       title={hasValidatedCalc ? `Émettre Proforma ${regimeFilter === 'DETENTION' ? 'Détention' : 'Surestarie'}` : 'Validez le calcul d\'abord dans le calculateur'}
-                                      className={`p-2 rounded-xl border transition-all ${hasValidatedCalc ? 'bg-[#005DAA]/10 hover:bg-[#005DAA]/20 border-[#005DAA]/30 text-[#005DAA] cursor-pointer shadow-2xs' : 'bg-zinc-50 border-zinc-200 text-zinc-300 cursor-not-allowed'}`}>
+                                      className={`p-2 rounded-md border transition-all ${hasValidatedCalc ? 'bg-[#005DAA] dark:bg-night-ink/10 hover:bg-[#005DAA] border-[#005DAA] dark:border-night-line/30 text-[#005DAA] dark:text-night-link cursor-pointer shadow-1' : 'bg-surface-base dark:bg-night-sunken border-border-default dark:border-night-line text-text-muted cursor-not-allowed'}`}>
                                       <FileText className="w-3.5 h-3.5" />
                                     </button>
                                   )}
                                   {row.existingInvoice ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs" title={`Facture émise : ${row.existingInvoice.numeroFacture}`}>
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-1" title={`Facture émise : ${row.existingInvoice.numeroFacture}`}>
                                       Proforma OK
                                     </span>
                                   ) : hasValidatedCalc ? (
@@ -696,14 +695,14 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                           );
                         })}
                       </tbody>
-                      <tfoot className="sticky bottom-0 z-10 bg-zinc-100/95 backdrop-blur-md border-t-2 border-zinc-200 shadow-xs">
-                        <tr className="bg-zinc-100/95">
-                          <td colSpan={6} className="px-4 py-3 text-xs font-black text-zinc-700 uppercase tracking-wider">
+                      <tfoot className="sticky bottom-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 backdrop-blur-md border-t-2 border-border-default dark:border-night-line shadow-1">
+                        <tr className="bg-surface-sunken/95 dark:bg-night-sunken/95">
+                          <td colSpan={6} className="px-4 py-3 text-sm font-black text-text-secondary dark:text-night-ink uppercase tracking-wider">
                             Total — {filtered.length} conteneur(s)
                           </td>
                           <td className="px-4 py-3">
-                            <div className="font-black text-rose-600 font-mono text-sm">{totalMontant.toLocaleString('fr-FR')}</div>
-                            <div className="text-[10px] text-zinc-500 font-bold">FCFA</div>
+                            <div className="font-black text-rose-600 font-mono text-base">{totalMontant.toLocaleString('fr-FR')}</div>
+                            <div className="text-2xs text-text-muted dark:text-night-ink-2 font-bold">FCFA</div>
                           </td>
                           <td />
                         </tr>

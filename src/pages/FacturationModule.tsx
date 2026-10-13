@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toastSuccess, toastError, toastWarning, toastInfo } from '../components/common/Toast';
 import { exportInvoicesCsv, exportPaymentsCsv } from '../utils/exportCsv';
-import { BL, Escale, Invoice, CreditNote, Payment, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry, TimbreBracket, TaxeAdditionnelleConfig, DraftExport } from '../types';
+import { BL, Escale, Invoice, CreditNote, Payment, User, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry, TimbreBracket, TaxeAdditionnelleConfig, DraftExport } from '../types';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, normalizeTaxeAdditionnelleConfig, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel, getTaxeAdditionnelleModeLabel } from '../utils/taxeAdditionnelle';
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf, generateDoBadPdf, generateCreditNotePdf } from '../utils/pdfGenerator';
@@ -11,16 +11,11 @@ import {
 } from '../utils/invoiceMatching';
 import { BlBillingModule } from './BlBillingModule';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import { hasPermission, usePermissionsSync } from '../utils/permissions';
+import { useEscales, useBls, useInvoices, useDrafts, useCreditNotes, usePayments } from '../hooks/useData';
 
 interface FacturationModuleProps {
   initialSubTab?: 'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG';
-  invoices: Invoice[];
-  creditNotes?: CreditNote[];
-  payments: Payment[];
-  bls?: BL[];
-  /** Drafts export : les connaissements validés y matérialisent les BL export réels. */
-  drafts?: DraftExport[];
-  escales?: Escale[];
   selectedBlId?: number | null;
   onSelectBl?: (blId: number) => void;
   onNavigateToImport?: () => void;
@@ -32,6 +27,8 @@ interface FacturationModuleProps {
   exchangeRateUsd: number;
   onLogAudit: (action: string, entite: string, details: string) => void;
   userRole: UserRole;
+  /** Utilisateur connecté (overrides individuels prioritaires sur la matrice par rôle). */
+  currentUser?: User | { id: number; role: UserRole; estActif?: boolean };
   invoiceTypeConfigs?: InvoiceTypeConfig[];
   onUpdateInvoiceTypeConfigs?: (configs: InvoiceTypeConfig[]) => void;
   rubriqueConfigs?: RubriqueConfig[];
@@ -147,12 +144,6 @@ function getPlannedTypeIdsForBl(bl: BL | undefined, invoiceTypeConfigs: InvoiceT
 
 export const FacturationModule: React.FC<FacturationModuleProps> = ({
   initialSubTab = 'FACTURATION_BL',
-  invoices,
-  creditNotes = [],
-  payments,
-  bls = [],
-  drafts = [],
-  escales = [],
   selectedBlId = null,
   onSelectBl,
   onNavigateToImport,
@@ -164,6 +155,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   exchangeRateUsd,
   onLogAudit,
   userRole,
+  currentUser,
   invoiceTypeConfigs = [],
   onUpdateInvoiceTypeConfigs,
   rubriqueConfigs = [],
@@ -179,6 +171,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   timbreBrackets = [],
   onUpdateTimbreBrackets
 }) => {
+  const { escales } = useEscales();
+  const { bls } = useBls();
+  const { drafts } = useDrafts();
+  const { invoices } = useInvoices();
+  const { creditNotes } = useCreditNotes();
+  const { payments } = usePayments();
+
   const [activeTab, setActiveTab] = useState<'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG'>(initialSubTab);
 
   React.useEffect(() => {
@@ -190,6 +189,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   // TAXE   : taxe additionnelle exceptionnelle (assiette TTC)
   // TIMBRE : timbre fiscal d'État (assiette HT, par tranches)
   const [configSubTab, setConfigSubTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE'>('TYPES');
+
+  // RBAC : droits effectifs issus de la matrice (overrides individuels > matrice par rôle)
+  usePermissionsSync();
+  const permissionSubject = currentUser || { id: -1, role: userRole };
+  const canValidateInvoice = hasPermission(permissionSubject, 'validate_invoice');
+  const canRegisterPayment = hasPermission(permissionSubject, 'register_payment');
+  const canCreateInvoice = hasPermission(permissionSubject, 'create_invoices');
+  const canCreateCreditNote = hasPermission(permissionSubject, 'credit_notes');
 
   // ── Navigation vers le panneau de paramétrage ──
   const isAdminUser = userRole === 'ADMIN';
@@ -844,11 +851,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
   const handleConfirmDeleteDraft = () => {
     if (!invoiceToDelete) return;
+    const hasPayment = invoiceToDelete.soldeDuFcfa === 0 ||
+                       invoiceToDelete.statutPaiement === 'PAYE' ||
+                       invoiceToDelete.statutPaiement === 'PARTIEL';
     const isProforma = !(invoiceToDelete.numeroFacture || '').startsWith('FA-') &&
                        invoiceToDelete.statutFacture !== 'VALIDEE' &&
                        invoiceToDelete.statutFacture !== 'ANNULEE' &&
                        invoiceToDelete.statutFacture !== 'AVOIR' &&
-                       invoiceToDelete.statutPaiement !== 'PAYE';
+                       !hasPayment;
 
     if (!isProforma) {
       toastError("Conformité fiscale : Seules les factures proforma non réglées peuvent être supprimées. Émettez un Avoir pour les autres.");
@@ -1040,6 +1050,16 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
   const filteredGroupedInvoices = React.useMemo(() => {
     let list = groupedInvoices;
+
+    // CLIENT_EXPORT : restreint aux factures Export uniquement
+    if (userRole === 'CLIENT_EXPORT') {
+      list = list.filter(g =>
+        g.invoices.some(inv =>
+          inv.typeFacture === 'PROFORMA_EXPORT' || inv.typeFacture === 'DEFINITIVE_EXPORT'
+        )
+      );
+    }
+
     if (statusFilter !== 'TOUS') {
       list = list.filter(g => 
         g.invoices.some(inv => (inv.statutFacture || 'BROUILLON') === statusFilter)
@@ -1052,7 +1072,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       (g.representative.clientNom && g.representative.clientNom.toLowerCase().includes(q)) ||
       g.invoices.some(inv => inv.numeroFacture.toLowerCase().includes(q))
     );
-  }, [groupedInvoices, searchQuery, statusFilter]);
+  }, [groupedInvoices, searchQuery, statusFilter, userRole]);
 
   const handleRecordPaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1065,7 +1085,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       datePaiement: new Date().toISOString().split('T')[0],
       modePaiement: paymentMode,
       montantFcfa: paymentMontant,
-      referenceTransaction: paymentRef || `VIR-${Math.floor(100000 + Math.random() * 900000)}`,
+      referenceTransaction: paymentRef.trim() || '-',
       saisiPar: 'Service Comptabilité BOCS'
     };
 
@@ -1144,20 +1164,20 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
-      {/* Header & Sélecteur d'onglets — bloc entier en bleu BOCS translucide */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 ocean-glass-banner bocs-banner-blue p-6 rounded-2xl shadow-2xl mb-2">
+      {/* Header & Sélecteur d'onglets — bloc entier figé au défilement (sticky) sous le Header principal */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-surface-canvas dark:bg-night-surface p-6 rounded-md shadow-sm dark:shadow-black/30 mb-6 border border-blue-100 dark:border-night-line">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-teal-400 text-lg">payments</span>
-            <p className="font-extrabold text-[11px] text-teal-400 uppercase tracking-widest font-mono">
+            <span aria-hidden="true" className="material-symbols-outlined text-success dark:text-night-positive text-xl">payments</span>
+            <p className="font-black text-xs text-success dark:text-night-positive uppercase tracking-widest font-mono">
               Finance, Facturation &amp; Surestaries DGI
             </p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-white font-heading tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-black text-primaryDark font-heading tracking-tight">
             Facturation Maritime &amp; Règlements
           </h1>
-          <p className="text-xs text-slate-400 font-medium mt-1 max-w-xl leading-relaxed">
-            Émission des factures par connaissement (BL), calcul DMDT automatique, validation FNE DGI et suivi des créances.
+          <p className="text-sm text-text-secondary font-medium mt-1 max-w-xl leading-relaxed">
+            Émission des factures par connaissement (BL) et calcul DMDT automatique.
           </p>
         </div>
 
@@ -1176,16 +1196,16 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`px-4 py-2 rounded-xl flex items-center gap-2 font-extrabold text-xs transition-all active:scale-95 cursor-pointer shadow-sm ${
+                className={`px-4 py-2 rounded-md flex items-center gap-2 font-extrabold text-sm transition-all active:scale-95 cursor-pointer shadow-sm dark:shadow-black/30 ${
                   isActive
-                    ? 'bg-[#005DAA] text-white shadow-[0_0_12px_rgba(0,93,170,0.3)]'
-                    : 'bg-white hover:bg-[#F0F7FF] text-slate-700 hover:text-[#005DAA] border border-slate-200/90 hover:border-[#005DAA]/40'
+                    ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white shadow-[0_0_12px_rgba(0,93,170,0.3)]'
+                    : 'bg-surface-canvas hover:bg-[#F0F7FF] dark:hover:bg-night-raised text-slate-700 dark:text-night-ink hover:text-[#005DAA] border border-slate-200 dark:border-night-line/90 hover:border-[#005DAA] '
                 }`}
               >
-                <span className={`material-symbols-outlined text-[18px] ${isActive ? 'text-white' : 'text-[#005DAA]'}`}>
+                <span aria-hidden="true" className={`material-symbols-outlined text-xl ${isActive ? 'text-white dark:text-night-ink' : 'text-[#005DAA] dark:text-night-link'}`}>
                   {tab.icon}
                 </span>
-                <span className={`font-black tracking-wide ${isActive ? 'text-white' : 'text-slate-800'}`}>{tab.label}</span>
+                <span className={`font-black tracking-wide ${isActive ? 'text-white dark:text-night-ink' : 'text-slate-800 dark:text-night-ink'}`}>{tab.label}</span>
               </button>
             );
           })}
@@ -1202,6 +1222,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
           rubriqueConfigs={rubriqueConfigs}
           invoiceTypeConfigs={invoiceTypeConfigs}
           userRole={userRole}
+          currentUser={currentUser}
           selectedBlId={selectedBlId}
           onSelectBl={onSelectBl}
           onNavigateToImport={onNavigateToImport}
@@ -1224,30 +1245,30 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
 
           {/* Invoices List Table - Expanded Space */}
-          <div className="ocean-glass-card overflow-hidden rounded-2xl shadow-2xl">
+          <div className="ocean-glass-card overflow-hidden rounded-md shadow-2xl dark:shadow-black/70">
             <div className="py-3 px-4 bg-[#061528]/90 border-b border-cyan-500/20 flex flex-col lg:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-400 text-lg">receipt_long</span>
-                <h3 className="font-extrabold text-white text-xs uppercase tracking-wider">
+                <span aria-hidden="true" className="material-symbols-outlined text-teal-400 text-xl">receipt_long</span>
+                <h3 className="font-extrabold text-white dark:text-night-ink text-sm uppercase tracking-wider">
                   Registre des Factures &amp; Connaissements
                 </h3>
               </div>
               <button
                 onClick={() => exportInvoicesCsv(invoices)}
                 title="Exporter en CSV (Excel)"
-                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg transition-all active:scale-95 shadow-md cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white dark:text-night-ink text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md cursor-pointer"
               >
-                <span className="material-symbols-outlined text-sm">download</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base">download</span>
                 <span>Exporter CSV</span>
               </button>
 
               {/* Status Filter Pills */}
-              <div className="flex items-center gap-1 bg-[#040e1b] border border-cyan-500/20 p-1 rounded-lg text-[11px] overflow-x-auto max-w-full">
+              <div className="flex items-center gap-1 bg-[#040e1b] border border-cyan-500/20 p-1 rounded-lg text-xs overflow-x-auto max-w-full">
                 <button
                   type="button"
                   onClick={() => setStatusFilter('TOUS')}
                   className={`px-2.5 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    statusFilter === 'TOUS' ? 'bg-cyan-500 text-slate-950 font-black shadow-sm' : 'text-slate-400 hover:text-white'
+                    statusFilter === 'TOUS' ? 'bg-cyan-500 text-slate-950 font-black shadow-sm dark:shadow-black/30' : 'text-slate-400 dark:text-night-ink-3 hover:text-white '
                   }`}
                 >
                   Tous ({invoices.length})
@@ -1256,7 +1277,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   type="button"
                   onClick={() => setStatusFilter('BROUILLON')}
                   className={`px-2.5 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    statusFilter === 'BROUILLON' ? 'bg-amber-500 text-slate-950 font-black shadow-sm' : 'text-slate-400 hover:text-white'
+                    statusFilter === 'BROUILLON' ? 'bg-amber-500 text-slate-950 font-black shadow-sm dark:shadow-black/30' : 'text-slate-400 dark:text-night-ink-3 hover:text-white '
                   }`}
                 >
                   Brouillons ({invoices.filter(i => (i.statutFacture || 'BROUILLON') === 'BROUILLON').length})
@@ -1265,7 +1286,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   type="button"
                   onClick={() => setStatusFilter('VALIDEE')}
                   className={`px-2.5 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    statusFilter === 'VALIDEE' ? 'bg-emerald-500 text-slate-950 font-black shadow-sm' : 'text-slate-400 hover:text-white'
+                    statusFilter === 'VALIDEE' ? 'bg-emerald-500 text-slate-950 font-black shadow-sm dark:shadow-black/30' : 'text-slate-400 dark:text-night-ink-3 hover:text-white '
                   }`}
                 >
                   Validées ({invoices.filter(i => i.statutFacture === 'VALIDEE').length})
@@ -1274,7 +1295,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   type="button"
                   onClick={() => setStatusFilter('ANNULEE')}
                   className={`px-2 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    statusFilter === 'ANNULEE' ? 'bg-rose-600 text-white shadow-xs font-extrabold' : 'text-slate-600 hover:text-slate-900'
+                    statusFilter === 'ANNULEE' ? 'bg-rose-600 text-white dark:text-night-ink shadow-1 font-extrabold' : 'text-slate-600 dark:text-night-ink hover:text-slate-900 '
                   }`}
                 >
                   Annulées ({invoices.filter(i => i.statutFacture === 'ANNULEE').length})
@@ -1282,21 +1303,21 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               </div>
 
               <div className="relative w-full sm:w-60">
-                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                <span aria-hidden="true" className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-night-ink-3 text-base">search</span>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Rechercher facture, client..."
-                  className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-8 pr-2.5 py-1 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg text-sm text-slate-800 dark:text-night-ink focus:outline-none focus:border-blue-500 "
                 />
               </div>
             </div>
 
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-270px)] min-h-[400px] bocs-scrollbar relative">
-              <table className="w-full text-left border-collapse text-xs min-w-[1200px]">
-                <thead className="sticky top-0 z-10 bg-slate-700 text-white shadow-xs">
-                  <tr className="text-[10px] font-extrabold uppercase border-b border-slate-600">
+              <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
+                <thead className="sticky top-0 z-10 bg-slate-700 text-white dark:text-night-ink shadow-1">
+                  <tr className="text-2xs font-extrabold uppercase border-b border-slate-600">
                     <th className="py-2.5 px-3 min-w-[130px]">Numéro BL</th>
                     <th className="py-2.5 px-3 min-w-[140px]">Consignee</th>
                     <th className="py-2.5 px-3 min-w-[120px]">Montant TTC</th>
@@ -1305,7 +1326,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     <th className="py-2.5 px-3 text-right min-w-[600px]">Factures & Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-night-line">
                   {filteredGroupedInvoices.map(g => {
                     const blNumber = g.numeroBL || g.representative.numeroFacture;
                     const matchedBl = bls.find(b => b.numeroBL === g.numeroBL) || g.matchedBl;
@@ -1346,11 +1367,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     const isImport = matchedBl ? matchedBl.typeOperation === 'IMPORT' : g.representative.typeFacture.includes('IMPORT');
 
                     return (
-                      <tr key={blNumber} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 px-3 font-mono font-bold text-xs text-[#005daa]">{blNumber}</td>
-                        <td className="py-2.5 px-3 font-semibold text-xs text-slate-800">{g.representative.clientNom}</td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-xs text-slate-900">{g.totalTtc.toLocaleString('fr-FR')} FCFA</td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-xs text-rose-600">
+                      <tr key={blNumber} className="hover:bg-[#f4f4f5] dark:bg-night-sunken transition-colors">
+                        <td className="py-2.5 px-3 font-mono font-bold text-sm text-[#005daa]">{blNumber}</td>
+                        <td className="py-2.5 px-3 font-semibold text-sm text-slate-800 dark:text-night-ink">{g.representative.clientNom}</td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-sm text-slate-900 dark:text-night-ink">{g.totalTtc.toLocaleString('fr-FR')} FCFA</td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-sm text-rose-600 dark:text-night-critical">
                           <div>{g.totalSolde.toLocaleString('fr-FR')} FCFA</div>
                           {(() => {
                             if (plannedIds.length === 0) return null;
@@ -1361,7 +1382,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             }).length;
                             if (unissuedCount > 0) {
                               return (
-                                <span className="block text-[9px] text-amber-600 font-semibold italic font-sans">
+                                <span className="block text-2xs text-amber-600 dark:text-night-caution font-semibold italic font-sans">
                                   ({unissuedCount} émission(s) en attente)
                                 </span>
                               );
@@ -1370,8 +1391,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                           })()}
                         </td>
                         <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            g.statutPaiement === 'PAYE' ? 'bg-emerald-600 text-white font-black' : 'bg-rose-100 text-rose-800'
+                          <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
+                            g.statutPaiement === 'PAYE' ? 'bg-emerald-600 text-white dark:text-night-ink font-black' : 'bg-rose-100 text-rose-800 dark:text-night-critical'
                           }`}>
                             {g.statutPaiement === 'PAYE' ? 'SOLDÉ' : 'NON RÉGLÉ'} {g.statutLabel ? `(${g.statutLabel})` : ''}
                           </span>
@@ -1385,40 +1406,42 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
                               if (inv) {
                                 const isPaid = inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE';
-                                const isDefinitive = Boolean(inv.numeroFacture && inv.numeroFacture.startsWith('FA-'));
                                 const rawStatus = inv.statutFacture || 'BROUILLON';
                                 const isCancelled = rawStatus === 'ANNULEE' || rawStatus === 'AVOIR';
-                                const isValidated = !isCancelled && (rawStatus === 'VALIDEE' || isPaid || isDefinitive || inv.statutPaiement === 'PARTIEL');
+                                // Validation explicite uniquement : le statut VALIDEE est prononcé par
+                                // handleValidateInvoice (numéro FA-). Ni le paiement ni le préfixe FA-
+                                // ne doivent auto-promouvoir une proforma.
+                                const isValidated = !isCancelled && rawStatus === 'VALIDEE';
                                 const isDraft = !isCancelled && !isValidated;
-                                const isProforma = isDraft && !isPaid && !isDefinitive && !(inv.numeroFacture || '').startsWith('FA-');
+                                const isProforma = isDraft && !(inv.numeroFacture || '').startsWith('FA-');
 
                                 return (
-                                  <div key={typeConfig.id} className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg shadow-2xs transition-all min-w-[200px] ${
+                                  <div key={typeConfig.id} className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg shadow-1 transition-all min-w-[200px] ${
                                     isCancelled ? 'border-rose-200 bg-rose-50/50' :
-                                    isValidated ? (isPaid ? 'border-emerald-200 bg-emerald-50/40' : 'border-blue-200 bg-blue-50/40') :
+                                    isValidated ? (isPaid ? 'border-emerald-200 dark:border-night-positive-line bg-emerald-50 dark:bg-night-positive-soft/40' : 'border-blue-200 dark:border-night-accent-line bg-blue-50 dark:bg-night-accent-soft/40') :
                                     'border-amber-200 bg-amber-50/40'
                                   }`}>
                                     {/* Statut Badge / Label */}
                                     <div className="flex flex-col text-left mr-1 flex-1 min-w-0">
-                                      <span className="text-[10px] font-bold text-slate-800 flex items-center gap-1 leading-tight">
+                                      <span className="text-2xs font-bold text-slate-800 dark:text-night-ink flex items-center gap-1 leading-tight">
                                         {typeName}
                                         {isCancelled && (
-                                          <span className="px-1 py-0.2 rounded text-[8px] font-extrabold uppercase bg-rose-600 text-white">
+                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-rose-600 text-white dark:text-night-ink">
                                             Annulée
                                           </span>
                                         )}
                                         {isValidated && !isCancelled && !isPaid && (
-                                          <span className="px-1 py-0.2 rounded text-[8px] font-extrabold uppercase bg-emerald-600 text-white">
+                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-emerald-600 text-white dark:text-night-ink">
                                             Validée
                                           </span>
                                         )}
                                         {!isValidated && !isCancelled && !isPaid && (
-                                          <span className="px-1 py-0.2 rounded text-[8px] font-extrabold uppercase bg-amber-500 text-white">
+                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-amber-500 text-white dark:text-night-ink">
                                             Attente Règlt
                                           </span>
                                         )}
                                       </span>
-                                      <span className="text-[9px] font-mono text-slate-600 truncate max-w-[150px] whitespace-nowrap" title={`${inv.numeroFacture} - ${Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} FCFA`}>
+                                      <span className="text-2xs font-mono text-slate-600 dark:text-night-ink truncate max-w-[150px] whitespace-nowrap" title={`${inv.numeroFacture} - ${Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} FCFA`}>
                                         {inv.numeroFacture} ({Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} F)
                                       </span>
                                     </div>
@@ -1434,10 +1457,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                             alert(`Facture annulée. Motif: ${inv.motifAnnulation || 'Annulée par Avoir'}`);
                                           }
                                         }}
-                                        className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-800 font-bold rounded text-[9px] hover:bg-rose-200 transition-all inline-flex items-center gap-0.5 cursor-pointer shrink-0"
+                                        className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-800 dark:text-night-critical font-bold rounded text-2xs hover:bg-rose-200 transition-all inline-flex items-center gap-0.5 cursor-pointer shrink-0"
                                         title={`Facture Annulée - Voir l'Avoir (${inv.motifAnnulation || 'Motif non renseigné'})`}
                                       >
-                                        <span className="material-symbols-outlined text-[10px] text-rose-600">assignment_return</span>
+                                        <span aria-hidden="true" className="material-symbols-outlined text-2xs text-rose-600 dark:text-night-critical">assignment_return</span>
                                         <span>Voir Avoir</span>
                                       </button>
                                     ) : isPaid ? (
@@ -1446,24 +1469,61 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                           const payment = payments.find(p => p.factureId === inv.id);
                                           generateProformaPdf(inv, undefined, 'BOCS Maritime Agence Abidjan', payment);
                                         }}
-                                        className="px-1.5 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold rounded text-[9px] hover:bg-emerald-200 transition-all inline-flex items-center gap-0.5 cursor-pointer shrink-0"
+                                        className="px-1.5 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-800 dark:text-night-positive font-bold rounded text-2xs hover:bg-emerald-200 transition-all inline-flex items-center gap-0.5 cursor-pointer shrink-0"
                                         title="Télécharger la Facture Réglée"
                                       >
-                                        <span className="material-symbols-outlined text-[11px] text-emerald-700">check_circle</span>
+                                        <span aria-hidden="true" className="material-symbols-outlined text-xs text-emerald-700 dark:text-night-positive">check_circle</span>
                                         <span>Réglé</span>
                                       </button>
-                                    ) : (
+                                    ) : isValidated && canRegisterPayment ? (
                                       <button
                                         onClick={() => {
                                           setPaymentFacture(inv);
                                           setPaymentMontant(inv.soldeDuFcfa);
                                           setShowPaymentModal(true);
                                         }}
-                                        className="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition-all cursor-pointer shrink-0"
+                                        className="p-1 text-amber-500 hover:text-amber-700 dark:text-night-caution hover:bg-amber-50 rounded transition-all cursor-pointer shrink-0"
                                         title="Enregistrer un Règlement (Régler)"
                                       >
-                                        <span className="material-symbols-outlined text-sm">price_check</span>
+                                        <span aria-hidden="true" className="material-symbols-outlined text-base">price_check</span>
                                       </button>
+                                    ) : isValidated && !canRegisterPayment ? (
+                                      <span
+                                        className="p-1 text-slate-400 dark:text-night-ink-3 cursor-not-allowed shrink-0"
+                                        title="Règlement réservé à la Comptabilité / Administration"
+                                      >
+                                        <span aria-hidden="true" className="material-symbols-outlined text-base">lock</span>
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className="p-1 text-amber-400 cursor-not-allowed shrink-0"
+                                        title="Validez la facture avant d'enregistrer un règlement"
+                                      >
+                                        <span aria-hidden="true" className="material-symbols-outlined text-base">pending</span>
+                                      </span>
+                                    )}
+
+                                    {/* Action: Validate (proforma → VALIDEE + numéro FA-, habilitation validate_invoice) */}
+                                    {isProforma && !isCancelled && onValidateInvoice && (
+                                      canValidateInvoice ? (
+                                        <button
+                                          onClick={() => {
+                                            setInvoiceToValidate(inv);
+                                            setShowValidateModal(true);
+                                          }}
+                                          className="p-1 text-emerald-600 dark:text-night-positive hover:text-white hover:bg-emerald-600 rounded transition-all cursor-pointer shrink-0"
+                                          title="Valider définitivement — attribue le numéro fiscal officiel FA-"
+                                        >
+                                          <span aria-hidden="true" className="material-symbols-outlined text-base">verified</span>
+                                        </button>
+                                      ) : (
+                                        <span
+                                          className="p-1 text-slate-400 dark:text-night-ink-3 cursor-not-allowed shrink-0"
+                                          title="Validation réservée à la Comptabilité / Administration"
+                                        >
+                                          <span aria-hidden="true" className="material-symbols-outlined text-base">lock</span>
+                                        </span>
+                                      )
                                     )}
 
                                     {/* Print PDF Button */}
@@ -1473,56 +1533,78 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                           const payment = isPaid ? payments.find(p => p.factureId === inv.id) : undefined;
                                           generateProformaPdf(inv, undefined, 'BOCS Maritime Agence Abidjan', payment);
                                         }}
-                                        className="p-1 text-slate-700 hover:text-blue-700 hover:bg-white rounded transition-all cursor-pointer shrink-0"
+                                        className="p-1 text-slate-700 dark:text-night-ink hover:text-blue-700 hover:bg-surface-canvas dark:bg-night-surface rounded transition-all cursor-pointer shrink-0"
                                         title={isValidated ? "Imprimer Facture Définitive" : "Imprimer Facture Proforma"}
                                       >
-                                        <span className="material-symbols-outlined text-xs">print</span>
+                                        <span aria-hidden="true" className="material-symbols-outlined text-sm">print</span>
                                       </button>
                                     )}
 
                                     {/* Action: Credit Note (if Validated and not cancelled) */}
                                     {isValidated && !isCancelled && (
-                                      <button
-                                        onClick={() => handleOpenCreditNoteModal(inv)}
-                                        className="p-1 text-rose-600 hover:text-white hover:bg-rose-600 rounded transition-all cursor-pointer shrink-0"
-                                        title="Annuler la facture / Émettre une Note d'Avoir fiscale"
-                                      >
-                                        <span className="material-symbols-outlined text-xs">cancel</span>
-                                      </button>
+                                      canCreateCreditNote ? (
+                                        <button
+                                          onClick={() => handleOpenCreditNoteModal(inv)}
+                                          className="p-1 text-rose-600 dark:text-night-critical hover:text-white hover:bg-rose-600 rounded transition-all cursor-pointer shrink-0"
+                                          title="Annuler la facture / Émettre une Note d'Avoir fiscale"
+                                        >
+                                          <span aria-hidden="true" className="material-symbols-outlined text-sm">cancel</span>
+                                        </button>
+                                      ) : (
+                                        <span
+                                          className="p-1 text-slate-400 dark:text-night-ink-3 cursor-not-allowed shrink-0"
+                                          title="Émission d'avoir réservée à la Comptabilité / Administration"
+                                        >
+                                          <span aria-hidden="true" className="material-symbols-outlined text-base">lock</span>
+                                        </span>
+                                      )
                                     )}
 
                                     {/* Action: Delete (Only if Proforma) */}
                                     {isProforma && (
-                                      <button
-                                        onClick={() => {
-                                          setInvoiceToDelete(inv);
-                                          setShowDeleteInvoiceModal(true);
-                                        }}
-                                        className="p-1 text-rose-500 hover:text-white hover:bg-rose-600 rounded transition-all cursor-pointer shrink-0"
-                                        title="Supprimer cette proforma"
-                                      >
-                                        <span className="material-symbols-outlined text-xs">delete</span>
-                                      </button>
+                                      canCreateInvoice ? (
+                                        <button
+                                          onClick={() => {
+                                            setInvoiceToDelete(inv);
+                                            setShowDeleteInvoiceModal(true);
+                                          }}
+                                          className="p-1 text-rose-500 hover:text-white dark:text-night-ink hover:bg-rose-600 rounded transition-all cursor-pointer shrink-0"
+                                          title="Supprimer cette proforma"
+                                        >
+                                          <span aria-hidden="true" className="material-symbols-outlined text-sm">delete</span>
+                                        </button>
+                                      ) : (
+                                        <span
+                                          className="p-1 text-slate-400 dark:text-night-ink-3 cursor-not-allowed shrink-0"
+                                          title="Suppression réservée aux profils Facturation"
+                                        >
+                                          <span aria-hidden="true" className="material-symbols-outlined text-base">lock</span>
+                                        </span>
+                                      )
                                     )}
                                   </div>
                                 );
                               } else {
                                 return (
-                                  <div key={typeConfig.id} className="flex items-center gap-1.5 border border-slate-200 bg-slate-100 px-2.5 py-1 rounded-lg min-w-[155px]">
+                                  <div key={typeConfig.id} className="flex items-center gap-1.5 border border-slate-200 dark:border-night-line bg-[#f4f4f5] dark:bg-night-sunken px-2.5 py-1 rounded-lg min-w-[155px]">
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        if (matchedBl && onSelectBl) {
+                                        if (canCreateInvoice && matchedBl && onSelectBl) {
                                           onSelectBl(matchedBl.id);
                                           setActiveTab('FACTURATION_BL');
                                         }
                                       }}
-                                      className={`px-2 py-0.5 bg-slate-200 text-slate-700 font-bold rounded text-[9px] flex items-center gap-1 transition-all ${
-                                        matchedBl && onSelectBl ? 'hover:bg-blue-100 hover:text-blue-800 cursor-pointer' : 'cursor-default'
+                                      className={`px-2 py-0.5 bg-slate-200 font-bold rounded text-2xs flex items-center gap-1 transition-all ${
+                                        canCreateInvoice && matchedBl && onSelectBl ? 'hover:bg-blue-100 dark:hover:bg-night-accent-line dark:bg-night-accent-soft hover:text-blue-800 cursor-pointer text-blue-900 dark:text-night-ink' : 'cursor-not-allowed text-slate-400 dark:text-night-ink-3'
                                       }`}
-                                      title={matchedBl && onSelectBl ? `Cliquer pour émettre la prestation ${typeName} pour ce BL` : "Facture non encore émise"}
+                                      title={canCreateInvoice ? (matchedBl && onSelectBl ? `Cliquer pour émettre la prestation ${typeName} pour ce BL` : "Facture non encore émise") : "Émission réservée aux profils Facturation"}
                                     >
-                                      <span className="material-symbols-outlined text-[10px] text-slate-500 font-bold">hourglass_empty</span>
+                                      {canCreateInvoice ? (
+                                        <span aria-hidden="true" className="material-symbols-outlined text-2xs text-slate-500 dark:text-night-ink-2 font-bold">hourglass_empty</span>
+                                      ) : (
+                                        <span aria-hidden="true" className="material-symbols-outlined text-2xs text-slate-400 dark:text-night-ink-3 font-bold">lock</span>
+                                      )}
                                       <span>{typeName} non émise</span>
                                     </button>
                                   </div>
@@ -1559,19 +1641,19 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                     const matchedEscale = escales.find(e => e.id === blToPrint.escaleId);
                                     generateDoBadPdf(blToPrint, matchedEscale);
                                   }}
-                                  className="px-2.5 py-1 bg-emerald-600 text-white hover:bg-emerald-700 font-extrabold rounded-lg text-[10px] transition-all flex items-center gap-1 active:scale-95 cursor-pointer shadow-sm border border-emerald-500"
+                                  className="px-2.5 py-1 bg-emerald-600 text-white dark:text-night-ink hover:bg-emerald-700 font-extrabold rounded-lg text-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer shadow-sm dark:shadow-black/30 border border-emerald-500"
                                   title="Générer et imprimer le Bon à Délivrer (DO / BAD)"
                                 >
-                                  <span className="material-symbols-outlined text-xs">verified</span>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-sm">verified</span>
                                   <span>DO/BAD</span>
                                 </button>
                               ) : (
                                 <button
                                   disabled
-                                  className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-700 font-extrabold rounded-lg text-[10px] flex items-center gap-1 cursor-not-allowed"
+                                  className="px-2.5 py-1 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line text-slate-700 dark:text-night-ink font-extrabold rounded-lg text-2xs flex items-center gap-1 cursor-not-allowed"
                                   title="Le Bon à Délivrer n'est activé que lorsque toutes les factures planifiées sont émises et réglées (boutons au vert)"
                                 >
-                                  <span className="material-symbols-outlined text-xs text-slate-500 font-bold">lock</span>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-sm text-slate-500 dark:text-night-ink-2 font-bold">lock</span>
                                   <span>DO/BAD</span>
                                 </button>
                               )
@@ -1593,57 +1675,57 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
         <div className="space-y-6">
           {/* Summary Metric Cards for Credit Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bocs-card p-5 border-l-4 border-rose-500 bg-white shadow-sm rounded-xl">
-              <span className="text-xs font-bold uppercase text-slate-500 block">Total Avoirs Émis</span>
-              <span className="text-2xl font-extrabold text-rose-600 font-mono">
+            <div className="bocs-card p-5 border-l-4 border-rose-500 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
+              <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">Total Avoirs Émis</span>
+              <span className="text-2xl font-extrabold text-rose-600 dark:text-night-critical font-mono">
                 {(creditNotes || []).reduce((sum, cn) => sum + cn.montantTtcFcfa, 0).toLocaleString('fr-FR')} FCFA
               </span>
-              <p className="text-[11px] text-slate-400 mt-1">{(creditNotes || []).length} note(s) d'avoir enregistrée(s)</p>
+              <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">{(creditNotes || []).length} note(s) d'avoir enregistrée(s)</p>
             </div>
 
-            <div className="bocs-card p-5 border-l-4 border-blue-500 bg-white shadow-sm rounded-xl">
-              <span className="text-xs font-bold uppercase text-slate-500 block">TVA Régularisée</span>
-              <span className="text-2xl font-extrabold text-blue-600 font-mono">
+            <div className="bocs-card p-5 border-l-4 border-blue-500 dark:border-night-link bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
+              <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">TVA Régularisée</span>
+              <span className="text-2xl font-extrabold text-blue-600 dark:text-night-link font-mono">
                 {(creditNotes || []).reduce((sum, cn) => sum + cn.tvaFcfa, 0).toLocaleString('fr-FR')} FCFA
               </span>
-              <p className="text-[11px] text-slate-400 mt-1">Crédit de TVA fiscale régularisé</p>
+              <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">Crédit de TVA fiscale régularisé</p>
             </div>
 
-            <div className="bocs-card p-5 border-l-4 border-emerald-500 bg-white shadow-sm rounded-xl">
-              <span className="text-xs font-bold uppercase text-slate-500 block">Inaltérabilité & Conformité</span>
-              <span className="text-2xl font-extrabold text-emerald-600 font-sans">
+            <div className="bocs-card p-5 border-l-4 border-emerald-500 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
+              <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">Inaltérabilité & Conformité</span>
+              <span className="text-2xl font-extrabold text-emerald-600 dark:text-night-positive font-sans">
                 100% Conforme
               </span>
-              <p className="text-[11px] text-slate-400 mt-1">Numérotation continue et auditée AV-BOCS</p>
+              <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">Numérotation continue et auditée AV-BOCS</p>
             </div>
           </div>
 
           {/* Credit Notes Table */}
-          <div className="bocs-card overflow-hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm">
-            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="bocs-card overflow-hidden bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line/80 rounded-md shadow-sm dark:shadow-black/30">
+            <div className="p-4 bg-[#f4f4f5] dark:bg-night-sunken border-b border-slate-200 dark:border-night-line flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-rose-600">assignment_return</span>
-                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
+                <span aria-hidden="true" className="material-symbols-outlined text-rose-600 dark:text-night-critical">assignment_return</span>
+                <h3 className="font-bold text-slate-800 dark:text-night-ink text-base uppercase tracking-wider">
                   Registre Officiel des Notes d'Avoir & Annulations ({(creditNotes || []).length})
                 </h3>
               </div>
 
               <div className="relative w-full sm:w-72">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-night-ink-3 text-base">search</span>
                 <input
                   type="text"
                   value={creditNotesSearch}
                   onChange={e => setCreditNotesSearch(e.target.value)}
                   placeholder="Rechercher avoir, facture, client..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-1.5 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg text-sm text-slate-800 dark:text-night-ink focus:outline-none focus:border-blue-500 "
                 />
               </div>
             </div>
 
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-270px)] min-h-[500px] bocs-scrollbar relative">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="sticky top-0 z-10 bg-slate-700 text-white shadow-xs">
-                  <tr className="text-[11px] font-extrabold uppercase border-b border-slate-600">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-700 text-white dark:text-night-ink shadow-1">
+                  <tr className="text-xs font-extrabold uppercase border-b border-slate-600">
                     <th className="p-3">N° Avoir</th>
                     <th className="p-3">Date Émission</th>
                     <th className="p-3">Facture d'Origine</th>
@@ -1654,7 +1736,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-night-line">
                   {((creditNotes || []).filter(cn => {
                     const q = creditNotesSearch.toLowerCase();
                     if (!q) return true;
@@ -1666,8 +1748,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     );
                   })).length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">
-                        <span className="material-symbols-outlined text-4xl block mb-2 text-slate-300">receipt_long</span>
+                      <td colSpan={8} className="p-8 text-center text-slate-400 dark:text-night-ink-3">
+                        <span aria-hidden="true" className="material-symbols-outlined text-4xl block mb-2 text-slate-300">receipt_long</span>
                         Aucune note d'avoir émise pour le moment.
                       </td>
                     </tr>
@@ -1685,31 +1767,31 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       const originalInv = invoices.find(i => i.id === cn.factureId || i.numeroFacture === cn.numeroFactureOrigine);
                       const matchedBl = originalInv ? bls.find(b => b.numeroBL === originalInv.numeroBL) : undefined;
                       return (
-                        <tr key={cn.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-mono font-bold text-rose-600">
-                            <span className="bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-xs">
+                        <tr key={cn.id} className="hover:bg-[#f4f4f5] dark:bg-night-sunken transition-colors">
+                          <td className="p-3 font-mono font-bold text-rose-600 dark:text-night-critical">
+                            <span className="bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line px-2 py-0.5 rounded text-sm">
                               {cn.numeroAvoir}
                             </span>
                           </td>
-                          <td className="p-3 font-mono text-slate-600">{cn.dateEmission}</td>
-                          <td className="p-3 font-mono font-bold text-slate-700">{cn.numeroFactureOrigine}</td>
-                          <td className="p-3 font-semibold text-slate-900">{cn.clientNom}</td>
-                          <td className="p-3 text-slate-700 max-w-xs truncate" title={cn.motif}>
-                            <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                          <td className="p-3 font-mono text-slate-600 dark:text-night-ink">{cn.dateEmission}</td>
+                          <td className="p-3 font-mono font-bold text-slate-700 dark:text-night-ink">{cn.numeroFactureOrigine}</td>
+                          <td className="p-3 font-semibold text-slate-900 dark:text-night-ink">{cn.clientNom}</td>
+                          <td className="p-3 text-slate-700 dark:text-night-ink max-w-xs truncate" title={cn.motif}>
+                            <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">
                               {cn.motif}
                             </span>
                           </td>
-                          <td className="p-3 font-mono font-bold text-rose-600 text-right">
+                          <td className="p-3 font-mono font-bold text-rose-600 dark:text-night-critical text-right">
                             -{cn.montantTtcFcfa.toLocaleString('fr-FR')} FCFA
                           </td>
-                          <td className="p-3 text-center text-slate-500 text-[11px]">{cn.createdBy || 'Comptabilité'}</td>
+                          <td className="p-3 text-center text-slate-500 dark:text-night-ink-2 text-xs">{cn.createdBy || 'Comptabilité'}</td>
                           <td className="p-3 text-right">
                             <button
                               onClick={() => generateCreditNotePdf(cn, originalInv, matchedBl)}
-                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition-all inline-flex items-center gap-1 cursor-pointer shadow-xs"
+                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg text-sm transition-all inline-flex items-center gap-1 cursor-pointer shadow-1"
                               title="Télécharger / Imprimer la Note d'Avoir PDF"
                             >
-                              <span className="material-symbols-outlined text-xs">picture_as_pdf</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-sm">picture_as_pdf</span>
                               <span>Imprimer Avoir</span>
                             </button>
                           </td>
@@ -1731,71 +1813,71 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bocs-card p-5 border-l-4 border-error">
-              <span className="text-xs font-bold uppercase text-outline block">Total Encours & Solde Dû</span>
+              <span className="text-sm font-bold uppercase text-outline block">Total Encours & Solde Dû</span>
               <span className="text-2xl font-extrabold text-error font-mono">{totalSoldeDu.toLocaleString('fr-FR')} FCFA</span>
-              <p className="text-[11px] text-outline mt-1">Créances clients à recouvrer</p>
+              <p className="text-xs text-outline mt-1">Créances clients à recouvrer</p>
             </div>
 
             <div className="bocs-card p-5 border-l-4 border-emerald-500">
-              <span className="text-xs font-bold uppercase text-outline block">Total Règlements Encaissés</span>
-              <span className="text-2xl font-extrabold text-emerald-600 font-mono">{totalPaye.toLocaleString('fr-FR')} FCFA</span>
-              <p className="text-[11px] text-outline mt-1">Paiements validés</p>
+              <span className="text-sm font-bold uppercase text-outline block">Total Règlements Encaissés</span>
+              <span className="text-2xl font-extrabold text-emerald-600 dark:text-night-positive font-mono">{totalPaye.toLocaleString('fr-FR')} FCFA</span>
+              <p className="text-xs text-outline mt-1">Paiements validés</p>
             </div>
 
             <div className="bocs-card p-5 border-l-4 border-secondary">
-              <span className="text-xs font-bold uppercase text-outline block">Ratio de Recouvrement</span>
+              <span className="text-sm font-bold uppercase text-outline block">Ratio de Recouvrement</span>
               <span className="text-2xl font-extrabold text-secondary font-mono">
                 {((totalPaye / (totalPaye + totalSoldeDu || 1)) * 100).toFixed(1)}%
               </span>
-              <p className="text-[11px] text-outline mt-1">Objectif mensuel: 95%</p>
+              <p className="text-xs text-outline mt-1">Objectif mensuel: 95%</p>
             </div>
           </div>
 
           {/* Aged Balance Categories breakdown */}
           <div className="bocs-card p-6 space-y-4">
-            <h3 className="font-bold text-primary text-sm uppercase tracking-wider border-b border-outline-variant pb-2">
+            <h3 className="font-bold text-primary text-base uppercase tracking-wider border-b border-outline-variant pb-2">
               Ventilation de la Balance par Tranche
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded text-center space-y-1">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase">0 - 30 Jours</span>
-                <p className="font-mono font-bold text-lg text-emerald-800">{agedBalance.t0_30.toLocaleString('fr-FR')} FCFA</p>
-                <p className="text-[10px] text-emerald-600">Échéance normale</p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
+              <div className="p-4 bg-emerald-50 dark:bg-night-positive-soft border border-emerald-200 dark:border-night-positive-line rounded text-center space-y-1">
+                <span className="text-2xs font-bold text-emerald-700 dark:text-night-positive uppercase">0 - 30 Jours</span>
+                <p className="font-mono font-bold text-xl text-emerald-800 dark:text-night-positive">{agedBalance.t0_30.toLocaleString('fr-FR')} FCFA</p>
+                <p className="text-2xs text-emerald-600 dark:text-night-positive">Échéance normale</p>
               </div>
 
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded text-center space-y-1">
-                <span className="text-[10px] font-bold text-amber-700 uppercase">31 - 60 Jours</span>
-                <p className="font-mono font-bold text-lg text-amber-800">{agedBalance.t31_60.toLocaleString('fr-FR')} FCFA</p>
-                <p className="text-[10px] text-amber-600">Relance 1 transmise</p>
+              <div className="p-4 bg-amber-50 dark:bg-night-caution-soft border border-amber-200 dark:border-night-caution-line rounded text-center space-y-1">
+                <span className="text-2xs font-bold text-amber-700 dark:text-night-caution uppercase">31 - 60 Jours</span>
+                <p className="font-mono font-bold text-xl text-amber-800 dark:text-night-caution">{agedBalance.t31_60.toLocaleString('fr-FR')} FCFA</p>
+                <p className="text-2xs text-amber-600 dark:text-night-caution">Relance 1 transmise</p>
               </div>
 
-              <div className="p-4 bg-orange-50 border border-orange-200 rounded text-center space-y-1">
-                <span className="text-[10px] font-bold text-orange-700 uppercase">61 - 90 Jours</span>
-                <p className="font-mono font-bold text-lg text-orange-800">{agedBalance.t61_90.toLocaleString('fr-FR')} FCFA</p>
-                <p className="text-[10px] text-orange-600">Mise en demeure</p>
+              <div className="p-4 bg-orange-50 dark:bg-night-accent-soft border border-orange-200 dark:border-night-accent-line rounded text-center space-y-1">
+                <span className="text-2xs font-bold text-orange-700 dark:text-night-caution uppercase">61 - 90 Jours</span>
+                <p className="font-mono font-bold text-xl text-orange-800 dark:text-night-caution">{agedBalance.t61_90.toLocaleString('fr-FR')} FCFA</p>
+                <p className="text-2xs text-orange-600 dark:text-night-caution">Mise en demeure</p>
               </div>
 
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded text-center space-y-1">
-                <span className="text-[10px] font-bold text-rose-700 uppercase">&gt; 90 Jours (Contentieux)</span>
-                <p className="font-mono font-bold text-lg text-rose-800">{agedBalance.t90plus.toLocaleString('fr-FR')} FCFA</p>
-                <p className="text-[10px] text-rose-600">Bloqué au parc</p>
+              <div className="p-4 bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line rounded text-center space-y-1">
+                <span className="text-2xs font-bold text-rose-700 dark:text-night-critical uppercase">&gt; 90 Jours (Contentieux)</span>
+                <p className="font-mono font-bold text-xl text-rose-800 dark:text-night-critical">{agedBalance.t90plus.toLocaleString('fr-FR')} FCFA</p>
+                <p className="text-2xs text-rose-600 dark:text-night-critical">Bloqué au parc</p>
               </div>
             </div>
           </div>
 
           {/* Payments History Table */}
           <div className="bocs-card overflow-hidden">
-            <div className="p-4 bg-surface-container-low border-b border-outline-variant">
-              <h3 className="font-bold text-primary text-sm uppercase tracking-wider">
+            <div className="p-4 bg-surface-container-low dark:bg-night-sunken border-b border-outline-variant">
+              <h3 className="font-bold text-primary text-base uppercase tracking-wider">
                 Historique des Règlements Enregistrés ({payments.length})
               </h3>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-sm border-collapse">
                 <thead>
-                  <tr className="bg-surface-container-high text-[11px] font-bold uppercase text-on-surface-variant">
+                  <tr className="bg-surface-container-high text-xs font-bold uppercase text-slate-900 dark:text-night-ink-2">
                     <th className="p-3">Facture Réf</th>
                     <th className="p-3">Date Paiement</th>
                     <th className="p-3">Mode</th>
@@ -1806,13 +1888,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </thead>
                 <tbody className="divide-y divide-outline-variant">
                   {payments.map(p => (
-                    <tr key={p.id} className="hover:bg-surface-container-low font-mono">
-                      <td className="p-3 font-bold text-primary">{p.numeroFacture}</td>
-                      <td className="p-3 text-on-surface-variant">{p.datePaiement}</td>
+                    <tr key={p.id} className="hover:bg-surface-container-low dark:bg-night-sunken font-mono">
+                      <td className="p-3 font-bold text-primary">{p.numeroFacture || (p as any).factureNumero || '-'}</td>
+                      <td className="p-3 text-slate-900 dark:text-night-ink-2">{p.datePaiement || '-'}</td>
                       <td className="p-3 font-bold text-secondary">{p.modePaiement}</td>
-                      <td className="p-3 text-outline">{p.referenceTransaction}</td>
-                      <td className="p-3 font-bold text-emerald-600">{(p.montantFcfa || 0).toLocaleString()} FCFA</td>
-                      <td className="p-3 text-on-surface-variant font-sans text-[11px]">{p.saisiPar}</td>
+                      <td className="p-3 text-outline">{p.referenceTransaction || (p as any).reference || '-'}</td>
+                      <td className="p-3 font-bold text-emerald-600 dark:text-night-positive">{(p.montantFcfa ?? (p as any).montantPayeFcfa ?? 0).toLocaleString()} FCFA</td>
+                      <td className="p-3 text-slate-900 dark:text-night-ink-2 font-sans text-xs">{p.saisiPar || (p as any).caisseNom || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1825,14 +1907,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* TAB 3: TARIFS SURESTARIES */}
       {activeTab === 'TARIFS' && (
-        <div className="bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl p-6 space-y-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#005DAA]/15 pb-4 gap-4">
+        <div className="bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md p-6 space-y-6 shadow-sm dark:shadow-black/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#005DAA] dark:border-night-line/15 pb-4 gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005DAA]">tune</span>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link">tune</span>
                 <span>Configuration des Grilles Tarifaires</span>
               </h2>
-              <p className="text-xs text-slate-500">Paramétrage des tranches tarifaires de surestaries et de détentions.</p>
+              <p className="text-sm text-slate-500 dark:text-night-ink-2">Paramétrage des tranches tarifaires de surestaries et de détentions.</p>
             </div>
             <button
               onClick={() => {
@@ -1845,25 +1927,25 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 }
                 setShowAddTarifModal(true);
               }}
-              className="px-4 py-2 bg-[#005daa] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 self-start sm:self-auto"
+              className="px-4 py-2 bg-[#005daa] dark:bg-night-accent hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-white font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 self-start sm:self-auto"
             >
-              <span className="material-symbols-outlined text-sm">add_box</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base">add_box</span>
               <span>Ajouter une Tranche</span>
             </button>
           </div>
 
           {/* Filters controls */}
-          <div className="flex flex-wrap items-center gap-4 bg-white/80 p-4 rounded-xl border border-[#005DAA]/20 text-xs shadow-2xs">
+          <div className="flex flex-wrap items-center gap-4 bg-surface-canvas dark:bg-night-surface/80 p-4 rounded-md border border-[#005DAA] dark:border-night-line/20 text-sm shadow-1">
             <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Flux d'opération</span>
-              <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
+              <span className="text-2xs text-slate-400 dark:text-night-ink-3 font-bold uppercase tracking-wider block">Flux d'opération</span>
+              <div className="flex bg-surface-canvas dark:bg-night-surface rounded-lg border border-slate-200 dark:border-night-line p-0.5 shadow-1">
                 <button
                   type="button"
                   onClick={() => setTariffFilterOpType('IMPORT')}
                   className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                     tariffFilterOpType === 'IMPORT' 
-                      ? 'bg-[#005daa] text-white' 
-                      : 'text-slate-650 hover:bg-slate-50'
+                      ? 'bg-[#005daa] dark:bg-night-accent text-white dark:text-white' 
+                      : 'text-slate-600 dark:text-night-ink-2 hover:bg-[#f4f4f5] dark:hover:bg-night-raised/50'
                   }`}
                 >
                   IMPORT
@@ -1873,8 +1955,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   onClick={() => setTariffFilterOpType('EXPORT')}
                   className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                     tariffFilterOpType === 'EXPORT' 
-                      ? 'bg-[#005daa] text-white' 
-                      : 'text-slate-650 hover:bg-slate-50'
+                      ? 'bg-[#005daa] dark:bg-night-accent text-white dark:text-white' 
+                      : 'text-slate-600 dark:text-night-ink-2 hover:bg-[#f4f4f5] dark:hover:bg-night-raised/50'
                   }`}
                 >
                   EXPORT
@@ -1883,18 +1965,18 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             </div>
 
             <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Régime tarifaire</span>
-              <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
+              <span className="text-2xs text-slate-400 dark:text-night-ink-3 font-bold uppercase tracking-wider block">Régime tarifaire</span>
+              <div className="flex bg-surface-canvas dark:bg-night-surface rounded-lg border border-slate-200 dark:border-night-line p-0.5 shadow-1">
                 <button
                   type="button"
                   disabled={tariffFilterOpType === 'EXPORT'}
                   onClick={() => setTariffFilterRegime('SURESTARIE')}
                   className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                     tariffFilterRegime === 'SURESTARIE' 
-                      ? 'bg-secondary text-white' 
+                      ? 'bg-secondary text-white dark:text-night-ink' 
                       : (tariffFilterOpType === 'EXPORT' 
                           ? 'text-slate-300 cursor-not-allowed opacity-50' 
-                          : 'text-slate-650 hover:bg-slate-50')
+                          : 'text-slate-600 dark:text-night-ink-2 hover:bg-[#f4f4f5] dark:hover:bg-night-raised/50')
                   }`}
                   title={tariffFilterOpType === 'EXPORT' ? "Pas de surestaries à l'export" : "Surestaries (DMDT)"}
                 >
@@ -1905,8 +1987,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   onClick={() => setTariffFilterRegime('DETENTION')}
                   className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                     tariffFilterRegime === 'DETENTION' 
-                      ? 'bg-secondary text-white' 
-                      : 'text-slate-650 hover:bg-slate-50'
+                      ? 'bg-secondary text-white dark:text-night-ink' 
+                      : 'text-slate-600 dark:text-night-ink-2 hover:bg-[#f4f4f5] dark:hover:bg-night-raised/50'
                   }`}
                 >
                   DÉTENTION
@@ -1915,17 +1997,17 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             </div>
 
             {tariffFilterOpType === 'EXPORT' && (
-              <div className="ml-auto flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 px-3.5 py-1.5 rounded-lg font-medium self-end">
-                <span className="material-symbols-outlined text-sm">info</span>
+              <div className="ml-auto flex items-center gap-1.5 text-amber-700 dark:text-night-caution bg-amber-50 dark:bg-night-caution-soft border border-amber-200 dark:border-night-caution-line px-3.5 py-1.5 rounded-lg font-medium self-end">
+                <span aria-hidden="true" className="material-symbols-outlined text-base">info</span>
                 <span>Note : Seul le régime de Détention est disponible pour l'Export.</span>
               </div>
             )}
           </div>
 
-          <div className="overflow-x-auto overflow-y-auto max-h-[480px] bocs-scrollbar relative border border-slate-100 rounded-xl shadow-2xs">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-600/95 backdrop-blur-md shadow-xs">
-                <tr className="text-[11px] font-extrabold text-white uppercase border-b border-slate-500/30">
+          <div className="overflow-x-auto overflow-y-auto max-h-[480px] bocs-scrollbar relative border border-slate-100 dark:border-night-line rounded-md shadow-1">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="sticky top-0 z-10 bg-slate-600/95 dark:bg-night-sunken backdrop-blur-md shadow-1">
+                <tr className="text-xs font-extrabold text-white dark:text-night-ink-2 uppercase border-b border-slate-500/30 dark:border-night-line">
                   <th className="p-3">Type Conteneur</th>
                   <th className="p-3">Régime</th>
                   <th className="p-3">Opération</th>
@@ -1936,44 +2018,44 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   <th className="p-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant bg-white">
+              <tbody className="divide-y divide-outline-variant bg-surface-canvas dark:bg-night-surface text-slate-700 dark:text-night-ink">
                 {tarifs
                   .filter(t => 
                     (t.typeOperation || 'IMPORT') === tariffFilterOpType &&
                     (t.regime || 'SURESTARIE') === tariffFilterRegime
                   )
                   .map(t => (
-                    <tr key={t.id} className="hover:bg-slate-50/50">
-                      <td className="p-3 font-bold text-slate-800">{t.typeConteneur}</td>
+                    <tr key={t.id} className="hover:bg-slate-50 dark:bg-night-sunken dark:hover:bg-night-raised/50">
+                      <td className="p-3 font-bold text-slate-800 dark:text-night-ink">{t.typeConteneur}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
                           t.regime === 'DETENTION' 
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200' 
-                            : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            ? 'bg-purple-50 dark:bg-night-sunken text-purple-700 dark:text-night-link border border-purple-200 dark:border-night-link/30' 
+                            : 'bg-indigo-50 dark:bg-night-sunken text-indigo-700 dark:text-night-link border border-indigo-200 dark:border-night-link/30'
                         }`}>
                           {t.regime || 'SURESTARIE'}
                         </span>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
                           t.typeOperation === 'EXPORT' 
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200' 
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            ? 'bg-amber-50 text-amber-700 dark:text-night-caution border border-amber-200' 
+                            : 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border border-emerald-200 dark:border-night-positive-line'
                         }`}>
                           {t.typeOperation || 'IMPORT'}
                         </span>
                       </td>
-                      <td className="p-3 font-mono font-bold text-slate-600 text-center">{t.joursFranchise !== undefined ? `${t.joursFranchise} j` : '-'}</td>
-                      <td className="p-3 font-mono text-slate-600">Jour {t.jourDebut}</td>
-                      <td className="p-3 font-mono text-slate-600">{t.jourFin === 999 ? 'Au-delà' : `Jour ${t.jourFin}`}</td>
+                      <td className="p-3 font-mono font-bold text-slate-600 dark:text-night-ink text-center">{t.joursFranchise !== undefined ? `${t.joursFranchise} j` : '-'}</td>
+                      <td className="p-3 font-mono text-slate-600 dark:text-night-ink">Jour {t.jourDebut}</td>
+                      <td className="p-3 font-mono text-slate-600 dark:text-night-ink">{t.jourFin === 999 ? 'Au-delà' : `Jour ${t.jourFin}`}</td>
                       <td className="p-3 font-mono font-bold text-secondary">{(t.tarifJournalierFcfa || 0).toLocaleString()} FCFA</td>
                       <td className="p-3 text-right flex items-center justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => setEditingTarif(t)}
-                          className="px-2.5 py-1 bg-blue-50 border border-blue-200 hover:bg-[#005daa] hover:text-white font-bold rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line hover:bg-[#005daa] hover:text-white dark:text-night-link dark:hover:text-night-ink font-bold rounded-lg text-sm transition-all flex items-center gap-1 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-xs">edit</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-sm">edit</span>
                           <span>Éditer</span>
                         </button>
                         {deletingTarifId === t.id ? (
@@ -1981,14 +2063,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => handleDeleteTarifClick(t)}
-                              className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                              className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg text-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                             >
                               Confirmer ?
                             </button>
                             <button
                               type="button"
                               onClick={() => setDeletingTarifId(null)}
-                              className="px-2 py-1 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition-all cursor-pointer"
+                              className="px-2 py-1 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line hover:bg-slate-200 text-slate-700 dark:text-night-ink font-bold rounded-lg text-sm transition-all cursor-pointer"
                             >
                               Annuler
                             </button>
@@ -1997,9 +2079,9 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                           <button
                             type="button"
                             onClick={() => setDeletingTarifId(t.id || null)}
-                            className="px-2.5 py-1 bg-rose-50 border border-rose-200 hover:bg-rose-600 hover:text-white font-bold rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1 bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line hover:bg-rose-600 hover:text-white dark:text-night-critical dark:hover:text-night-ink font-bold rounded-lg text-sm transition-all flex items-center gap-1 cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-xs">delete</span>
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm">delete</span>
                             <span>Supprimer</span>
                           </button>
                         )}
@@ -2011,7 +2093,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   (t.regime || 'SURESTARIE') === tariffFilterRegime
                 ).length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-slate-400 italic">
+                    <td colSpan={7} className="p-6 text-center text-slate-400 dark:text-night-ink-3 italic">
                       Aucune tranche tarifaire définie pour ce régime et cette opération.
                     </td>
                   </tr>
@@ -2024,32 +2106,32 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Payment Form */}
       {showPaymentModal && paymentFacture && (
-        <div onClick={overlayClickClose(() => { setShowPaymentModal(false); setPaymentFacture(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowPaymentModal(false); setPaymentFacture(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface-container-low dark:bg-night-sunkenest border border-outline-variant rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-outline-variant pb-3">
-              <h3 className="font-bold text-lg text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600">price_check</span>
+              <h3 className="font-bold text-xl text-primary flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-emerald-600 dark:text-night-positive">price_check</span>
                 <span>Enregistrer un Règlement</span>
               </h3>
-              <button onClick={() => setShowPaymentModal(false)} className="text-outline hover:text-on-surface">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowPaymentModal(false)} className="text-outline hover:text-slate-900 dark:text-night-ink">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleRecordPaymentSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleRecordPaymentSubmit} className="space-y-3 text-sm">
               <div className="p-3 bg-surface-container rounded space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-outline font-bold uppercase">Facture Cible</span>
-                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded uppercase font-bold">
+                  <span className="text-2xs text-outline font-bold uppercase">Facture Cible</span>
+                  <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded uppercase font-bold">
                     {invoiceTypeConfigs.find(c => c.id === paymentFacture.invoiceTypeId)?.name || paymentFacture.typeFacture.replace(/_/g, ' ')}
                   </span>
                 </div>
-                <p className="font-bold font-mono text-primary text-sm">{paymentFacture.numeroFacture}</p>
-                <p className="text-on-surface font-semibold">{paymentFacture.clientNom}</p>
+                <p className="font-bold font-mono text-primary text-base">{paymentFacture.numeroFacture}</p>
+                <p className="text-slate-900 dark:text-night-ink font-semibold">{paymentFacture.clientNom}</p>
               </div>
 
               <div>
-                <label className="block font-bold text-on-surface-variant uppercase mb-1">Montant du Règlement (FCFA)</label>
+                <label className="block font-bold text-slate-900 dark:text-night-ink-2 uppercase mb-1">Montant du Règlement (FCFA)</label>
                 <input
                   type="text"
                   required
@@ -2060,17 +2142,17 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     const maxLimit = Number(paymentFacture.soldeDuFcfa || 0);
                     setPaymentMontant(Math.min(numValue, maxLimit));
                   }}
-                  className="w-full h-10 px-3 bg-surface border border-outline-variant rounded font-mono font-bold text-emerald-600 text-sm"
+                  className="w-full h-10 px-3 bg-surface border border-outline-variant rounded font-mono font-bold text-emerald-600 dark:text-night-positive text-base"
                 />
-                <span className="text-[10px] text-outline mt-1 block">Solde dût actuel: {Number(paymentFacture.soldeDuFcfa || 0).toLocaleString('fr-FR')} FCFA</span>
+                <span className="text-2xs text-outline mt-1 block">Solde dût actuel: {Number(paymentFacture.soldeDuFcfa || 0).toLocaleString('fr-FR')} FCFA</span>
               </div>
 
               <div>
-                <label className="block font-bold text-on-surface-variant uppercase mb-1">Mode de Paiement</label>
+                <label className="block font-bold text-slate-900 dark:text-night-ink-2 uppercase mb-1">Mode de Paiement</label>
                 <select
                   value={paymentMode}
                   onChange={e => setPaymentMode(e.target.value as any)}
-                  className="w-full h-10 px-3 bg-[#ffe135] hover:bg-[#ffe855] text-[#0f172a] border border-[#e5c122] rounded-xl font-black cursor-pointer outline-none transition-all"
+                  className="w-full h-10 px-3 bg-[#ffe135] hover:bg-[#ffe855] text-[#0f172a] dark:text-night-ink border border-[#e5c122] rounded-md font-black cursor-pointer outline-none transition-all"
                 >
                   <option value="VIREMENT">Virement Bancaire</option>
                   <option value="CHEQUE">Chèque Certifié</option>
@@ -2081,7 +2163,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               {['VIREMENT', 'CHEQUE'].includes(paymentMode) && (
                 <div>
-                  <label className="block font-bold text-on-surface-variant uppercase mb-1">Référence Transaction / Chèque</label>
+                  <label className="block font-bold text-slate-900 dark:text-night-ink-2 uppercase mb-1">Référence Transaction / Chèque</label>
                   <input
                     type="text"
                     value={paymentRef}
@@ -2102,7 +2184,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-700 transition-all shadow"
+                  className="px-5 py-2 bg-emerald-600 text-white dark:text-night-ink font-bold rounded hover:bg-emerald-700 transition-all shadow"
                 >
                   Valider le Règlement
                 </button>
@@ -2114,94 +2196,94 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Tarif */}
       {editingTarif && (
-        <div onClick={overlayClickClose(() => setEditingTarif(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[#005daa]">edit</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setEditingTarif(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-100 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-night-ink flex items-center gap-1.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa]">edit</span>
                 <span>Éditer la Tranche Tarifaire</span>
               </h3>
-              <button onClick={() => setEditingTarif(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-505 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-all">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setEditingTarif(null)} className="w-8 h-8 rounded-full bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-505 hover:text-slate-800 dark:text-night-ink flex items-center justify-center cursor-pointer transition-all">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleUpdateTarif} className="space-y-3 text-xs">
+            <form onSubmit={handleUpdateTarif} className="space-y-3 text-sm">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Conteneur</label>
+                  <label className="block font-bold text-slate-400 dark:text-night-ink-3 uppercase mb-1">Conteneur</label>
                   <input
                     type="text"
                     disabled
                     value={editingTarif.typeConteneur}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 text-center"
+                    className="w-full h-9 px-3 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded font-bold text-slate-600 dark:text-night-ink text-center"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Opération</label>
+                  <label className="block font-bold text-slate-400 dark:text-night-ink-3 uppercase mb-1">Opération</label>
                   <input
                     type="text"
                     disabled
                     value={editingTarif.typeOperation || 'IMPORT'}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 text-center"
+                    className="w-full h-9 px-3 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded font-bold text-slate-600 dark:text-night-ink text-center"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Régime</label>
+                  <label className="block font-bold text-slate-400 dark:text-night-ink-3 uppercase mb-1">Régime</label>
                   <input
                     type="text"
                     disabled
                     value={editingTarif.regime || 'SURESTARIE'}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 text-center"
+                    className="w-full h-9 px-3 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded font-bold text-slate-600 dark:text-night-ink text-center"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Jour Début</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Jour Début</label>
                   <input
                     type="number"
                     required
                     min={1}
                     value={editingTarif.jourDebut}
                     onChange={e => setEditingTarif({ ...editingTarif, jourDebut: parseInt(e.target.value, 10) || 1 })}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-slate-800 dark:text-night-ink"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Jour Fin (999 = Max)</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Jour Fin (999 = Max)</label>
                   <input
                     type="number"
                     required
                     min={1}
                     value={editingTarif.jourFin}
                     onChange={e => setEditingTarif({ ...editingTarif, jourFin: parseInt(e.target.value, 10) || 999 })}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-slate-800 dark:text-night-ink"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Jours Franchise</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Jours Franchise</label>
                   <input
                     type="number"
                     required
                     min={0}
                     value={editingTarif.joursFranchise || 0}
                     onChange={e => setEditingTarif({ ...editingTarif, joursFranchise: parseInt(e.target.value, 10) || 0 })}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800 text-sm"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-slate-800 dark:text-night-ink text-base"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Tarif Journalier (FCFA)</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Tarif Journalier (FCFA)</label>
                   <input
                     type="number"
                     required
                     value={editingTarif.tarifJournalierFcfa}
                     onChange={e => setEditingTarif({ ...editingTarif, tarifJournalierFcfa: parseFloat(e.target.value) || 0 })}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-secondary text-sm"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-secondary text-base"
                   />
                 </div>
               </div>
@@ -2210,13 +2292,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingTarif(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded font-bold text-slate-700 hover:text-slate-900"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded font-bold text-slate-700 dark:text-night-ink hover:text-slate-900 "
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#005daa] text-white font-bold rounded-xl hover:bg-blue-700 shadow transition-all active:scale-95 cursor-pointer"
+                  className="px-5 py-2 bg-[#005daa] dark:bg-night-accent text-white dark:text-white font-bold rounded-md hover:bg-blue-700 dark:hover:bg-night-accent-strong shadow transition-all active:scale-95 cursor-pointer"
                 >
                   Enregistrer
                 </button>
@@ -2228,25 +2310,25 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Add Tarif */}
       {showAddTarifModal && (
-        <div onClick={overlayClickClose(() => setShowAddTarifModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[#005daa]">add_box</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddTarifModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-100 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-night-ink flex items-center gap-1.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa]">add_box</span>
                 <span>Ajouter une Tranche Tarifaire</span>
               </h3>
-              <button onClick={() => setShowAddTarifModal(false)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-all">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowAddTarifModal(false)} className="w-8 h-8 rounded-full bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-500 dark:text-night-ink-2 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-all">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleAddTarifSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleAddTarifSubmit} className="space-y-3 text-sm">
               <div>
-                <label className="block font-bold text-slate-500 uppercase mb-1">Type de Conteneur</label>
+                <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Type de Conteneur</label>
                 <select
                   value={newTarifTypeCtn}
                   onChange={e => setNewTarifTypeCtn(e.target.value as ContainerType)}
-                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-bold text-slate-800 outline-none"
+                  className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-bold text-slate-800 dark:text-night-ink outline-none"
                 >
                   <option value="20_DRY">20' Dry</option>
                   <option value="40_DRY">40' Dry</option>
@@ -2261,23 +2343,23 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Opération</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Opération</label>
                   <select
                     value={newTarifOpType}
                     onChange={e => setNewTarifOpType(e.target.value as any)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-bold text-slate-800 outline-none"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-bold text-slate-800 dark:text-night-ink outline-none"
                   >
                     <option value="IMPORT">IMPORT</option>
                     <option value="EXPORT">EXPORT</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Régime</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Régime</label>
                   <select
                     value={newTarifRegime}
                     disabled={newTarifOpType === 'EXPORT'}
                     onChange={e => setNewTarifRegime(e.target.value as any)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-bold text-slate-800 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-bold text-slate-800 dark:text-night-ink outline-none disabled:bg-[#f4f4f5] disabled:text-slate-400 "
                   >
                     <option value="SURESTARIE">SURESTARIE (DMDT)</option>
                     <option value="DETENTION">DÉTENTION</option>
@@ -2287,49 +2369,49 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Jour Début</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Jour Début</label>
                   <input
                     type="number"
                     required
                     min={1}
                     value={newTarifJourDebut}
                     onChange={e => setNewTarifJourDebut(parseInt(e.target.value, 10) || 1)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-slate-800 dark:text-night-ink"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Jour Fin (999 = Max)</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Jour Fin (999 = Max)</label>
                   <input
                     type="number"
                     required
                     min={1}
                     value={newTarifJourFin}
                     onChange={e => setNewTarifJourFin(parseInt(e.target.value, 10) || 999)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-slate-800 dark:text-night-ink"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Jours Franchise</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Jours Franchise</label>
                   <input
                     type="number"
                     required
                     min={0}
                     value={newTarifFranchise}
                     onChange={e => setNewTarifFranchise(parseInt(e.target.value, 10) || 0)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800 text-sm"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-slate-800 dark:text-night-ink text-base"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-500 uppercase mb-1">Tarif Journalier (FCFA)</label>
+                  <label className="block font-bold text-slate-500 dark:text-night-ink-2 uppercase mb-1">Tarif Journalier (FCFA)</label>
                   <input
                     type="number"
                     required
                     value={newTarifRate}
                     onChange={e => setNewTarifRate(parseFloat(e.target.value) || 0)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded font-mono font-bold text-secondary text-sm"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded font-mono font-bold text-secondary text-base"
                   />
                 </div>
               </div>
@@ -2338,13 +2420,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddTarifModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded font-bold text-slate-700 hover:text-slate-900"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded font-bold text-slate-700 dark:text-night-ink hover:text-slate-900 "
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow transition-all active:scale-95 cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 text-white dark:text-night-ink font-bold rounded-md hover:bg-emerald-700 shadow transition-all active:scale-95 cursor-pointer"
                 >
                   Enregistrer
                 </button>
@@ -2359,10 +2441,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
         <div className="space-y-6 pb-24">
           
           {/* Title & Subtitle Banner with '+ Nouveau Type' button */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs p-6 rounded-2xl shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs p-6 rounded-md shadow-sm dark:shadow-black/30">
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-[#00182f] font-heading flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005daa] text-2xl">
+              <h2 className="text-xl font-bold text-[#00182f] dark:text-night-ink font-heading flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa] text-2xl">
                   {configSubTab === 'TAXE' ? 'receipt_long' : configSubTab === 'TIMBRE' ? 'approval' : 'settings_suggest'}
                 </span>
                 <span>
@@ -2373,7 +2455,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       : 'Configuration des Factures & Rubriques'}
                 </span>
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-night-ink-2">
                 {configSubTab === 'TYPES'
                   ? 'Gérez et modifiez librement les types de factures, leurs rubriques tarifaires et les montants unitaires par catégorie.'
                   : configSubTab === 'TAXE'
@@ -2385,9 +2467,9 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAddTypeModal(true)}
-                className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow cursor-pointer active:scale-95 shrink-0"
+                className="px-4 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-bold rounded-md text-sm transition-all flex items-center gap-2 shadow cursor-pointer active:scale-95 shrink-0"
               >
-                <span className="material-symbols-outlined text-sm font-bold">add</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">add</span>
                 <span>Nouveau Type de Facture</span>
               </button>
             )}
@@ -2395,7 +2477,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
           {/* ── Boutons d'onglets de configuration ── */}
           <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Panneaux de configuration des factures">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Paramètres</span>
+            <span className="text-2xs font-black uppercase tracking-wider text-slate-400 dark:text-night-ink-3 mr-1">Paramètres</span>
             {[
               { key: 'TYPES', label: `Types & Rubriques (${invoiceTypeConfigs.length})`, icon: 'list' },
               { key: 'TAXE', label: 'Taxe Additionnelle (TTC)', icon: 'receipt_long' },
@@ -2412,28 +2494,28 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   aria-controls={`config-panel-${tab.key}`}
                   title={`Afficher le panneau : ${tab.label}`}
                   onClick={() => setConfigSubTab(tab.key as 'TYPES' | 'TAXE' | 'TIMBRE')}
-                  className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-xs transition-all active:scale-95 cursor-pointer border ${
+                  className={`px-4 py-2.5 rounded-md flex items-center gap-2 font-bold text-sm transition-all active:scale-95 cursor-pointer border ${
                     isActive
-                      ? 'bg-[#005DAA] text-white border-[#005DAA] shadow-md'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-[#005DAA]/40'
+                      ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white border-[#005DAA] dark:border-night-line shadow-md '
+                      : 'bg-surface-canvas text-slate-700 dark:text-night-ink border-slate-200 dark:border-night-line hover:bg-[#f4f4f5] dark:bg-night-sunken hover:border-[#005DAA] '
                   }`}
                 >
-                  <span className={`material-symbols-outlined text-[18px] ${isActive ? 'text-white' : 'text-[#005DAA]'}`}>{tab.icon}</span>
+                  <span aria-hidden="true" className={`material-symbols-outlined text-xl ${isActive ? 'text-white dark:text-night-ink' : 'text-[#005DAA] dark:text-night-link'}`}>{tab.icon}</span>
                   <span className="font-extrabold">{tab.label}</span>
                   {tab.key === 'TAXE' && (
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                    <span className={`text-2xs font-black px-2 py-0.5 rounded-full border ${
                       isActive
-                        ? (taxeAdditionnelleDraft.estActif ? 'bg-emerald-500/20 text-white border-white/30' : 'bg-white/20 text-white border-white/30')
-                        : (taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200')
+                        ? (taxeAdditionnelleDraft.estActif ? 'bg-emerald-500/20 text-white dark:text-white border-white/30' : 'bg-surface-canvas dark:bg-night-ink/20 text-white dark:text-white border-white/30')
+                        : (taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border-emerald-200 dark:border-night-positive-line' : 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 border-slate-200 dark:border-night-line')
                     }`}>
                       {taxeAdditionnelleDraft.estActif ? 'ACTIVE' : 'INACTIVE'}
                     </span>
                   )}
                   {tab.key === 'TIMBRE' && (
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                    <span className={`text-2xs font-black px-2 py-0.5 rounded-full border ${
                       isActive
-                        ? (timbreDraft.some(b => b.estActif) ? 'bg-emerald-500/20 text-white border-white/30' : 'bg-white/20 text-white border-white/30')
-                        : (timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200')
+                        ? (timbreDraft.some(b => b.estActif) ? 'bg-emerald-500/20 text-white dark:text-night-ink border-white/30' : 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-night-ink border-white/30')
+                        : (timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border-emerald-200 dark:border-night-positive-line' : 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 border-slate-200 dark:border-night-line')
                     }`}>
                       {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'INACTIF'}
                     </span>
@@ -2449,22 +2531,22 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               id="config-panel-TAXE"
               role="tabpanel"
               aria-labelledby="config-tab-TAXE"
-              className="bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden"
+              className="bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden"
             >
-              <div className="p-5 border-b border-[#005DAA]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/10">
+              <div className="p-5 border-b border-[#005DAA] dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/10">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/80 border border-[#005DAA]/20 text-[#005DAA] flex items-center justify-center shrink-0 shadow-xs">
-                    <span className="material-symbols-outlined text-xl">receipt_long</span>
+                  <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/80 border border-[#005DAA] dark:border-night-line/20 text-[#005DAA] dark:text-night-link flex items-center justify-center shrink-0 shadow-1">
+                    <span aria-hidden="true" className="material-symbols-outlined text-xl">receipt_long</span>
                   </div>
                   <div className="space-y-0.5">
-                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 dark:text-night-ink text-base flex items-center gap-2">
                       <span>Taxe additionnelle exceptionnelle</span>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      <span className={`text-2xs font-black px-2 py-0.5 rounded-full border ${taxeAdditionnelleDraft.estActif ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border-emerald-200 dark:border-night-positive-line' : 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 border-slate-200 dark:border-night-line'}`}>
                         {taxeAdditionnelleDraft.estActif ? 'ACTIVE' : 'INACTIVE'}
                       </span>
                     </h3>
-                    <p className="text-[11px] text-slate-600">
-                      Assiette : <strong className="text-slate-800">montant TTC</strong> de la facture. La valeur est modifiable à tout moment ;
+                    <p className="text-xs text-slate-600 dark:text-night-ink">
+                      Assiette : <strong className="text-slate-800 dark:text-night-ink">montant TTC</strong> de la facture. La valeur est modifiable à tout moment ;
                       les factures déjà émises conservent la valeur appliquée lors de leur émission.
                     </p>
                   </div>
@@ -2473,16 +2555,16 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   <button
                     type="button"
                     onClick={() => setTaxeAdditionnelleDraft(normalizeTaxeAdditionnelleConfig(undefined))}
-                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                    className="px-3 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] text-slate-700 dark:text-night-ink border border-slate-200 dark:border-night-line rounded-md text-sm font-bold transition-all cursor-pointer active:scale-95"
                   >
                     Réinitialiser
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveTaxeAdditionnelle}
-                    className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                    className="px-4 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-bold rounded-md text-sm transition-all flex items-center gap-2 shadow-1 cursor-pointer active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-sm font-black">save</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-base font-black">save</span>
                     <span>Enregistrer la taxe</span>
                   </button>
                 </div>
@@ -2491,7 +2573,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                 {/* Libellé */}
                 <div className="lg:col-span-5">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">
                     Libellé imprimé sur la facture
                   </label>
                   <input
@@ -2499,44 +2581,44 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     value={taxeAdditionnelleDraft.libelle}
                     onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, libelle: e.target.value }))}
                     placeholder="Ex. Taxe additionnelle exceptionnelle"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-semibold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                   />
                 </div>
 
                 {/* Activation */}
                 <div className="lg:col-span-3">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Application</label>
-                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">Application</label>
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg cursor-pointer bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] transition-all">
                     <input
                       type="checkbox"
                       checked={taxeAdditionnelleDraft.estActif}
                       onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estActif: e.target.checked }))}
                       className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-800">Activer la taxe</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-night-ink">Activer la taxe</span>
                   </label>
                 </div>
 
                 {/* Nature */}
                 <div className="lg:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Nature</label>
-                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">Nature</label>
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg cursor-pointer bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] transition-all">
                     <input
                       type="checkbox"
                       checked={taxeAdditionnelleDraft.estExceptionnelle}
                       onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, estExceptionnelle: e.target.checked }))}
                       className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-800">Taxe exceptionnelle (ponctuelle)</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-night-ink">Taxe exceptionnelle (ponctuelle)</span>
                   </label>
                 </div>
                 {/* Mode de calcul */}
                 <div className="lg:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Mode de calcul</label>
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">Mode de calcul</label>
                   <select
                     value={taxeAdditionnelleDraft.mode}
                     onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, mode: e.target.value === 'MONTANT_FIXE' ? 'MONTANT_FIXE' : 'POURCENTAGE' }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-bold text-slate-800 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
                   >
                     <option value="POURCENTAGE">Pourcentage du TTC (%)</option>
                     <option value="MONTANT_FIXE">Montant fixe (FCFA)</option>
@@ -2545,7 +2627,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
                 {/* Valeur (mise à jour) */}
                 <div className="lg:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">
                     {taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 'Taux applicable au TTC (%)' : 'Montant forfaitaire (FCFA)'}
                   </label>
                   <input
@@ -2554,13 +2636,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     step={taxeAdditionnelleDraft.mode === 'POURCENTAGE' ? 0.1 : 100}
                     value={taxeAdditionnelleDraft.valeur}
                     onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, valeur: Math.max(0, Number(e.target.value) || 0) }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                   />
                 </div>
 
                 {/* Seuil d'assiette */}
                 <div className="lg:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">
                     Seuil d'assiette : TTC minimum (FCFA)
                   </label>
                   <input
@@ -2569,14 +2651,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     step={1000}
                     value={taxeAdditionnelleDraft.seuilMinTtcFcfa ?? 0}
                     onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, seuilMinTtcFcfa: Math.max(0, Number(e.target.value) || 0) }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">0 = taxe appliquée quel que soit le montant.</p>
+                  <p className="text-2xs text-slate-400 dark:text-night-ink-3 mt-1">0 = taxe appliquée quel que soit le montant.</p>
                 </div>
 
                 {/* Plafond de taxe */}
                 <div className="lg:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">
                     Plafond de la taxe (FCFA)
                   </label>
                   <input
@@ -2585,48 +2667,48 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     step={1000}
                     value={taxeAdditionnelleDraft.plafondFcfa ?? 0}
                     onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, plafondFcfa: Math.max(0, Number(e.target.value) || 0) }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">0 = aucun plafond.</p>
+                  <p className="text-2xs text-slate-400 dark:text-night-ink-3 mt-1">0 = aucun plafond.</p>
                 </div>
                 {/* Périmètre */}
                 <div className="lg:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Périmètre d'application</label>
+                  <label className="block text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2 mb-1.5">Périmètre d'application</label>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                    <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg cursor-pointer bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] transition-all">
                       <input
                         type="checkbox"
                         checked={taxeAdditionnelleDraft.appliquerImport}
                         onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerImport: e.target.checked }))}
                         className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-slate-800">Factures Import (TVA 18 %)</span>
+                      <span className="text-sm font-bold text-slate-800 dark:text-night-ink">Factures Import (TVA 18 %)</span>
                     </label>
-                    <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                    <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg cursor-pointer bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] transition-all">
                       <input
                         type="checkbox"
                         checked={taxeAdditionnelleDraft.appliquerExport}
                         onChange={e => setTaxeAdditionnelleDraft(prev => ({ ...prev, appliquerExport: e.target.checked }))}
                         className="w-3.5 h-3.5 accent-[#005DAA] cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-slate-800">Factures Export (TVA 0 %)</span>
+                      <span className="text-sm font-bold text-slate-800 dark:text-night-ink">Factures Export (TVA 0 %)</span>
                     </label>
                   </div>
                 </div>
 
                 {/* Simulation */}
-                <div className="lg:col-span-8 bg-white/90 border border-[#005DAA]/20 rounded-xl p-4 space-y-3 shadow-xs">
+                <div className="lg:col-span-8 bg-surface-canvas dark:bg-night-surface/90 border border-[#005DAA] dark:border-night-line/20 rounded-md p-4 space-y-3 shadow-1">
                   <div className="flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <div className="text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2">
                       Simulation en direct (assiette TTC)
                     </div>
-                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
+                    <div className="flex items-center gap-1 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg p-0.5">
                       {(['IMPORT', 'EXPORT'] as const).map(t => (
                         <button
                           key={t}
                           type="button"
                           onClick={() => setTaxeSimulationType(t)}
-                          className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all cursor-pointer ${taxeSimulationType === t ? 'bg-[#005DAA] text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                          className={`px-2.5 py-1 rounded-md text-2xs font-black transition-all cursor-pointer ${taxeSimulationType === t ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white' : 'text-slate-500 dark:text-night-ink-2 hover:text-slate-800 '}`}
                         >
                           {t}
                         </button>
@@ -2636,39 +2718,39 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Montant TTC simulé (FCFA)</label>
+                      <label className="block text-2xs font-bold text-slate-500 dark:text-night-ink-2 mb-1">Montant TTC simulé (FCFA)</label>
                       <input
                         type="number"
                         min={0}
                         step={10000}
                         value={taxeSimulationTtc}
                         onChange={e => setTaxeSimulationTtc(Math.max(0, Number(e.target.value) || 0))}
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none"
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Taxe additionnelle</label>
-                      <div className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-black ${taxeSimulation.appliquee ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-400'}`}>
+                      <label className="block text-2xs font-bold text-slate-500 dark:text-night-ink-2 mb-1">Taxe additionnelle</label>
+                      <div className={`px-3 py-1.5 rounded-lg border text-sm font-mono font-black ${taxeSimulation.appliquee ? 'bg-amber-50 border-amber-300 text-amber-800 dark:text-night-caution' : 'bg-surface-canvas dark:bg-night-surface border-slate-200 dark:border-night-line text-slate-400 dark:text-night-ink-3'}`}>
                         {taxeSimulation.montantFcfa.toLocaleString('fr-FR')} FCFA
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Net à payer (TTC + taxe)</label>
-                      <div className="px-3 py-1.5 rounded-lg border border-[#005DAA]/30 bg-[#F0F7FF] text-xs font-mono font-black text-[#005DAA]">
+                      <label className="block text-2xs font-bold text-slate-500 dark:text-night-ink-2 mb-1">Net à payer (TTC + taxe)</label>
+                      <div className="px-3 py-1.5 rounded-lg border border-[#005DAA] dark:border-night-line/30 bg-[#F0F7FF] text-sm font-mono font-black text-[#005DAA] dark:text-night-link">
                         {(taxeSimulation.baseTtcFcfa + taxeSimulation.montantFcfa).toLocaleString('fr-FR')} FCFA
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-[11px] font-semibold text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-night-ink-2">
                     {taxeSimulation.appliquee
                       ? `Mode « ${getTaxeAdditionnelleModeLabel(taxeSimulation.mode)} » — ${getTaxeAdditionnelleValeurLabel(taxeSimulation.mode, taxeSimulation.valeur)} appliqué au TTC.`
                       : `Non appliquée : ${taxeSimulation.motif || 'conditions non remplies'}.`}
                   </p>
                 </div>
 
-                <div className="lg:col-span-12 text-[11px] text-slate-600 bg-white/75 border border-[#005DAA]/15 rounded-lg px-3 py-2">
-                  <strong className="text-slate-800">Traçabilité :</strong> le libellé, le mode et la valeur appliqués sont figés sur chaque facture émise
+                <div className="lg:col-span-12 text-xs text-slate-600 dark:text-night-ink bg-surface-canvas dark:bg-night-surface/75 border border-[#005DAA] dark:border-night-line/15 rounded-lg px-3 py-2">
+                  <strong className="text-slate-800 dark:text-night-ink">Traçabilité :</strong> le libellé, le mode et la valeur appliqués sont figés sur chaque facture émise
                   (champs <span className="font-mono">taxeAdditionnelle*</span>) ; une modification de la valeur ci-dessus ne s'applique qu'aux
                   factures émises ensuite. La proforma en cours peut être régénérée pour adopter la nouvelle valeur.
                 </div>
@@ -2682,23 +2764,23 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               id="config-panel-TIMBRE"
               role="tabpanel"
               aria-labelledby="config-tab-TIMBRE"
-              className="bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden"
+              className="bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden"
             >
-              <div className="p-5 border-b border-[#005DAA]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/10">
+              <div className="p-5 border-b border-[#005DAA] dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/10">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/80 border border-[#005DAA]/20 text-[#005DAA] flex items-center justify-center shrink-0 shadow-xs">
-                    <span className="material-symbols-outlined text-xl">approval</span>
+                  <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/80 border border-[#005DAA] dark:border-night-line/20 text-[#005DAA] dark:text-night-link flex items-center justify-center shrink-0 shadow-1">
+                    <span aria-hidden="true" className="material-symbols-outlined text-xl">approval</span>
                   </div>
                   <div className="space-y-0.5">
-                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 dark:text-night-ink text-base flex items-center gap-2">
                       <span>Timbre fiscal d'État</span>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      <span className={`text-2xs font-black px-2 py-0.5 rounded-full border ${timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border-emerald-200 dark:border-night-positive-line' : 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 border-slate-200 dark:border-night-line'}`}>
                         {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'AUCUNE TRANCHE ACTIVE'}
                       </span>
                     </h3>
-                    <p className="text-[11px] text-slate-600">
-                      Assiette : <strong className="text-slate-800">montant HT</strong> de la facture, par tranches paramétrables.
-                      Le timbre s'ajoute au Net à Payer <strong className="text-slate-800">quel que soit le mode de règlement</strong> (comptant, virement, chèque, à terme…) ;
+                    <p className="text-xs text-slate-600 dark:text-night-ink">
+                      Assiette : <strong className="text-slate-800 dark:text-night-ink">montant HT</strong> de la facture, par tranches paramétrables.
+                      Le timbre s'ajoute au Net à Payer <strong className="text-slate-800 dark:text-night-ink">quel que soit le mode de règlement</strong> (comptant, virement, chèque, à terme…) ;
                       les factures déjà émises conservent le timbre appliqué lors de leur émission.
                     </p>
                   </div>
@@ -2707,16 +2789,16 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   <button
                     type="button"
                     onClick={() => setTimbreDraft(timbreBrackets.map(b => ({ ...b })))}
-                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                    className="px-3 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] text-slate-700 dark:text-night-ink border border-slate-200 dark:border-night-line rounded-md text-sm font-bold transition-all cursor-pointer active:scale-95"
                   >
                     Réinitialiser
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveTimbreBrackets}
-                    className="px-4 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                    className="px-4 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-bold rounded-md text-sm transition-all flex items-center gap-2 shadow-1 cursor-pointer active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-sm font-black">save</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-base font-black">save</span>
                     <span>Enregistrer le timbre</span>
                   </button>
                 </div>
@@ -2724,7 +2806,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               <div className="p-5 space-y-3">
                 {/* En-têtes de colonnes */}
-                <div className="hidden lg:grid grid-cols-12 gap-3 px-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                <div className="hidden lg:grid grid-cols-12 gap-3 px-1 text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2">
                   <div className="col-span-4">Tranche (montant HT)</div>
                   <div className="col-span-2">Min HT (FCFA)</div>
                   <div className="col-span-2">Max HT (FCFA)</div>
@@ -2734,14 +2816,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
 
                 {timbreDraft.map((bracket, index) => (
-                  <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-white/90 border border-[#005DAA]/15 rounded-xl p-3 shadow-xs hover:border-[#005DAA]/35 transition-all">
+                  <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-surface-canvas dark:bg-night-surface/90 border border-[#005DAA] dark:border-night-line/15 rounded-md p-3 shadow-1 hover:border-[#005DAA] transition-all">
                     <div className="lg:col-span-4">
                       <input
                         type="text"
                         value={bracket.libelle}
                         onChange={e => updateTimbreBracket(index, { libelle: e.target.value })}
                         placeholder="Libellé de la tranche"
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-semibold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                       />
                     </div>
                     <div className="lg:col-span-2">
@@ -2751,7 +2833,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         step={1000}
                         value={bracket.montantHtMin}
                         onChange={e => updateTimbreBracket(index, { montantHtMin: Math.max(0, Number(e.target.value) || 0) })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                       />
                     </div>
                     <div className="lg:col-span-2">
@@ -2762,7 +2844,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         value={bracket.montantHtMax}
                         title="Valeur très élevée (ex. 999999999) = pas de maximum"
                         onChange={e => updateTimbreBracket(index, { montantHtMax: Math.max(0, Number(e.target.value) || 0) })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                       />
                     </div>
                     <div className="lg:col-span-2">
@@ -2772,7 +2854,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         step={100}
                         value={bracket.montantTimbreFcfa}
                         onChange={e => updateTimbreBracket(index, { montantTimbreFcfa: Math.max(0, Number(e.target.value) || 0) })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-600 focus:outline-none transition-all"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all"
                       />
                     </div>
                     <div className="lg:col-span-1 flex justify-center">
@@ -2788,9 +2870,9 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         type="button"
                         onClick={() => removeTimbreBracket(index)}
                         title="Supprimer la tranche"
-                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                        className="p-2 text-rose-600 dark:text-night-critical hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-sm">delete</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
                       </button>
                     </div>
                   </div>
@@ -2800,15 +2882,15 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   <button
                     type="button"
                     onClick={addTimbreBracket}
-                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-[#005DAA] border border-[#005DAA]/30 hover:border-[#005DAA] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
+                    className="px-3.5 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-[#f4f4f5] text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/30 hover:border-[#005DAA] rounded-md text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-1"
                   >
-                    <span className="material-symbols-outlined text-sm font-black">add</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-base font-black">add</span>
                     <span>Ajouter une tranche</span>
                   </button>
                 </div>
 
-                <div className="lg:col-span-12 text-[11px] text-slate-600 bg-white/75 border border-[#005DAA]/15 rounded-lg px-3 py-2">
-                  <strong className="text-slate-800">Traçabilité :</strong> le montant du timbre appliqué est figé sur chaque facture émise
+                <div className="lg:col-span-12 text-xs text-slate-600 dark:text-night-ink bg-surface-canvas dark:bg-night-surface/75 border border-[#005DAA] dark:border-night-line/15 rounded-lg px-3 py-2">
+                  <strong className="text-slate-800 dark:text-night-ink">Traçabilité :</strong> le montant du timbre appliqué est figé sur chaque facture émise
                   (champ <span className="font-mono">timbreFiscalFcfa</span>) ; une modification des tranches ci-dessus ne s'applique qu'aux
                   factures émises ensuite. Le timbre est inclus dans le « Net à payer » de l'aperçu et de la facture imprimée.
                 </div>
@@ -2821,39 +2903,39 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               id="config-panel-TYPES"
               role="tabpanel"
               aria-labelledby="config-tab-TYPES"
-              className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-slate-900"
+              className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-slate-900 dark:text-night-ink"
             >
             
               {/* Left Panel: Types de Factures (4 columns) */}
-              <div className="lg:col-span-4 bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-[#005DAA]/15 flex items-center justify-between bg-[#005DAA]/10">
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#005DAA] text-sm">list</span>
+              <div className="lg:col-span-4 bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden">
+                <div className="p-4 border-b border-[#005DAA] dark:border-night-line/15 flex items-center justify-between bg-[#005DAA] dark:bg-night-ink/10">
+                  <h3 className="font-bold text-slate-900 dark:text-night-ink text-sm uppercase tracking-wider flex items-center gap-2">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link text-base">list</span>
                     <span>Types de Factures</span>
                   </h3>
                   <div className="flex items-center gap-2">
                     <button 
                       type="button"
                       onClick={() => setShowAddTypeModal(true)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 bg-[#005DAA] hover:bg-[#004580] text-white rounded-lg text-xs font-black transition-all shadow-xs cursor-pointer active:scale-95"
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white rounded-lg text-sm font-black transition-all shadow-1 cursor-pointer active:scale-95"
                       title="Créer un nouveau type de facture"
                     >
-                      <span className="material-symbols-outlined text-sm font-black">add</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-base font-black">add</span>
                       <span>Nouveau Type</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Search input for types */}
-                <div className="p-3 border-b border-[#005DAA]/15 bg-white/70">
+                <div className="p-3 border-b border-[#005DAA] dark:border-night-line/15 bg-surface-canvas dark:bg-night-surface/70">
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                    <span aria-hidden="true" className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-night-ink-3 text-base">search</span>
                     <input
                       type="text"
                       value={searchTypeQuery}
                       onChange={(e) => setSearchTypeQuery(e.target.value)}
                       placeholder="Filtrer les types..."
-                      className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-600 focus:outline-none transition-all bg-white text-slate-800"
+                      className="w-full pl-8 pr-3 py-1.5 border border-slate-200 dark:border-night-line rounded-lg text-sm focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none transition-all bg-surface-canvas text-slate-800 dark:text-night-ink"
                     />
                   </div>
                 </div>
@@ -2882,17 +2964,17 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                               setActiveCategory('CONTENEUR');
                             }
                           }}
-                          className={`p-4 flex items-center justify-between cursor-pointer transition-all ${
+                          className={`p-4 flex items-center justify-between cursor-pointer transition-all group ${
                             isSelected
-                              ? 'bg-[#005DAA] text-white font-semibold shadow-xs'
-                              : 'bg-white/60 hover:bg-[#005DAA]/10 text-slate-700 hover:text-slate-900'
+                              ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white font-bold shadow-1'
+                              : 'bg-surface-canvas dark:bg-night-surface hover:bg-[#005DAA] dark:hover:bg-night-raised text-slate-700 dark:text-night-ink-2 hover:text-slate-900 dark:hover:text-night-ink'
                           }`}
                         >
                           <div className="space-y-0.5">
-                            <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                            <p className={`text-sm font-bold ${isSelected ? 'text-white dark:text-night-ink' : 'text-slate-900 dark:text-night-ink'}`}>
                               {t.name}
                             </p>
-                            <p className={`text-[10px] ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                            <p className={`text-2xs ${isSelected ? 'text-blue-100 dark:text-night-ink-3' : 'text-slate-500 dark:text-night-ink-2'}`}>
                               {t.description}
                             </p>
                           </div>
@@ -2907,10 +2989,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                   setEditTypeDescription(t.description);
                                   setShowEditTypeModal(true);
                                 }}
-                                className="p-1 hover:bg-white/20 rounded text-white transition-all cursor-pointer"
+                                className="p-1 hover:bg-surface-canvas dark:bg-night-ink/20 rounded text-white dark:text-white transition-all cursor-pointer"
                                 title="Modifier ce type"
                               >
-                                <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">edit</span>
                               </button>
                               <button
                                 type="button"
@@ -2918,10 +3000,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                   e.stopPropagation();
                                   handleDeleteInvoiceTypeClick(t);
                                 }}
-                                className="p-1 hover:bg-rose-500/30 rounded text-rose-200 hover:text-white transition-all cursor-pointer"
+                                className="p-1 hover:bg-rose-500/30 rounded text-rose-200 hover:text-white dark:text-night-ink transition-all cursor-pointer"
                                 title="Supprimer ce type"
                               >
-                                <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">delete</span>
                               </button>
                             </div>
                           )}
@@ -2929,42 +3011,42 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       );
                     })}
                   {invoiceTypeConfigs.filter(t => t.name.toLowerCase().includes(searchTypeQuery.toLowerCase())).length === 0 && (
-                    <div className="p-8 text-center text-slate-400 text-xs">
+                    <div className="p-8 text-center text-slate-400 dark:text-night-ink-3 text-sm">
                       Aucun type trouvé.
                     </div>
                   )}
                 </div>
 
                 {/* Bottom Quick Action Button */}
-                <div className="p-3 border-t border-[#005DAA]/15 bg-[#005DAA]/5">
+                <div className="p-3 border-t border-[#005DAA] dark:border-night-line/15 bg-[#005DAA] dark:bg-night-ink/5">
                   <button
                     type="button"
                     onClick={() => setShowAddTypeModal(true)}
-                    className="w-full py-2.5 px-3 border border-dashed border-[#005DAA]/40 hover:border-[#005DAA] bg-white hover:bg-[#F0F7FF] text-[#005DAA] font-black text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95"
+                    className="w-full py-2.5 px-3 border border-dashed border-[#005DAA] dark:border-night-line/40 hover:border-[#005DAA] bg-surface-canvas dark:bg-night-surface hover:bg-[#F0F7FF] dark:hover:bg-night-raised text-[#005DAA] dark:text-night-link font-black text-sm rounded-md flex items-center justify-center gap-2 transition-all cursor-pointer shadow-1 active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-base">add_circle</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-lg">add_circle</span>
                     <span>+ Ajouter un nouveau type de facture</span>
                   </button>
                 </div>
               </div>
 
               {/* Right Panel: Configuration details (8 columns) */}
-              <div className="lg:col-span-8 bg-[#005DAA]/5 border border-[#005DAA]/20 backdrop-blur-xs rounded-2xl shadow-sm overflow-hidden">
+              <div className="lg:col-span-8 bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden">
                 {activeInvoiceType ? (
                   <div>
                   
                     {/* Panel Header */}
-                    <div className="p-6 border-b border-[#005DAA]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA]/10">
+                    <div className="p-6 border-b border-[#005DAA] dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/10">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-[#00182f] font-heading">
+                          <h3 className="text-lg font-bold text-[#00182f] dark:text-night-ink font-heading">
                             Configuration: {activeInvoiceType.name}
                           </h3>
-                          <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
+                          <span className="px-2 py-0.5 text-2xs font-bold bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border border-emerald-200 dark:border-night-positive-line rounded-md">
                             Modifiable
                           </span>
                         </div>
-                        <p className="text-xs text-slate-600">
+                        <p className="text-sm text-slate-600 dark:text-night-ink">
                           {activeInvoiceType.name.toLowerCase().includes('caution') || activeInvoiceType.id === '1'
                             ? "La caution ne s'applique exclusivement qu'aux conteneurs."
                             : (activeInvoiceType.name.toLowerCase().includes('surestarie') || activeInvoiceType.name.toLowerCase().includes('detention') || activeInvoiceType.name.toLowerCase().includes('détention'))
@@ -2983,17 +3065,17 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             setNewRubriqueIsActive(true);
                             setShowAddRubriqueModal(true);
                           }}
-                          className="px-3 py-2 bg-white hover:bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/30 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-3 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-[#F0F7FF] dark:hover:bg-night-raised text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/30 font-bold rounded-md text-sm transition-all shadow-1 flex items-center gap-1.5 cursor-pointer active:scale-95"
                         >
-                          <span className="material-symbols-outlined text-base">add_circle</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-lg">add_circle</span>
                           <span>Ajouter rubrique</span>
                         </button>
                         <button
                           type="button"
                           onClick={handleSaveConfig}
-                          className="px-4 py-2 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-4 py-2 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-bold rounded-md text-sm transition-all shadow-sm dark:shadow-black/30 flex items-center gap-1.5 cursor-pointer active:scale-95"
                         >
-                          <span className="material-symbols-outlined text-base">save</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-lg">save</span>
                           <span>Enregistrer</span>
                         </button>
                       </div>
@@ -3016,8 +3098,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         : ['CONTENEUR', 'VRAC', 'RORO', 'CONVENTIONNEL'];
 
                       return (
-                        <div className="border-b border-[#005DAA]/15 bg-white/70">
-                          <div className="flex border-b border-[#005DAA]/15 px-4 gap-4 overflow-x-auto bocs-scrollbar">
+                        <div className="border-b border-[#005DAA] dark:border-night-line/15 bg-surface-canvas dark:bg-night-surface/70">
+                          <div className="flex border-b border-[#005DAA] dark:border-night-line/15 px-4 gap-4 overflow-x-auto bocs-scrollbar">
                             {allowedCategories.map(cat => {
                               const label = 
                                 cat === 'CONTENEUR_COC' ? 'Conteneur COC' :
@@ -3031,10 +3113,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                   key={cat}
                                   type="button"
                                   onClick={() => setActiveCategory(cat)}
-                                  className={`px-3 py-3 text-xs font-bold transition-all border-b-2 -mb-[1px] cursor-pointer whitespace-nowrap ${
+                                  className={`px-3 py-3 text-sm font-bold transition-all border-b-2 -mb-[1px] cursor-pointer whitespace-nowrap ${
                                     isCatSelected
                                       ? 'border-[#005daa] text-[#005daa]'
-                                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                                      : 'border-transparent text-slate-600 dark:text-night-ink hover:text-slate-900 '
                                   }`}
                                 >
                                   {label}
@@ -3047,24 +3129,24 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     })()}
 
                     {/* Grid of Rubrique Cards */}
-                    <div className="p-6 bg-[#005DAA]/5">
+                    <div className="p-6 bg-[#005DAA] dark:bg-night-ink/5">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {localRubriques
                           .filter(r => r.invoiceTypeId === selectedInvoiceTypeId && (r.category === activeCategory || (activeCategory === 'CONTENEUR_COC' && r.category === 'CONTENEUR')))
                           .map(rub => (
                             <div 
                               key={rub.id} 
-                              className={`p-4 rounded-xl border transition-all bg-white/95 relative group ${
+                              className={`p-4 rounded-md border transition-all bg-surface-canvas dark:bg-night-surface/95 relative group ${
                                 rub.isActive 
-                                  ? 'border-[#005DAA]/15 hover:border-[#005DAA]/35 shadow-xs hover:shadow-sm' 
-                                  : 'border-slate-200 opacity-60 bg-white/60'
+                                  ? 'border-[#005DAA] dark:border-night-line/15 hover:border-[#005DAA] shadow-1 hover:shadow-sm dark:shadow-black/30' 
+                                  : 'border-slate-200 dark:border-night-line opacity-60 bg-surface-canvas dark:bg-night-surface/60'
                               }`}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="space-y-1 pr-2 flex-1">
                                   <div className="flex items-center gap-2">
                                     <h4 
-                                      className="text-xs font-bold text-[#0f172a] hover:text-[#005daa] transition-colors cursor-pointer"
+                                      className="text-sm font-bold text-[#0f172a] dark:text-night-ink hover:text-[#005daa] dark:hover:text-night-link transition-colors cursor-pointer"
                                       onClick={() => {
                                         setEditingRubrique(rub);
                                         setEditRubriqueName(rub.name);
@@ -3079,19 +3161,19 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                       {rub.name}
                                     </h4>
                                     {!rub.isActive && (
-                                      <span className="text-[9px] font-bold px-1.5 py-0.2 bg-slate-100 text-slate-500 rounded">
+                                      <span className="text-2xs font-bold px-1.5 py-0.2 bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 rounded">
                                         Inactif
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-slate-500 line-clamp-2">
+                                  <p className="text-2xs text-slate-500 dark:text-night-ink-2 line-clamp-2">
                                     {rub.description || 'Aucune description'}
                                   </p>
                                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                    <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
+                                    <span className="text-2xs font-mono text-slate-500 dark:text-night-ink-2 font-bold bg-[#f4f4f5] dark:bg-night-sunken px-1.5 py-0.5 rounded">
                                       Code: {rub.code}
                                     </span>
-                                    <span className="text-[10px] text-slate-500 font-medium bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded">
+                                    <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-medium bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line/60 px-1.5 py-0.5 rounded">
                                       Base: {
                                         rub.baseCalcul === 'TEU' ? 'Facturé par TEU' : rub.baseCalcul === 'CONTENEUR' ? 'Par conteneur' :
                                         rub.baseCalcul === 'POIDS_TONNE' ? 'Par Tonne brut' : 'Facturé au BL'
@@ -3101,15 +3183,15 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                 </div>
                               
                                 {/* Action controls */}
-                                <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-200/60">
+                                <div className="flex items-center gap-1 shrink-0 bg-[#f4f4f5] dark:bg-night-sunken p-1 rounded-lg border border-slate-200 dark:border-night-line/60">
                                   {/* Price Update & History button */}
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPriceModal(rub)}
-                                    className="p-1 text-slate-500 hover:text-[#005DAA] hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
+                                    className="p-1 text-slate-500 dark:text-night-ink-2 hover:text-[#005DAA] hover:bg-surface-canvas dark:bg-night-surface rounded transition-all cursor-pointer shadow-1"
                                     title="Mettre à jour le prix unitaire et voir l'historique"
                                   >
-                                    <span className="material-symbols-outlined text-sm font-bold">history</span>
+                                    <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">history</span>
                                   </button>
 
                                   {/* Edit button */}
@@ -3124,20 +3206,20 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                       setEditRubriqueBaseCalcul(rub.baseCalcul || 'BL');
                                       setShowEditRubriqueModal(true);
                                     }}
-                                    className="p-1 text-slate-500 hover:text-[#005daa] hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
+                                    className="p-1 text-slate-500 dark:text-night-ink-2 hover:text-[#005daa] hover:bg-surface-canvas dark:bg-night-surface rounded transition-all cursor-pointer shadow-1"
                                     title="Modifier la rubrique (nom, code, base de calcul...)"
                                   >
-                                    <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                    <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">edit</span>
                                   </button>
 
                                   {/* Delete button */}
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteRubriqueClick(rub)}
-                                    className="p-1 text-slate-500 hover:text-rose-600 hover:bg-white rounded transition-all cursor-pointer shadow-2xs"
+                                    className="p-1 text-slate-500 dark:text-night-ink-2 hover:text-rose-600 hover:bg-surface-canvas dark:bg-night-surface rounded transition-all cursor-pointer shadow-1"
                                     title="Supprimer la rubrique"
                                   >
-                                    <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                    <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">delete</span>
                                   </button>
 
                                   {/* Toggle switch */}
@@ -3150,7 +3232,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                     }`}
                                   >
                                     <span
-                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface-canvas dark:bg-night-surface shadow ring-0 transition duration-200 ease-in-out ${
                                         rub.isActive ? 'translate-x-4' : 'translate-x-0'
                                       }`}
                                     />
@@ -3159,10 +3241,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                               </div>
 
                               {/* Montant Unitaire editable field */}
-                              <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
+                              <div className="flex items-center justify-between border-t border-slate-100 dark:border-night-line pt-3 mt-3">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                                    <span className="material-symbols-outlined text-sm text-[#005DAA]">payments</span>
+                                  <span className="text-sm font-black text-slate-600 dark:text-night-ink uppercase tracking-wider flex items-center gap-1">
+                                    <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-link">payments</span>
                                     MONTANT UNITAIRE:
                                   </span>
                                 </div>
@@ -3170,11 +3252,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPriceModal(rub)}
-                                    className="p-1.5 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/30 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95"
+                                    className="p-1.5 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/30 rounded-lg text-sm font-bold transition-all shadow-1 flex items-center gap-1 cursor-pointer active:scale-95"
                                     title="Mettre à jour le prix avec date d'effet & voir l'historique"
                                   >
-                                    <span className="material-symbols-outlined text-xs font-bold">update</span>
-                                    <span className="text-[10px]">Mettre à jour</span>
+                                    <span aria-hidden="true" className="material-symbols-outlined text-sm font-bold">update</span>
+                                    <span className="text-2xs">Mettre à jour</span>
                                   </button>
                                   <input
                                     type="text"
@@ -3184,10 +3266,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                       const raw = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
                                       handleChangeLocalRubriqueAmount(rub.id, raw === '' ? 0 : parseInt(raw, 10));
                                     }}
-                                    className="w-36 h-10 px-3.5 border-2 border-slate-300 hover:border-slate-400 focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 rounded-full text-center font-mono font-black text-slate-900 bg-white focus:outline-none text-base transition-all shadow-2xs"
+                                    className="w-36 h-10 px-3.5 border-2 border-slate-300 dark:border-night-line-strong hover:border-slate-400 focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 rounded-full text-center font-mono font-black text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:outline-none text-lg transition-all shadow-1"
                                     placeholder="0"
                                   />
-                                  <span className="text-xs font-bold text-slate-400 font-mono">FCFA</span>
+                                  <span className="text-sm font-bold text-slate-400 dark:text-night-ink-3 font-mono">FCFA</span>
                                 </div>
                               </div>
                             </div>
@@ -3204,18 +3286,18 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             setNewRubriqueIsActive(true);
                             setShowAddRubriqueModal(true);
                           }}
-                          className="p-4 rounded-xl border border-dashed border-[#005DAA]/40 hover:border-[#005DAA] bg-[#F0F7FF]/40 hover:bg-[#F0F7FF]/80 flex flex-col items-center justify-center gap-1 transition-all min-h-[142px] group cursor-pointer text-[#005DAA] shadow-2xs active:scale-98"
+                          className="p-4 rounded-md border border-dashed border-[#005DAA] dark:border-night-line/40 hover:border-[#005DAA] bg-[#F0F7FF] dark:bg-night-surface/50 hover:bg-[#E1EFFF] dark:hover:bg-night-raised flex flex-col items-center justify-center gap-1 transition-all min-h-[142px] group cursor-pointer text-[#005DAA] dark:text-night-link shadow-1 active:scale-98"
                         >
-                          <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">add_circle</span>
-                          <span className="text-xs font-bold">Ajouter une rubrique</span>
-                          <span className="text-[10px] text-slate-400 font-semibold">+ Nom, Code & Montant Unitaire</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">add_circle</span>
+                          <span className="text-sm font-bold">Ajouter une rubrique</span>
+                          <span className="text-2xs text-slate-400 dark:text-night-ink-3 font-semibold">+ Nom, Code & Montant Unitaire</span>
                         </button>
                       </div>
                     </div>
 
                   </div>
                 ) : (
-                  <div className="p-12 text-center text-slate-400 text-xs">
+                  <div className="p-12 text-center text-slate-400 dark:text-night-ink-3 text-sm">
                     Sélectionnez un type de facture pour afficher sa configuration.
                   </div>
                 )}
@@ -3230,42 +3312,42 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       {/* Modals for Invoice Config */}
       {/* Modal Add Invoice Type */}
       {showAddTypeModal && (
-        <div onClick={overlayClickClose(() => setShowAddTypeModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005daa] text-xl">add_circle</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddTypeModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa] text-xl">add_circle</span>
                 <span>Nouveau Type de Facture</span>
               </h3>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => setShowAddTypeModal(false)} 
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleAddInvoiceType} className="space-y-4 text-xs">
+            <form onSubmit={handleAddInvoiceType} className="space-y-4 text-sm">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Nom du Type</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Nom du Type</label>
                 <input
                   type="text"
                   required
                   value={newTypeName}
                   onChange={e => setNewTypeName(e.target.value)}
                   placeholder="ex: Surestaries, Caution, Dossier..."
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Description / Libellé court</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Description / Libellé court</label>
                 <input
                   type="text"
                   value={newTypeDescription}
                   onChange={e => setNewTypeDescription(e.target.value)}
                   placeholder="ex: Facturation des surestaries import..."
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
@@ -3273,13 +3355,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddTypeModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#005daa] text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow cursor-pointer"
+                  className="px-5 py-2 bg-[#005daa] dark:bg-night-accent text-white dark:text-white font-bold rounded-lg hover:bg-blue-700 dark:hover:bg-night-accent-strong transition-all shadow cursor-pointer"
                 >
                   Créer le Type
                 </button>
@@ -3291,40 +3373,40 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Invoice Type */}
       {showEditTypeModal && editingInvoiceType && (
-        <div onClick={overlayClickClose(() => { setShowEditTypeModal(false); setEditingInvoiceType(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005daa] text-xl">edit</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowEditTypeModal(false); setEditingInvoiceType(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa] text-xl">edit</span>
                 <span>Modifier le Type de Facture</span>
               </h3>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => { setShowEditTypeModal(false); setEditingInvoiceType(null); }} 
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleEditInvoiceType} className="space-y-4 text-xs">
+            <form onSubmit={handleEditInvoiceType} className="space-y-4 text-sm">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Nom du Type</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Nom du Type</label>
                 <input
                   type="text"
                   required
                   value={editTypeName}
                   onChange={e => setEditTypeName(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Description / Libellé court</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Description / Libellé court</label>
                 <input
                   type="text"
                   value={editTypeDescription}
                   onChange={e => setEditTypeDescription(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
@@ -3332,13 +3414,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => { setShowEditTypeModal(false); setEditingInvoiceType(null); }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#005daa] text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow cursor-pointer"
+                  className="px-5 py-2 bg-[#005daa] dark:bg-night-accent text-white dark:text-white font-bold rounded-lg hover:bg-blue-700 dark:hover:bg-night-accent-strong transition-all shadow cursor-pointer"
                 >
                   Enregistrer
                 </button>
@@ -3350,41 +3432,41 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Delete Invoice Type Confirmation */}
       {showDeleteTypeModal && typeToDelete && (
-        <div onClick={overlayClickClose(() => { setShowDeleteTypeModal(false); setTypeToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-rose-600 flex items-center gap-2">
-                <span className="material-symbols-outlined text-rose-600 text-xl">warning</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteTypeModal(false); setTypeToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-xl text-rose-600 dark:text-night-critical flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-rose-600 dark:text-night-critical text-xl">warning</span>
                 <span>Supprimer le Type de Facture</span>
               </h3>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => { setShowDeleteTypeModal(false); setTypeToDelete(null); }} 
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <p className="text-slate-600 leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer définitivement le type de facture <strong className="text-slate-900 font-bold">"{typeToDelete.name}"</strong> ?
+            <div className="space-y-3 text-sm">
+              <p className="text-slate-600 dark:text-night-ink leading-relaxed">
+                Êtes-vous sûr de vouloir supprimer définitivement le type de facture <strong className="text-slate-900 dark:text-night-ink font-bold">"{typeToDelete.name}"</strong> ?
               </p>
-              <p className="text-rose-600/80 font-bold bg-rose-50 border border-rose-100 p-2.5 rounded-lg">
+              <p className="text-rose-600 dark:text-night-critical/80 font-bold bg-rose-50 border border-rose-100 p-2.5 rounded-lg">
                 Attention : Toutes les rubriques associées à ce type de facture pour toutes les catégories seront également supprimées. Cette action est irréversible.
               </p>
             </div>
 
-            <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 text-xs">
+            <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line text-sm">
               <button
                 type="button"
                 onClick={() => { setShowDeleteTypeModal(false); setTypeToDelete(null); }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 onClick={confirmDeleteInvoiceType}
-                className="px-5 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
+                className="px-5 py-2 bg-rose-600 text-white dark:text-night-ink font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
               >
                 Supprimer Définitivement
               </button>
@@ -3395,49 +3477,49 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Rubrique */}
       {showEditRubriqueModal && editingRubrique && (
-        <div onClick={overlayClickClose(() => { setShowEditRubriqueModal(false); setEditingRubrique(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005daa] text-xl">edit</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowEditRubriqueModal(false); setEditingRubrique(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa] text-xl">edit</span>
                 <span>Modifier la Rubrique</span>
               </h3>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => { setShowEditRubriqueModal(false); setEditingRubrique(null); }} 
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleEditRubrique} className="space-y-3.5 text-xs">
+            <form onSubmit={handleEditRubrique} className="space-y-3.5 text-sm">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Nom de la rubrique</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Nom de la rubrique</label>
                 <input
                   type="text"
                   required
                   value={editRubriqueName}
                   onChange={e => setEditRubriqueName(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Description / Explication</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Description / Explication</label>
                 <input
                   type="text"
                   value={editRubriqueDescription}
                   onChange={e => setEditRubriqueDescription(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Base de calcul</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Base de calcul</label>
                 <select
                   value={editRubriqueBaseCalcul}
                   onChange={e => setEditRubriqueBaseCalcul(e.target.value as CalculationBase)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 >
                   <option value="BL">Facturé au BL (Montant fixe)</option>
                   <option value="TEU">Facturé par TEU</option>
@@ -3448,14 +3530,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Code Tarifaire</label>
+                  <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Code Tarifaire</label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
                       required
                       value={editRubriqueCode}
                       onChange={e => setEditRubriqueCode(e.target.value.toUpperCase())}
-                      className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-blue-600 focus:outline-none text-xs uppercase"
+                      className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink font-mono focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm uppercase"
                     />
                     <button
                       type="button"
@@ -3464,15 +3546,15 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         if (autoCode) setEditRubriqueCode(autoCode);
                       }}
                       title="Générer automatiquement le code selon le libellé"
-                      className="h-10 px-2.5 bg-blue-50 hover:bg-blue-100 text-[#005daa] border border-blue-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
+                      className="h-10 px-2.5 bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line text-[#005daa] border border-blue-200 dark:border-night-accent-line rounded-lg text-sm font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
                     >
-                      <span className="material-symbols-outlined text-sm font-bold">auto_awesome</span>
-                      <span className="text-[10px]">Auto</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">auto_awesome</span>
+                      <span className="text-2xs">Auto</span>
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Montant Unitaire (FCFA)</label>
+                  <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Montant Unitaire (FCFA)</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -3482,23 +3564,23 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       const raw = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
                       setEditRubriqueAmount(raw === '' ? 0 : parseInt(raw, 10));
                     }}
-                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold text-right focus:bg-white focus:border-blue-600 focus:outline-none text-sm"
+                    className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-900 dark:text-night-ink font-mono font-bold text-right focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-base"
                     placeholder="0"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line">
                 <button
                   type="button"
                   onClick={() => { setShowEditRubriqueModal(false); setEditingRubrique(null); }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#005daa] text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow cursor-pointer"
+                  className="px-5 py-2 bg-[#005daa] dark:bg-night-accent text-white dark:text-white font-bold rounded-lg hover:bg-blue-700 dark:hover:bg-night-accent-strong transition-all shadow cursor-pointer"
                 >
                   Enregistrer
                 </button>
@@ -3510,41 +3592,41 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Delete Rubrique Confirmation */}
       {showDeleteConfirmModal && rubriqueToDelete && (
-        <div onClick={overlayClickClose(() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-rose-600 flex items-center gap-2">
-                <span className="material-symbols-outlined text-rose-600 text-xl">warning</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-xl text-rose-600 dark:text-night-critical flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-rose-600 dark:text-night-critical text-xl">warning</span>
                 <span>Supprimer la Rubrique</span>
               </h3>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); }} 
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <p className="text-slate-600 leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer définitivement la rubrique <strong className="text-slate-900 font-bold">"{rubriqueToDelete.name}"</strong> (Code: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded font-bold">{rubriqueToDelete.code}</code>) ?
+            <div className="space-y-3 text-sm">
+              <p className="text-slate-600 dark:text-night-ink leading-relaxed">
+                Êtes-vous sûr de vouloir supprimer définitivement la rubrique <strong className="text-slate-900 dark:text-night-ink font-bold">"{rubriqueToDelete.name}"</strong> (Code: <code className="font-mono bg-[#f4f4f5] dark:bg-night-sunken px-1 py-0.5 rounded font-bold">{rubriqueToDelete.code}</code>) ?
               </p>
-              <p className="text-rose-600/80 font-bold bg-rose-50 border border-rose-100 p-2.5 rounded-lg">
+              <p className="text-rose-600 dark:text-night-critical/80 font-bold bg-rose-50 border border-rose-100 p-2.5 rounded-lg">
                 Cette action supprimera la rubrique pour la catégorie en cours et est irréversible.
               </p>
             </div>
 
-            <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 text-xs">
+            <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line text-sm">
               <button
                 type="button"
                 onClick={() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 onClick={confirmDeleteRubrique}
-                className="px-5 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
+                className="px-5 py-2 bg-rose-600 text-white dark:text-night-ink font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
               >
                 Supprimer
               </button>
@@ -3555,25 +3637,25 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       
       {/* Modal Add Rubrique */}
       {showAddRubriqueModal && (
-        <div onClick={overlayClickClose(() => setShowAddRubriqueModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005daa] text-xl">add_circle</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddRubriqueModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005daa] text-xl">add_circle</span>
                 <span>Ajouter une Rubrique</span>
               </h3>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => setShowAddRubriqueModal(false)} 
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleAddRubrique} className="space-y-3.5 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200/60 rounded-xl space-y-0.5">
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Cible de la configuration</p>
-                <p className="font-bold text-[#00182f] text-xs">
+            <form onSubmit={handleAddRubrique} className="space-y-3.5 text-sm">
+              <div className="p-3 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line/60 rounded-md space-y-0.5">
+                <p className="text-2xs text-slate-400 dark:text-night-ink-3 font-bold uppercase">Cible de la configuration</p>
+                <p className="font-bold text-[#00182f] dark:text-night-ink text-sm">
                   Type : {activeInvoiceType?.name} | Catégorie : {
                     activeCategory === 'CONTENEUR_COC' ? 'Conteneur COC' :
                     activeCategory === 'CONTENEUR_SOC' ? 'Conteneur SOC' :
@@ -3585,7 +3667,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Nom de la rubrique</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Nom de la rubrique</label>
                 <input
                   type="text"
                   required
@@ -3597,27 +3679,27 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       if (autoCode) setNewRubriqueCode(autoCode);
                     }}
                   placeholder="ex: Frais d'ouverture de dossier..."
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Description / Explication</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Description / Explication</label>
                 <input
                   type="text"
                   value={newRubriqueDescription}
                   onChange={e => setNewRubriqueDescription(e.target.value)}
                   placeholder="ex: Frais administratifs de traitement..."
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Base de calcul</label>
+                <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Base de calcul</label>
                 <select
                   value={newRubriqueBaseCalcul}
                   onChange={e => setNewRubriqueBaseCalcul(e.target.value as CalculationBase)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none text-xs"
+                  className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm"
                 >
                   <option value="BL">Facturé au BL (Montant fixe)</option>
                   <option value="TEU">Facturé par TEU</option>
@@ -3628,7 +3710,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Code Tarifaire</label>
+                  <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Code Tarifaire</label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
@@ -3636,7 +3718,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       value={newRubriqueCode}
                       onChange={e => setNewRubriqueCode(e.target.value.toUpperCase())}
                       placeholder="ex: FR-DOS"
-                      className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-blue-600 focus:outline-none text-xs uppercase"
+                      className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-800 dark:text-night-ink font-mono focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-sm uppercase"
                     />
                     <button
                       type="button"
@@ -3645,15 +3727,15 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         if (autoCode) setNewRubriqueCode(autoCode);
                       }}
                       title="Générer automatiquement le code selon le libellé"
-                      className="h-10 px-2.5 bg-blue-50 hover:bg-blue-100 text-[#005daa] border border-blue-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
+                      className="h-10 px-2.5 bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line text-[#005daa] border border-blue-200 dark:border-night-accent-line rounded-lg text-sm font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
                     >
-                      <span className="material-symbols-outlined text-sm font-bold">auto_awesome</span>
-                      <span className="text-[10px]">Auto</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">auto_awesome</span>
+                      <span className="text-2xs">Auto</span>
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Montant Unitaire (FCFA)</label>
+                  <label className="block font-bold text-slate-700 dark:text-night-ink uppercase mb-1">Montant Unitaire (FCFA)</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -3663,15 +3745,15 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       const raw = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
                       setNewRubriqueAmount(raw === '' ? 0 : parseInt(raw, 10));
                     }}
-                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold text-right focus:bg-white focus:border-blue-600 focus:outline-none text-sm"
+                    className="w-full h-10 px-3 border border-slate-200 dark:border-night-line rounded-lg text-slate-900 dark:text-night-ink font-mono font-bold text-right focus:bg-surface-canvas dark:bg-night-surface focus:border-blue-600 focus:outline-none text-base"
                     placeholder="0"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                <span className="font-bold text-slate-700 uppercase">Actif par défaut</span>
-                <button
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-night-line pt-3">
+                <span className="font-bold text-slate-700 dark:text-night-ink uppercase">Actif par défaut</span>
+                <button role="switch" aria-checked={newRubriqueIsActive} aria-label="Rubrique active"
                   type="button"
                   onClick={() => setNewRubriqueIsActive(prev => !prev)}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -3679,7 +3761,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface-canvas dark:bg-night-surface shadow ring-0 transition duration-200 ease-in-out ${
                       newRubriqueIsActive ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -3690,13 +3772,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddRubriqueModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#005daa] text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow cursor-pointer"
+                  className="px-5 py-2 bg-[#005daa] dark:bg-night-accent text-white dark:text-white font-bold rounded-lg hover:bg-blue-700 dark:hover:bg-night-accent-strong transition-all shadow cursor-pointer"
                 >
                   Ajouter
                 </button>
@@ -3708,51 +3790,51 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Mise à jour du Prix Unitaire & Historique */}
       {showPriceModal && selectedRubriqueForPrice && (
-        <div onClick={overlayClickClose(() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3 shrink-0">
               <div>
-                <h3 className="font-bold text-lg text-[#00182f] flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#005DAA] text-xl">price_change</span>
+                <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link text-xl">price_change</span>
                   <span>Mise à jour du Prix Unitaire</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  <strong className="text-slate-800 font-bold">{selectedRubriqueForPrice.name}</strong> (Code: <span className="font-mono font-bold text-slate-600">{selectedRubriqueForPrice.code}</span>)
+                <p className="text-sm text-slate-500 dark:text-night-ink-2 mt-0.5">
+                  <strong className="text-slate-800 dark:text-night-ink font-bold">{selectedRubriqueForPrice.name}</strong> (Code: <span className="font-mono font-bold text-slate-600 dark:text-night-ink">{selectedRubriqueForPrice.code}</span>)
                 </p>
               </div>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); }} 
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 p-1 rounded-lg hover:bg-[#f4f4f5] dark:bg-night-sunken transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
             {/* Form: 2 champs de mise à jour ("A partir de", "Prix Unitaire") */}
             <div className="shrink-0">
               <form onSubmit={handleSavePriceUpdate} className="space-y-3">
-                <div className="bg-[#F0F7FF]/40 border border-[#005DAA]/20 p-4 rounded-xl space-y-3">
-                  <p className="text-xs font-bold text-[#005DAA] uppercase tracking-wide flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm">edit_calendar</span>
+                <div className="bg-[#F0F7FF] /40 border border-[#005DAA] dark:border-night-line/20 p-4 rounded-md space-y-3">
+                  <p className="text-sm font-bold text-[#005DAA] dark:text-night-link uppercase tracking-wide flex items-center gap-1.5">
+                    <span aria-hidden="true" className="material-symbols-outlined text-base">edit_calendar</span>
                     Nouveau Tarif Applicable
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                        À partir de <span className="text-[#005DAA]">*</span>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
+                        À partir de <span className="text-[#005DAA] dark:text-night-link">*</span>
                       </label>
                       <input
                         type="date"
                         required
                         value={newPriceEffectiveDate}
                         onChange={e => setNewPriceEffectiveDate(e.target.value)}
-                        className="w-full h-10 px-3 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 bg-white focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 focus:outline-none"
+                        className="w-full h-10 px-3 border border-slate-300 dark:border-night-line-strong rounded-lg text-sm font-bold text-slate-800 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                        Prix Unitaire (FCFA) <span className="text-[#005DAA]">*</span>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
+                        Prix Unitaire (FCFA) <span className="text-[#005DAA] dark:text-night-link">*</span>
                       </label>
                       <input
                         type="text"
@@ -3764,7 +3846,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                           setNewPriceAmount(raw === '' ? 0 : parseInt(raw, 10));
                         }}
                         placeholder="0"
-                        className="w-full h-10 px-3 border border-slate-300 rounded-lg font-mono font-black text-right text-sm text-slate-900 bg-white focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 focus:outline-none"
+                        className="w-full h-10 px-3 border border-slate-300 dark:border-night-line-strong rounded-lg font-mono font-black text-right text-base text-slate-900 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-[#005DAA] focus:ring-2 focus:ring-[#005DAA]/20 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -3775,13 +3857,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       value={newPriceNote}
                       onChange={e => setNewPriceNote(e.target.value)}
                       placeholder="Motif / Note (ex: Révision annuelle 2026...)"
-                      className="w-full sm:flex-1 h-9 px-3 border border-slate-200 rounded-lg text-xs text-slate-700 bg-white focus:border-blue-500 focus:outline-none"
+                      className="w-full sm:flex-1 h-9 px-3 border border-slate-200 dark:border-night-line rounded-lg text-sm text-slate-700 dark:text-night-ink bg-surface-canvas dark:bg-night-surface focus:border-blue-500 focus:outline-none"
                     />
                     <button
                       type="submit"
-                      className="w-full sm:w-auto h-9 px-4 bg-[#005DAA] hover:bg-[#004580] text-white font-bold rounded-lg text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0 cursor-pointer active:scale-95"
+                      className="w-full sm:w-auto h-9 px-4 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-bold rounded-lg text-sm transition-all shadow-1 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer active:scale-95"
                     >
-                      <span className="material-symbols-outlined text-sm font-bold">add_circle</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">add_circle</span>
                       <span>Mettre à jour le prix</span>
                     </button>
                   </div>
@@ -3792,16 +3874,16 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             {/* Tableau de l'historique des anciens prix */}
             <div className="flex-1 overflow-y-auto bocs-scrollbar space-y-2 min-h-[160px]">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm text-slate-500">history</span>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-night-ink uppercase tracking-wider flex items-center gap-1.5">
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-500 dark:text-night-ink-2">history</span>
                   <span>Historique des Prix ({((selectedRubriqueForPrice.priceHistory && selectedRubriqueForPrice.priceHistory.length > 0) ? selectedRubriqueForPrice.priceHistory.length : 1)})</span>
                 </h4>
-                <span className="text-[10px] text-slate-400 font-medium">Classé du plus récent au plus ancien</span>
+                <span className="text-2xs text-slate-400 dark:text-night-ink-3 font-medium">Classé du plus récent au plus ancien</span>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+              <div className="border border-slate-200 dark:border-night-line rounded-md overflow-hidden shadow-1">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-[#f4f4f5] dark:bg-night-sunken border-b border-slate-200 dark:border-night-line text-slate-600 dark:text-night-ink font-bold uppercase text-2xs">
                     <tr>
                       <th className="py-2.5 px-3">À partir de</th>
                       <th className="py-2.5 px-3 text-right">Prix Unitaire</th>
@@ -3809,7 +3891,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       <th className="py-2.5 px-3">Enregistré le / Note</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-night-line">
                     {(() => {
                       const history = selectedRubriqueForPrice.priceHistory && selectedRubriqueForPrice.priceHistory.length > 0
                         ? selectedRubriqueForPrice.priceHistory
@@ -3827,28 +3909,28 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       return history.map((entry, idx) => {
                         const isCurrent = idx === 0;
                         return (
-                          <tr key={entry.id || idx} className={`hover:bg-slate-50/70 transition-colors ${isCurrent ? 'bg-emerald-50/30' : ''}`}>
-                            <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                          <tr key={entry.id || idx} className={`hover:bg-slate-50 dark:bg-night-sunken dark:hover:bg-night-raised/70 transition-colors ${isCurrent ? 'bg-emerald-50 dark:bg-night-positive-soft/30' : ''}`}>
+                            <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-night-ink whitespace-nowrap">
                               {entry.effectiveDate}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 whitespace-nowrap">
-                              {entry.amount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-night-ink whitespace-nowrap">
+                              {entry.amount.toLocaleString('fr-FR')} <span className="text-2xs font-normal text-slate-500 dark:text-night-ink-2">FCFA</span>
                             </td>
                             <td className="py-2.5 px-3 text-center whitespace-nowrap">
                               {isCurrent ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <span className="px-2 py-0.5 rounded-full text-2xs font-bold bg-emerald-100 text-emerald-800 dark:text-night-positive border border-emerald-200 dark:border-night-positive-line">
                                   Actuel
                                 </span>
                               ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                <span className="px-2 py-0.5 rounded-full text-2xs font-semibold bg-[#f4f4f5] dark:bg-night-sunken text-slate-600 dark:text-night-ink">
                                   Ancien
                                 </span>
                               )}
                             </td>
-                            <td className="py-2.5 px-3 text-[11px] text-slate-500">
+                            <td className="py-2.5 px-3 text-xs text-slate-500 dark:text-night-ink-2">
                               <div>{entry.changedAt}</div>
                               {entry.note && (
-                                <div className="text-[10px] text-slate-400 italic">{entry.note}</div>
+                                <div className="text-2xs text-slate-400 dark:text-night-ink-3 italic">{entry.note}</div>
                               )}
                             </td>
                           </tr>
@@ -3861,11 +3943,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="pt-3 border-t border-slate-100 flex justify-end shrink-0">
+            <div className="pt-3 border-t border-slate-100 dark:border-night-line flex justify-end shrink-0">
               <button
                 type="button"
                 onClick={() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); }}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer active:scale-95"
+                className="px-5 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink font-bold rounded-md text-sm transition-all cursor-pointer active:scale-95"
               >
                 Fermer
               </button>
@@ -3877,67 +3959,67 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Émission Note d'Avoir */}
       {showCreditNoteModal && targetInvoiceForCreditNote && (
-        <div onClick={overlayClickClose(() => { setShowCreditNoteModal(false); setTargetInvoiceForCreditNote(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <span className="material-symbols-outlined text-rose-600">assignment_return</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowCreditNoteModal(false); setTargetInvoiceForCreditNote(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-extrabold text-lg text-slate-900 dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-rose-600 dark:text-night-critical">assignment_return</span>
                 <span>Émission d'une Note d'Avoir (Annulation Fiscale)</span>
               </h3>
-              <button onClick={() => setShowCreditNoteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowCreditNoteModal(false)} className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleSubmitCreditNote} className="space-y-4 text-xs">
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5">
-                <span className="text-[10px] text-rose-800 font-extrabold uppercase tracking-wider">Facture d'Origine Cible</span>
+            <form onSubmit={handleSubmitCreditNote} className="space-y-4 text-sm">
+              <div className="p-3.5 bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line rounded-md space-y-1.5">
+                <span className="text-2xs text-rose-800 dark:text-night-critical font-extrabold uppercase tracking-wider">Facture d'Origine Cible</span>
                 <div className="flex justify-between items-center">
-                  <p className="font-bold font-mono text-slate-900 text-sm">{targetInvoiceForCreditNote.numeroFacture}</p>
-                  <span className="font-mono font-extrabold text-rose-700 text-sm">
+                  <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{targetInvoiceForCreditNote.numeroFacture}</p>
+                  <span className="font-mono font-extrabold text-rose-700 dark:text-night-critical text-base">
                     {targetInvoiceForCreditNote.montantTtcFcfa.toLocaleString('fr-FR')} FCFA TTC
                   </span>
                 </div>
-                <p className="text-slate-700 font-semibold">{targetInvoiceForCreditNote.clientNom}</p>
+                <p className="text-slate-700 dark:text-night-ink font-semibold">{targetInvoiceForCreditNote.clientNom}</p>
                 {targetInvoiceForCreditNote.numeroBL && (
-                  <p className="text-[11px] text-slate-500 font-mono">B/L: {targetInvoiceForCreditNote.numeroBL}</p>
+                  <p className="text-xs text-slate-500 dark:text-night-ink-2 font-mono">B/L: {targetInvoiceForCreditNote.numeroBL}</p>
                 )}
               </div>
 
               {/* Type d'Avoir */}
               <div>
-                <label className="block font-extrabold text-slate-700 uppercase mb-1.5">Type de régularisation</label>
+                <label className="block font-extrabold text-slate-700 dark:text-night-ink uppercase mb-1.5">Type de régularisation</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setCreditNoteType('TOTAL')}
-                    className={`p-2.5 rounded-xl border text-center font-bold transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-md border text-center font-bold transition-all cursor-pointer ${
                       creditNoteType === 'TOTAL'
-                        ? 'border-rose-500 bg-rose-50 text-rose-800 shadow-2xs'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                        ? 'border-rose-500 bg-rose-50 text-rose-800 dark:text-night-critical shadow-1'
+                        : 'border-slate-200 dark:border-night-line hover:bg-[#f4f4f5] dark:bg-night-sunken text-slate-600 dark:text-night-ink'
                     }`}
                   >
-                    <span className="block text-xs font-black">Avoir Total (100%)</span>
-                    <span className="text-[10px] font-normal text-slate-500">Annule intégralement la facture</span>
+                    <span className="block text-sm font-black">Avoir Total (100%)</span>
+                    <span className="text-2xs font-normal text-slate-500 dark:text-night-ink-2">Annule intégralement la facture</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setCreditNoteType('PARTIEL')}
-                    className={`p-2.5 rounded-xl border text-center font-bold transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-md border text-center font-bold transition-all cursor-pointer ${
                       creditNoteType === 'PARTIEL'
-                        ? 'border-rose-500 bg-rose-50 text-rose-800 shadow-2xs'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                        ? 'border-rose-500 bg-rose-50 text-rose-800 dark:text-night-critical shadow-1'
+                        : 'border-slate-200 dark:border-night-line hover:bg-[#f4f4f5] dark:bg-night-sunken text-slate-600 dark:text-night-ink'
                     }`}
                   >
-                    <span className="block text-xs font-black">Avoir Partiel</span>
-                    <span className="text-[10px] font-normal text-slate-500">Remise ou correction de montant</span>
+                    <span className="block text-sm font-black">Avoir Partiel</span>
+                    <span className="text-2xs font-normal text-slate-500 dark:text-night-ink-2">Remise ou correction de montant</span>
                   </button>
                 </div>
               </div>
 
               {creditNoteType === 'PARTIEL' && (
                 <div className="animate-fade-in">
-                  <label className="block font-extrabold text-slate-700 uppercase mb-1">Montant du Crédit TTC (FCFA)</label>
+                  <label className="block font-extrabold text-slate-700 dark:text-night-ink uppercase mb-1">Montant du Crédit TTC (FCFA)</label>
                   <input
                     type="text"
                     required
@@ -3948,9 +4030,9 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       const maxLimit = Number(targetInvoiceForCreditNote.montantTtcFcfa || 0);
                       setCreditNotePartielMontant(Math.min(numValue, maxLimit));
                     }}
-                    className="w-full h-9 px-3 border border-slate-300 rounded-lg font-mono font-bold text-rose-600 text-sm focus:outline-none focus:border-rose-500"
+                    className="w-full h-9 px-3 border border-slate-300 dark:border-night-line-strong rounded-lg font-mono font-bold text-rose-600 dark:text-night-critical text-base focus:outline-none focus:border-rose-500"
                   />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  <span className="text-2xs text-slate-400 dark:text-night-ink-3 mt-0.5 block">
                     Plafond: {Number(targetInvoiceForCreditNote.montantTtcFcfa || 0).toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
@@ -3958,8 +4040,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
               {/* Motif d'annulation */}
               <div>
-                <label className="block font-extrabold text-slate-700 uppercase mb-1.5">
-                  Motif Légal d'Émission <span className="text-rose-600 font-bold">*</span>
+                <label className="block font-extrabold text-slate-700 dark:text-night-ink uppercase mb-1.5">
+                  Motif Légal d'Émission <span className="text-rose-600 dark:text-night-critical font-bold">*</span>
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {[
@@ -3975,10 +4057,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         setCreditNoteMotif(m);
                         setCreditNoteCustomMotif('');
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         creditNoteMotif === m
-                          ? 'bg-rose-600 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          ? 'bg-rose-600 text-white dark:text-night-ink shadow-1'
+                          : 'bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink'
                       }`}
                     >
                       {m}
@@ -3987,10 +4069,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   <button
                     type="button"
                     onClick={() => setCreditNoteMotif('AUTRE')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       creditNoteMotif === 'AUTRE'
-                        ? 'bg-rose-600 text-white shadow-2xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        ? 'bg-rose-600 text-white dark:text-night-ink shadow-1'
+                        : 'bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink'
                     }`}
                   >
                     Autre motif...
@@ -4004,31 +4086,31 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     value={creditNoteCustomMotif}
                     onChange={e => setCreditNoteCustomMotif(e.target.value)}
                     placeholder="Précisez le motif légal détaillé de l'annulation..."
-                    className="w-full p-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-rose-500 animate-fade-in"
+                    className="w-full p-2 border border-slate-300 dark:border-night-line-strong rounded-lg text-sm focus:outline-none focus:border-rose-500 animate-fade-in"
                   />
                 )}
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
-                <span className="material-symbols-outlined text-sm text-amber-600 shrink-0 mt-0.5">verified_user</span>
+              <div className="p-3 bg-amber-50 dark:bg-night-caution-soft border border-amber-200 dark:border-night-caution-line rounded-md text-xs text-amber-900 flex items-start gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600 dark:text-night-caution shrink-0 mt-0.5">verified_user</span>
                 <p>
                   <strong>Principe d'inaltérabilité fiscale :</strong> Cette action génère une Note d'Avoir officielle numérotée avec imputation comptable. La facture d'origine passera au statut <em>ANNULÉE</em> avec solde nul.
                 </p>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line">
                 <button
                   type="button"
                   onClick={() => setShowCreditNoteModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-sm">assignment_turned_in</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">assignment_turned_in</span>
                   <span>Confirmer & Émettre l'Avoir</span>
                 </button>
               </div>
@@ -4039,49 +4121,49 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Validation Définitive de Facture */}
       {showValidateModal && invoiceToValidate && (
-        <div onClick={overlayClickClose(() => { setShowValidateModal(false); setInvoiceToValidate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600">verified</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowValidateModal(false); setInvoiceToValidate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-extrabold text-lg text-slate-900 dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-emerald-600 dark:text-night-positive">verified</span>
                 <span>Validation Officielle de Facture</span>
               </h3>
-              <button onClick={() => setShowValidateModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowValidateModal(false)} className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <span className="text-[10px] text-slate-500 font-bold uppercase">Facture Brouillon</span>
-                <p className="font-bold font-mono text-slate-900 text-sm">{invoiceToValidate.numeroFacture}</p>
-                <p className="text-slate-800 font-semibold">{invoiceToValidate.clientNom}</p>
-                <p className="font-mono font-bold text-emerald-700 text-sm pt-1">
+            <div className="space-y-3 text-sm">
+              <div className="p-3.5 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-md space-y-1">
+                <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-bold uppercase">Facture Brouillon</span>
+                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{invoiceToValidate.numeroFacture}</p>
+                <p className="text-slate-800 dark:text-night-ink font-semibold">{invoiceToValidate.clientNom}</p>
+                <p className="font-mono font-bold text-emerald-700 dark:text-night-positive text-base pt-1">
                   Montant: {invoiceToValidate.montantTtcFcfa.toLocaleString('fr-FR')} FCFA TTC
                 </p>
               </div>
 
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 flex items-start gap-2">
-                <span className="material-symbols-outlined text-sm text-blue-600 shrink-0 mt-0.5">info</span>
+              <div className="p-3 bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line rounded-md text-xs text-blue-900 flex items-start gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-blue-600 dark:text-night-link shrink-0 mt-0.5">info</span>
                 <p>
                   En validant cette facture, elle recevra son <strong>numéro fiscal officiel</strong> (ex: FA-BOCS26-XXXX) et sera <strong>verrouillée contre toute modification ou suppression directe</strong>.
                 </p>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line">
                 <button
                   type="button"
                   onClick={() => setShowValidateModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmValidateInvoice}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-sm">lock</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">lock</span>
                   <span>Valider Définitivement</span>
                 </button>
               </div>
@@ -4092,46 +4174,46 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Duplication / Reprise de Facture */}
       {showDuplicateModal && invoiceToDuplicate && (
-        <div onClick={overlayClickClose(() => { setShowDuplicateModal(false); setInvoiceToDuplicate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600">content_copy</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDuplicateModal(false); setInvoiceToDuplicate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-extrabold text-lg text-slate-900 dark:text-night-ink flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-blue-600 dark:text-night-link">content_copy</span>
                 <span>Dupliquer / Reprendre la Facture</span>
               </h3>
-              <button onClick={() => setShowDuplicateModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowDuplicateModal(false)} className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <span className="text-[10px] text-slate-500 font-bold uppercase">Facture Source</span>
-                <p className="font-bold font-mono text-slate-900 text-sm">{invoiceToDuplicate.numeroFacture}</p>
-                <p className="text-slate-800 font-semibold">{invoiceToDuplicate.clientNom}</p>
-                <p className="font-mono font-bold text-slate-700">
+            <div className="space-y-3 text-sm">
+              <div className="p-3.5 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-md space-y-1">
+                <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-bold uppercase">Facture Source</span>
+                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{invoiceToDuplicate.numeroFacture}</p>
+                <p className="text-slate-800 dark:text-night-ink font-semibold">{invoiceToDuplicate.clientNom}</p>
+                <p className="font-mono font-bold text-slate-700 dark:text-night-ink">
                   Total: {invoiceToDuplicate.montantTtcFcfa.toLocaleString('fr-FR')} FCFA
                 </p>
               </div>
 
-              <p className="text-slate-600">
+              <p className="text-slate-600 dark:text-night-ink">
                 Un nouveau brouillon de facture proforma sera créé en clonant toutes les rubriques et données de cette facture. Vous pourrez ensuite le modifier et l'ajuster librement.
               </p>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line">
                 <button
                   type="button"
                   onClick={() => setShowDuplicateModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmDuplicateInvoice}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-blue-600 dark:bg-night-accent hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-sm">add_box</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">add_box</span>
                   <span>Créer le Nouveau Brouillon</span>
                 </button>
               </div>
@@ -4142,50 +4224,50 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Confirmation Suppression Brouillon */}
       {showDeleteInvoiceModal && invoiceToDelete && (
-        <div onClick={overlayClickClose(() => { setShowDeleteInvoiceModal(false); setInvoiceToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-base text-rose-600 flex items-center gap-2">
-                <span className="material-symbols-outlined">delete_forever</span>
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteInvoiceModal(false); setInvoiceToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
+              <h3 className="font-extrabold text-lg text-rose-600 dark:text-night-critical flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined">delete_forever</span>
                 <span>Supprimer la Facture Brouillon</span>
               </h3>
-              <button onClick={() => setShowDeleteInvoiceModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowDeleteInvoiceModal(false)} className="text-slate-400 dark:text-night-ink-3 hover:text-slate-600 cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-                <span className="text-[10px] text-rose-700 font-bold uppercase">Brouillon à supprimer</span>
-                <p className="font-bold font-mono text-slate-900 text-sm">{invoiceToDelete.numeroFacture}</p>
-                <p className="text-slate-800 font-semibold">{invoiceToDelete.clientNom}</p>
-                <p className="text-slate-600 font-medium text-xs bg-rose-100/50 inline-block px-1.5 py-0.5 rounded border border-rose-200/50">{invoiceTypeConfigs.find(t => t.id === invoiceToDelete.invoiceTypeId)?.name || invoiceToDelete.typeFacture}</p>
-                <p className="font-mono font-bold text-rose-700 mt-1">
+            <div className="space-y-3 text-sm">
+              <div className="p-3.5 bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line rounded-md space-y-1">
+                <span className="text-2xs text-rose-700 dark:text-night-critical font-bold uppercase">Brouillon à supprimer</span>
+                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{invoiceToDelete.numeroFacture}</p>
+                <p className="text-slate-800 dark:text-night-ink font-semibold">{invoiceToDelete.clientNom}</p>
+                <p className="text-slate-600 dark:text-night-ink font-medium text-sm bg-rose-100/50 inline-block px-1.5 py-0.5 rounded border border-rose-200/50">{invoiceTypeConfigs.find(t => t.id === invoiceToDelete.invoiceTypeId)?.name || invoiceToDelete.typeFacture}</p>
+                <p className="font-mono font-bold text-rose-700 dark:text-night-critical mt-1">
                   Montant: {invoiceToDelete.montantTtcFcfa.toLocaleString('fr-FR')} FCFA
                 </p>
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
-                <span className="material-symbols-outlined text-sm text-amber-600 shrink-0 mt-0.5">warning</span>
+              <div className="p-3 bg-amber-50 dark:bg-night-caution-soft border border-amber-200 dark:border-night-caution-line rounded-md text-xs text-amber-900 flex items-start gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600 dark:text-night-caution shrink-0 mt-0.5">warning</span>
                 <p>
                   <strong>Suppression en cascade :</strong> Toutes les pièces rattachées à cette proforma (lignes de rubriques, paiements associés, notes d'avoir liées) seront également supprimées et le statut du BL sera réinitialisé.
                 </p>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-night-line">
                 <button
                   type="button"
                   onClick={() => setShowDeleteInvoiceModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 rounded-lg font-semibold text-slate-700 dark:text-night-ink cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmDeleteDraft}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-sm">delete</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
                   <span>Supprimer Définitivement</span>
                 </button>
               </div>

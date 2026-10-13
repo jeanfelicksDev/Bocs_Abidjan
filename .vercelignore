@@ -1,0 +1,12 @@
+node_modules
+.agents
+.git
+*.log
+*.local
+dist
+build
+coverage
+.cache
+*.test.*
+*.spec.*
+__tests__

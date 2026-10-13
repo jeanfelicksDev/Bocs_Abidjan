@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// MODULE 7 : ADMINISTRATION & SÉCURITÉ
+// -----------------------------------------------------------------------------
+
+model users {
+  id                 BigInt    @id
+  nom_complet        String    @db.VarChar(255)
+  email              String    @unique @db.VarChar(255)
+  role               String    @db.VarChar(50)
+  telephone          String?   @db.VarChar(50)
+  nom_societe        String?   @db.VarChar(255)
+  pays               String?   @db.VarChar(100)
+  est_actif          Boolean   @default(true)
+  mot_de_passe       String?   @db.VarChar(255)
+  date_creation      String?   @db.VarChar(50)
+  dernier_acces      String?   @db.VarChar(50)
+  reset_token        String?   @db.VarChar(100)
+  reset_token_expiry String?   @db.VarChar(50)
+  deleted_at         DateTime? // Soft Delete
+}
+
+model role_permissions {
+  id              Int    @id @default(autoincrement())
+  role            String @db.VarChar(50)
+  permission_code String @db.VarChar(100)
+
+  @@unique([role, permission_code])
+}
+
+// Protégée par des Triggers PostgreSQL "Append-Only"
+model audit_logs {
+  id              BigInt    @id @default(autoincrement())
+  utilisateur_nom String    @db.VarChar(100)
+  role            String    @db.VarChar(50)
+  action          String    @db.VarChar(100)
+  entite          String    @db.VarChar(100)
+  details         String
+  date_action     String    @db.VarChar(50)
+  ip              String    @db.VarChar(50)
+  created_at      DateTime? @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// MODULE 2 : SUIVI FLOTTE & ESCALES
+// -----------------------------------------------------------------------------
+
+model vessels {
+  id         BigInt    @id @default(autoincrement())
+  imo_number String    @unique @db.VarChar(50) // Contrainte d'unicité absolue
+  nom        String    @db.VarChar(255)
+  callsign   String?   @db.VarChar(100)
+  pavillon   String?   @db.VarChar(100)
+  armateur   String?   @db.VarChar(255)
+  tonnage    Float?
+  deleted_at DateTime? // Soft Delete
+}
+
+model escales {
+  id                BigInt    @id
+  vessel_id         BigInt?
+  nom_navire        String    @db.VarChar(255)
+  callsign          String    @db.VarChar(100)
+  numero_voyage     String    @db.VarChar(100)
+  port_chargement   String    @db.VarChar(255)
+  port_dechargement String    @db.VarChar(255)
+  date_arrivee      String    @db.VarChar(50)
+  date_accostage    String?   @db.VarChar(50)
+  date_depart       String?   @db.VarChar(50)
+  quai              String?   @db.VarChar(100)
+  statut            String    @db.VarChar(50)
+  status_geofencing String?   @db.VarChar(50) // MÀJ auto via API AIS
+  created_by        String?   @db.VarChar(255)
+  deleted_at        DateTime? // Soft Delete
+}
+
+// -----------------------------------------------------------------------------
+// MODULE 3 & 4 : IMPORT, EXPORT & MANIFESTES
+// -----------------------------------------------------------------------------
+
+model bls {
+  id                        BigInt    @id
+  escale_id                 BigInt
+  numero_bl                 String    @db.VarChar(100)
+  type_operation            String    @db.VarChar(50)
+  shipper_nom               String    @db.VarChar(255)
+  shipper_adresse           String?
+  consignee_nom             String    @db.VarChar(255)
+  consignee_adresse         String?
+  notify_nom                String?   @db.VarChar(255)
+  notify_adresse            String?
+  port_chargement_code      String    @db.VarChar(50)
+  port_dechargement_code    String    @db.VarChar(50)
+  destination_finale        String?   @db.VarChar(100)
+  description_goods         String?
+  nombre_colis              Int
+  type_emballage            String    @db.VarChar(100)
+  poids_brut_kg             Float
+  volume_m3                 Float
+  statut_import             String    @db.VarChar(50)
+  selected_invoice_type_ids String?
+  client_id                 Int?
+  code_nature               String?   @db.VarChar(100)
+  unique_carrier_ref        String?   @db.VarChar(100)
+  marques_et_numeros        String?
+  cachet_agent_appose       Boolean?  @default(false)
+  date_signature            String?   @db.VarChar(50)
+  hash_signature            String?   @db.VarChar(255)
+  deleted_at                DateTime? // Soft Delete
+}
+
+model draft_exports {
+  id                          BigInt    @id
+  client_id                   Int? // Multi-tenancy RLS basis
+  client_nom                  String    @db.VarChar(255)
+  client_societe              String?   @db.VarChar(255)
+  client_email                String?   @db.VarChar(255)
+  escale_id                   BigInt?
+  numero_draft                String    @db.VarChar(100)
+  booking_ref                 String?   @db.VarChar(100)
+  navire_nom                  String?   @db.VarChar(255)
+  numero_voyage               String?   @db.VarChar(100)
+  port_chargement_code        String?   @db.VarChar(50)
+  port_dechargement_code      String?   @db.VarChar(50)
+  port_dechargement_nom       String?   @db.VarChar(255)
+  shipper_info                Json
+  consignee_info              Json
+  notify_info                 Json
+  marchandises_info           Json
+  conteneurs_info             Json
+  statut                      String    @db.VarChar(50)
+  motif_demande_modification  String?
+  date_creation               String    @db.VarChar(50)
+  date_validation             String?   @db.VarChar(50)
+  numero_bl_genere            String?   @db.VarChar(100)
+  date_limite_transmission    String?   @db.VarChar(50)
+  est_deverrouille            Boolean?  @default(false)
+  date_limite_correction      String?   @db.VarChar(50)
+  verrouille_apres_correction Boolean?  @default(false)
+  ok_to_print                 Boolean?  @default(false)
+  contenu_original            String?
+  demande_correction          Json?
+  frais_amendement_factures   Boolean?  @default(false)
+  facture_frais_id            BigInt?
+  deleted_at                  DateTime? // Soft Delete
+}
+
+model draft_event_logs {
+  id         BigInt   @id @default(autoincrement())
+  draft_id   BigInt
+  event_type String   @db.VarChar(50)
+  payload    Json // Delta diff pour audit
+  user_id    BigInt?
+  created_at DateTime @default(now())
+}
+
+// Brouillons d'Importation pour Auto-Save (Type Google Sheets)
+model manifest_drafts {
+  id           BigInt   @id @default(autoincrement())
+  session_id   String   @unique
+  payload_json Json
+  status       String   @default("PARSING") // PARSING, REVIEW, VALIDATED
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// MODULE 5 : SURESTARIES & DMDT
+// -----------------------------------------------------------------------------
+
+model containers {
+  id                      BigInt    @id
+  bl_id                   BigInt
+  numero_conteneur        String    @db.VarChar(100)
+  type_conteneur          String    @db.VarChar(50)
+  numero_scelle           String    @db.VarChar(100)
+  poids_kg                Float
+  tare_kg                 Float
+  nombre_colis            Int
+  date_entree_parc        String?   @db.VarChar(50)
+  date_sortie_parc        String?   @db.VarChar(50)
+  montant_caution_fcfa    Int
+  statut_livraison        String?   @db.VarChar(50)
+  is_dangerous            Boolean?  @default(false)
+  soc_coc                 String?   @db.VarChar(50)
+  // --- Nouveaux champs Anti-Fraude DMDT ---
+  dmdt_waiver_status      String?   @db.VarChar(50) // PENDING, APPROVED, REJECTED
+  dmdt_waiver_days        Int?
+  dmdt_waiver_reason      String?
+  dmdt_waiver_approver_id BigInt?
+  deleted_at              DateTime? // Soft Delete
+}
+
+model dmdt_tariffs {
+  id               Int       @id @default(autoincrement())
+  armateur         String    @db.VarChar(100)
+  type_conteneur   String    @db.VarChar(50)
+  jour_debut       Int
+  jour_fin         Int
+  tarif_journalier Int
+  valid_from       DateTime
+  valid_to         DateTime?
+}
+
+model dmdt_special_agreements {
+  id              Int       @id @default(autoincrement())
+  client_id       Int
+  armateur        String    @db.VarChar(100)
+  type_conteneur  String    @db.VarChar(50)
+  franchise_jours Int
+  valid_from      DateTime
+  valid_to        DateTime?
+}
+
+// -----------------------------------------------------------------------------
+// MODULE 6 : FACTURATION & FISCALITÉ
+// -----------------------------------------------------------------------------
+
+model invoice_sequences {
+  id            Int    @id @default(autoincrement())
+  prefix        String @db.VarChar(10)
+  year          Int
+  current_value Int    @default(0)
+
+  // Verrouillage SELECT FOR UPDATE basé sur (prefix, year)
+  @@unique([prefix, year])
+}
+
+model tax_configs {
+  id         Int       @id @default(autoincrement())
+  tax_code   String    @db.VarChar(50) // ex: TVA_18, FNE, TIMBRE
+  rate       Float // Pourcentage ou montant fixe
+  valid_from DateTime
+  valid_to   DateTime?
+}
+
+model invoices {
+  id                         BigInt    @id
+  bl_id                      BigInt
+  numero_bl                  String    @db.VarChar(100)
+  client_nom                 String    @db.VarChar(255)
+  escale_info                String    @db.VarChar(255)
+  type_facture               String    @db.VarChar(100)
+  numero_facture             String    @db.VarChar(100)
+  date_facture               String    @db.VarChar(50)
+  date_echeance              String    @db.VarChar(50)
+  devise                     String    @db.VarChar(10)
+  taux_change_usd            Int
+  montant_ht                 BigInt
+  tva                        BigInt
+  montant_ttc                BigInt
+  solde_du                   BigInt
+  statut_paiement            String    @db.VarChar(50)
+  invoice_type_id            String?   @db.VarChar(50)
+  statut_facture             String?   @default("BROUILLON") @db.VarChar(50)
+  motif_annulation           String?
+  facture_origine_id         BigInt?
+  avoir_id                   BigInt?
+  created_by                 String?   @db.VarChar(255)
+  validated_by               String?   @db.VarChar(255)
+  validated_at               String?   @db.VarChar(50)
+  cancelled_at               String?   @db.VarChar(50)
+  montant_ttc_avant_taxe     BigInt?
+  taxe_additionnelle         BigInt?   @default(0)
+  taxe_additionnelle_libelle String?   @db.VarChar(255)
+  taxe_additionnelle_mode    String?   @db.VarChar(30)
+  taxe_additionnelle_valeur  Decimal?  @db.Decimal
+  timbre_fiscal              BigInt?   @default(0)
+  is_comptant                Boolean?
+  mode_reglement             String?   @db.VarChar(30)
+  deleted_at                 DateTime? // Soft Delete
+}
+
+model invoice_items {
+  id            Int    @id @default(autoincrement())
+  invoice_id    BigInt
+  designation   String @db.VarChar(255)
+  type_frais    String @db.VarChar(50) // Accueillera les codes TAX_FNE, TAX_TIMBRE, etc.
+  quantite      Float
+  prix_unitaire Int
+  montant_ht    BigInt
+  taux_tva      Int
+}
+
+model payments {
+  id             BigInt  @id
+  facture_id     BigInt
+  facture_numero String  @db.VarChar(100)
+  client_nom     String  @db.VarChar(255)
+  date_paiement  String  @db.VarChar(50)
+  montant_paye   Int
+  mode_paiement  String  @db.VarChar(50)
+  reference      String? @db.VarChar(100)
+  caisse_nom     String  @db.VarChar(100)
+  statut         String  @db.VarChar(50)
+}
+
+model credit_notes {
+  id                     BigInt  @id
+  numero_avoir           String  @db.VarChar(100)
+  facture_id             BigInt
+  numero_facture_origine String  @db.VarChar(100)
+  client_nom             String  @db.VarChar(255)
+  motif                  String
+  date_emission          String  @db.VarChar(50)
+  montant_ht             BigInt
+  tva                    BigInt
+  montant_ttc            BigInt
+  statut                 String  @default("VALIDE") @db.VarChar(50)
+  created_by             String? @db.VarChar(255)
+}
+
+model credit_note_items {
+  id             Int    @id @default(autoincrement())
+  credit_note_id BigInt
+  designation    String @db.VarChar(255)
+  type_frais     String @db.VarChar(50)
+  quantite       Float
+  prix_unitaire  Int
+  montant_ht     BigInt
+  taux_tva       Int
+}
+
+// -----------------------------------------------------------------------------
+// TABLES CONFIGURATIONS DIVERSES
+// -----------------------------------------------------------------------------
+
+model invoice_type_configs {
+  id          String  @id @db.VarChar(50)
+  name        String  @db.VarChar(255)
+  description String?
+}
+
+model rubrique_configs {
+  id               String  @id @db.VarChar(50)
+  invoice_type_id  String  @db.VarChar(50)
+  category         String  @db.VarChar(50)
+  name             String  @db.VarChar(255)
+  description      String?
+  code             String  @db.VarChar(50)
+  is_active        Boolean @default(true)
+  montant_unitaire BigInt
+  base_calcul      String  @db.VarChar(50)
+}

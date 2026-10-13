@@ -1,17 +1,25 @@
-import * as pdfjsLib from 'pdfjs-dist';
-import { createWorker } from 'tesseract.js';
 import { Container, ContainerType, FretCategory } from '../types';
 
-// Configure PDF.js worker in Vite client environment
-if (typeof window !== 'undefined') {
-  try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.mjs',
-      import.meta.url
-    ).toString();
-  } catch (err) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '5.6.205'}/pdf.worker.min.mjs`;
+// PDF.js (~1 Mo) et Tesseract ne servent qu'à l'import de documents : ils sont
+// chargés au premier PDF traité, pas au démarrage de l'application.
+type PdfJs = typeof import('pdfjs-dist');
+let pdfjsPromise: Promise<PdfJs> | null = null;
+
+function loadPdfJs(): Promise<PdfJs> {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import('pdfjs-dist').then((pdfjsLib) => {
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url
+        ).toString();
+      } catch (err) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '5.6.205'}/pdf.worker.min.mjs`;
+      }
+      return pdfjsLib;
+    });
   }
+  return pdfjsPromise;
 }
 
 export interface ExtractedBlItem {
@@ -67,6 +75,7 @@ export async function extractRawTextFromPdf(file: File): Promise<{ text: string;
   let pdfDoc: any = null;
 
   try {
+    const pdfjsLib = await loadPdfJs();
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({
       data: arrayBuffer,
@@ -98,6 +107,7 @@ export async function extractRawTextFromPdf(file: File): Promise<{ text: string;
 
   try {
     if (pdfDoc && typeof document !== 'undefined') {
+      const { createWorker } = await import('tesseract.js');
       const worker = await createWorker('fra');
       const maxPagesToOcr = Math.min(pdfDoc.numPages, 4); // Analyser jusqu'à 4 pages
 
@@ -201,8 +211,8 @@ export function parseManifestBlsFromPdfText(
   const upper = clean.toUpperCase();
 
   // 1. Extraire les informations globales d'en-tête (Escale / Manifest Header)
-  let nomNavire = 'BOCS BREMEN';
-  let numeroVoyage = '25586';
+  let nomNavire = '';
+  let numeroVoyage = '';
   let portChargementCode = 'BEANR';
   let portDechargementCode = 'CIABJ';
 
@@ -605,7 +615,7 @@ export function parseBlFromPdfText(
     volumeM3: 0,
     typeMarchandise: 'CONVENTIONNEL',
     conteneurs: [],
-    nomNavire: 'BOCS BREMEN',
-    numeroVoyage: '25586'
+    nomNavire: '',
+    numeroVoyage: ''
   };
 }

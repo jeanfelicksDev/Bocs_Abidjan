@@ -1,0 +1,306 @@
+/* ==========================================================================
+   BOCS MARITIME — DESIGN TOKENS
+   Source de vérité unique. Un composant ne référence jamais un hex littéral :
+   il consomme un rôle sémantique. Changer l'apparence = changer un token ici.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------------
+     1. PRIMITIVES — palette brute. Ne pas consommer directement en JSX.
+     --------------------------------------------------------------------- */
+  --c-navy-900: #04182c;
+  --c-navy-800: #062a4a;
+  --c-navy-700: #002b49; /* encre BOCS — titres */
+
+  --c-blue-700: #004580;
+  --c-blue-600: #005daa; /* bleu BOCS — action */
+  --c-blue-500: #1a7fd0;
+  --c-blue-200: #b6d9f7;
+  --c-blue-100: #e3f0fd;
+  --c-blue-50:  #f2f8ff;
+
+  --c-green-700: #006e48;
+  --c-green-600: #00875a; /* vert BOCS — validé / encaissé */
+  --c-green-200: #a9e3c6;
+  --c-green-100: #d9f5e8;
+  --c-green-50:  #eefaf4;
+
+  --c-amber-700: #8a5200;
+  --c-amber-600: #b46a00;
+  --c-amber-200: #f5d9a3;
+  --c-amber-100: #fdefd3;
+  --c-amber-50:  #fdf7ec;
+
+  --c-red-700: #a01b32;
+  --c-red-600: #c02440;
+  --c-red-200: #f5c0c9;
+  --c-red-100: #fce3e7;
+  --c-red-50:  #fdf1f3;
+
+  --c-slate-900: #0d1520;
+  --c-slate-700: #33465c;
+  --c-slate-600: #4a5f78;
+  --c-slate-500: #64778c;
+  --c-slate-300: #c3cedb;
+  --c-slate-200: #dde5ee;
+  --c-slate-100: #eef2f7;
+  --c-slate-50:  #f6f8fb;
+  --c-white:     #ffffff;
+
+  /* ---------------------------------------------------------------------
+     2. SURFACES — l'arrière-plan de l'application, du plus profond au
+        plus élevé. Une élévation se déclare une fois : ici.
+     --------------------------------------------------------------------- */
+  --surface-canvas: var(--c-slate-50);
+  --surface-sunken: var(--c-slate-100);
+  --surface-base: var(--c-white);
+  --surface-raised: var(--c-white);
+  --surface-overlay: var(--c-white);
+  --surface-inverse: var(--c-navy-800);
+  --surface-accent-soft: var(--c-blue-50);
+  --surface-positive-soft: var(--c-green-50);
+  --surface-caution-soft: var(--c-amber-50);
+  --surface-critical-soft: var(--c-red-50);
+
+  /* ---------------------------------------------------------------------
+     3. TEXTE — tous ≥ 4.5:1 sur --surface-base (texte courant).
+     --------------------------------------------------------------------- */
+  --text-primary: var(--c-navy-700);      /* 14.6:1 */
+  --text-secondary: var(--c-slate-700);   /* 9.6:1  */
+  --text-muted: var(--c-slate-500);       /* 4.9:1  */
+  --text-placeholder: var(--c-slate-500);
+  --text-on-accent: var(--c-white);
+  --text-on-inverse: var(--c-white);
+  --text-link: var(--c-blue-700);          /* 7.4:1  */
+  --text-positive: var(--c-green-700);
+  --text-caution: var(--c-amber-700);
+  --text-critical: var(--c-red-700);
+
+  /* ---------------------------------------------------------------------
+     4. BORDURES — hiérarchie explicite, du plus discret au plus marqué.
+     --------------------------------------------------------------------- */
+  --border-subtle: var(--c-slate-100);
+  --border-default: var(--c-slate-200);
+  --border-strong: var(--c-slate-300);
+  --border-accent: var(--c-blue-600);
+  --border-inverse: rgba(255, 255, 255, 0.16);
+
+  /* ---------------------------------------------------------------------
+     5. ÉLÉVATION — ombre = décalage + diffusion. Jamais de halo sans offset.
+     --------------------------------------------------------------------- */
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(4, 24, 44, 0.06), 0 1px 3px rgba(4, 24, 44, 0.04);
+  --elevation-2: 0 2px 4px rgba(4, 24, 44, 0.05), 0 8px 16px -6px rgba(4, 24, 44, 0.10);
+  --elevation-3: 0 4px 8px rgba(4, 24, 44, 0.06), 0 18px 34px -10px rgba(4, 24, 44, 0.16);
+  --elevation-4: 0 8px 16px rgba(4, 24, 44, 0.08), 0 32px 56px -16px rgba(4, 24, 44, 0.22);
+
+  /* Anneau de focus — un seul anneau pour toute l'application */
+  --focus-ring-color: var(--c-blue-600);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* ---------------------------------------------------------------------
+     6. RAYONS — cartes 12-16px. Pilules réservées aux petits contrôles.
+     --------------------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+
+  /* ---------------------------------------------------------------------
+     7. ESPACEMENT — échelle en 4px. Un groupe serré, une séparation généreuse.
+     --------------------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------------------------------------------------------------------
+     8. TYPOGRAPHIE — une échelle, des pas nets, une mesure bornée.
+     --------------------------------------------------------------------- */
+  --font-sans: 'Albert Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Albert Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-data: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Une seule famille d'interface, une seule famille de données. Le lettrage
+     de marque vit dans le logo vectoriel, pas dans une fonte d'affichage :
+     aucun titre d'écran ne change de voix pour se faire remarquer. */
+  --font-brand: 'Albert Sans', 'Segoe UI', system-ui, sans-serif;
+
+  --text-2xs: 0.75rem;    /* 12px — libellés denses, tableaux */
+  --text-xs:  0.8125rem;  /* 13px — métadonnées */
+  --text-sm:  0.875rem;   /* 14px — corps de texte, contrôles */
+  --text-md:  0.9375rem;  /* 15px — corps confort */
+  --text-base:1rem;       /* 16px — titres de section */
+  --text-lg:  1.125rem;   /* 18px — sous-titres */
+  --text-xl:  1.375rem;   /* 22px — titres de page */
+  --text-2xl: 1.75rem;    /* 28px — titres de vue */
+  --text-3xl: 2.25rem;    /* 36px — chiffres KPI */
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-normal: 1.6;
+
+  --tracking-tight: -0.025em; /* plancher -0.04em, on s'arrête à -0.025em */
+  --tracking-normal: -0.011em;
+  --tracking-wide: 0.04em;
+
+  --measure-prose: 68ch;
+
+  /* ---------------------------------------------------------------------
+     9. MOUVEMENT — une seule courbe, sortie exponentielle depuis un état
+        déjà visible. Jamais d'entrée identique répétée section après section.
+     --------------------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+
+  /* ---------------------------------------------------------------------
+     10. MISE EN PAGE
+     --------------------------------------------------------------------- */
+  --layout-sidebar: 264px;
+  --layout-header: 60px;
+  --layout-content-max: 1560px;
+
+  /* ---------------------------------------------------------------------
+     11. PONT — le vocabulaire du plan de chargement.
+         Le monde prête quatre choses : le type, la palette, la densité et un
+         geste. Voici la palette : l'encre du plan, son fond, et un
+         remplissage par état. Un remplissage dit toujours un état du dossier.
+     --------------------------------------------------------------------- */
+  --ink: #0b1b2b;             /* encre structurale : bandeaux, libellés */
+  --ink-muted: #5b6b7c;       /* libellés secondaires, tintés du fond */
+  --deck-ground: #eaeff4;     /* le fond du plan, légèrement froid */
+  --deck-sunken: #dde5ec;
+  --cell-bg: #ffffff;         /* la cellule */
+  --cell-rule: #c6d0da;       /* la règle du plan : elle sépare, elle ne décore pas */
+  --coord-ink: #8394a4;       /* les coordonnées restent discrètes */
+
+  --state-ok-bg:   #e0f2e9;  --state-ok-line:   var(--c-green-600);  --state-ok-ink:   #00603f;
+  --state-todo-bg: #e4eefb;  --state-todo-line: var(--c-blue-600);   --state-todo-ink: #00416f;
+  --state-wait-bg: #fbeed8;  --state-wait-line: var(--c-amber-600);  --state-wait-ink: #7d4a00;
+  --state-late-bg: #fbe6ea;  --state-late-line: var(--c-red-600);    --state-late-ink: #8f1428;
+}
+
+
+
+
+/* ---------------------------------------------------------------------
+   12. NUIT — primitives du thème sombre « bleu BOCS ».
+       Triplets RGB pour que Tailwind garde les opacités
+       (`dark:bg-night-surface/60`). Dérivées du bleu nuit #002B49 du logo :
+       le thème sombre reste la même marque. Contrastes mesurés sur
+       --night-surface.
+   --------------------------------------------------------------------- */
+:root {
+  --night-canvas:        11 22 34;   /* #0B1622 fond de l'application */
+  --night-sunken:         8 17 27;   /* #08111B puits, champs de saisie */
+  --night-surface:       17 31 46;   /* #111F2E panneaux, cartes */
+  --night-raised:        24 42 60;   /* #182A3C survol, puces, en-têtes de tableau */
+  --night-line:          35 56 77;   /* #23384D règle */
+  --night-line-strong:   49 73 95;   /* #31495F règle marquée, contour de contrôle */
+  --night-ink:          230 237 244; /* #E6EDF4 texte principal    14.9:1 */
+  --night-ink-2:        168 183 198; /* #A8B7C6 texte secondaire    8.4:1 */
+  --night-ink-3:        129 149 169; /* #8195A9 texte discret       5.2:1 */
+  --night-accent:        21 105 181; /* #1569B5 bleu BOCS d'action, texte blanc 5.6:1 */
+  --night-accent-strong: 26 120 204; /* #1A78CC survol d'action */
+  --night-accent-soft:   19 48 77;   /* #13304D fond teinté bleu */
+  --night-accent-line:   36 80 122;  /* #24507A filet teinté bleu */
+  --night-link:         125 185 245; /* #7DB9F5 lien, icône active   7.9:1 */
+  --night-positive:      92 207 155; /* #5CCF9B validé, encaissé    9.0:1 */
+  --night-positive-soft: 15 46 36;
+  --night-positive-line: 31 90 68;
+  --night-caution:      237 190 98;  /* #EDBE62 en attente          9.6:1 */
+  --night-caution-soft:  51 40 15;
+  --night-caution-line:  92 71 24;
+  --night-critical:     244 148 158; /* #F4949E écart, retard       7.6:1 */
+  --night-critical-soft: 58 24 32;
+  --night-critical-line: 106 42 54;
+}
+
+/* ---------------------------------------------------------------------
+   THÈME SOMBRE — bleu BOCS. Les rôles sémantiques basculent ici ; un
+   composant qui consomme les rôles n'a rien à faire.
+   --------------------------------------------------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --color-primary: rgb(var(--night-accent));
+  --color-primary-dark: rgb(var(--night-ink)); /* encre des titres */
+  --color-primary-light: rgb(var(--night-accent-soft));
+  --color-success: rgb(var(--night-positive));
+
+  --c-white: rgb(var(--night-surface));
+  --c-navy-700: rgb(var(--night-ink));
+  --c-slate-700: rgb(var(--night-ink-2));
+  --c-slate-500: rgb(var(--night-ink-3));
+  --c-slate-300: rgb(var(--night-line-strong));
+  --c-slate-200: rgb(var(--night-line));
+  --c-slate-100: rgb(var(--night-sunken));
+  --c-slate-50:  rgb(var(--night-canvas));
+  --c-blue-50:   rgb(var(--night-accent-soft));
+
+  --focus-ring-color: rgb(var(--night-link));
+
+  --surface-canvas: rgb(var(--night-canvas));
+  --surface-sunken: rgb(var(--night-sunken));
+  --surface-base: rgb(var(--night-surface));
+  --surface-raised: rgb(var(--night-surface));
+  --surface-overlay: rgb(var(--night-raised));
+  --surface-inverse: rgb(var(--night-sunken));
+  --surface-accent-soft: rgb(var(--night-accent-soft));
+  --surface-positive-soft: rgb(var(--night-positive-soft));
+  --surface-caution-soft: rgb(var(--night-caution-soft));
+  --surface-critical-soft: rgb(var(--night-critical-soft));
+
+  --text-primary: rgb(var(--night-ink));
+  --text-secondary: rgb(var(--night-ink-2));
+  --text-muted: rgb(var(--night-ink-3));
+  --text-placeholder: rgb(var(--night-ink-3));
+  --text-link: rgb(var(--night-link));
+  --text-positive: rgb(var(--night-positive));
+  --text-caution: rgb(var(--night-caution));
+  --text-critical: rgb(var(--night-critical));
+
+  --border-subtle: rgb(var(--night-line) / 0.6);
+  --border-default: rgb(var(--night-line));
+  --border-strong: rgb(var(--night-line-strong));
+  --border-accent: rgb(var(--night-link));
+  --border-inverse: rgb(var(--night-line-strong));
+
+  /* Dans le noir, la profondeur vient de la surface ; l'ombre reste courte. */
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --elevation-2: 0 2px 4px rgba(0, 0, 0, 0.30), 0 8px 16px -6px rgba(0, 0, 0, 0.45);
+  --elevation-3: 0 4px 8px rgba(0, 0, 0, 0.32), 0 18px 34px -10px rgba(0, 0, 0, 0.55);
+  --elevation-4: 0 8px 16px rgba(0, 0, 0, 0.35), 0 32px 56px -16px rgba(0, 0, 0, 0.60);
+
+  --ink: rgb(var(--night-ink));
+  --ink-muted: rgb(var(--night-ink-2));
+  --deck-ground: rgb(var(--night-canvas));
+  --deck-sunken: rgb(var(--night-sunken));
+  --cell-bg: rgb(var(--night-surface));
+  --cell-rule: rgb(var(--night-line));
+  --coord-ink: rgb(var(--night-ink-3));
+
+  --state-ok-bg:   rgb(var(--night-positive-soft)); --state-ok-line:   rgb(var(--night-positive)); --state-ok-ink:   rgb(var(--night-positive));
+  --state-todo-bg: rgb(var(--night-accent-soft));   --state-todo-line: rgb(var(--night-link));     --state-todo-ink: rgb(var(--night-link));
+  --state-wait-bg: rgb(var(--night-caution-soft));  --state-wait-line: rgb(var(--night-caution));  --state-wait-ink: rgb(var(--night-caution));
+  --state-late-bg: rgb(var(--night-critical-soft)); --state-late-line: rgb(var(--night-critical)); --state-late-ink: rgb(var(--night-critical));
+}
+
+:root:not(.dark) { color-scheme: light; }
+
+/* Sélection et barres de défilement : surfaces du navigateur, au thème aussi. */
+::selection { background: rgb(0 93 170 / 0.22); color: inherit; }
+.dark ::selection { background: rgb(var(--night-link) / 0.30); color: rgb(var(--night-ink)); }
+.dark { scrollbar-color: rgb(var(--night-line-strong)) rgb(var(--night-canvas)); }

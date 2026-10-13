@@ -5,12 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BOCS Maritime — Plateforme de Gestion Import, Export & Facturation</title>
-    <!-- Google Fonts: Plus Jakarta Sans (Headings), Playfair Display (Italic accent), Inter (Body), JetBrains Mono (Data) & Material Symbols -->
+    <!-- Albert Sans (interface & montants) · JetBrains Mono
+         (identifiants, coordonnées de cale) · Material Symbols (icônes) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@1,600;1,700;1,800&family=JetBrains+Mono:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  
+    <script>
+      // Même règle que src/utils/theme.ts : choix mémorisé, sinon réglage du système.
+      (function () {
+        var t = localStorage.getItem("theme");
+        var dark = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.classList.toggle("light", !dark);
+      })();
+    </script>
   </head>
-  <body class="bg-white text-zinc-900 font-sans antialiased selection:bg-[#D94817] selection:text-white relative min-h-screen">
+  <body class="bg-[var(--deck-ground)] text-[var(--ink)] font-sans antialiased relative min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

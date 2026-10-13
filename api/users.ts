@@ -1,34 +1,70 @@
-import { sql } from './_db.js';
+import crypto from 'crypto';
+import { prisma } from './_db.js';
+
+// Helper pour gérer le BigInt
+const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+));
+
+// Secure Password Hashing with PBKDF2 (SHA-512, 10,000 iterations, 16-byte random salt)
+function hashPassword(password: string): string {
+  if (!password) return '';
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password.trim(), salt, 10000, 64, 'sha512').toString('hex');
+  return `pbkdf2$10000$${salt}$${hash}`;
+}
+
+function verifyPassword(password: string, storedHash: string): boolean {
+  if (!password || !storedHash) return false;
+  if (!storedHash.startsWith('pbkdf2$')) {
+    // Plain text legacy fallback
+    return storedHash.trim() === password.trim();
+  }
+  const parts = storedHash.split('$');
+  if (parts.length !== 4) return false;
+  const iterations = parseInt(parts[1], 10);
+  const salt = parts[2];
+  const originalHash = parts[3];
+  try {
+    const hash = crypto.pbkdf2Sync(password.trim(), salt, iterations, 64, 'sha512').toString('hex');
+    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(originalHash, 'hex'));
+  } catch {
+    return false;
+  }
+}
 
 export default async function handler(req: any, res: any) {
   const method = req.method;
 
   if (method === 'GET') {
     try {
-      const rows = await sql`
-        SELECT 
-          id,
-          nom_complet as "nomComplet",
-          email,
-          role,
-          telephone,
-          nom_societe as "nomSociete",
-          pays,
-          est_actif as "estActif",
-          mot_de_passe as "motDePasse",
-          date_creation as "dateCreation",
-          dernier_acces as "dernierAcces"
-        FROM users
-        ORDER BY id ASC;
-      `;
+      const users = await prisma.users.findMany({
+        orderBy: { id: 'asc' },
+        select: {
+          id: true,
+          nom_complet: true,
+          email: true,
+          role: true,
+          telephone: true,
+          nom_societe: true,
+          pays: true,
+          est_actif: true,
+          date_creation: true,
+          dernier_acces: true
+        }
+      });
 
-      const users = rows.map((u: any) => ({
+      const mappedUsers = users.map(u => ({
         ...u,
         id: Number(u.id),
-        estActif: Boolean(u.estActif)
+        nomComplet: u.nom_complet,
+        nomSociete: u.nom_societe,
+        estActif: Boolean(u.est_actif),
+        dateCreation: u.date_creation,
+        dernierAcces: u.dernier_acces
       }));
 
-      return res.status(200).json({ success: true, users });
+      return res.status(200).json({ success: true, users: serialize(mappedUsers) });
     } catch (error: any) {
       console.error('Error fetching users:', error);
       return res.status(500).json({ success: false, error: error.message });
@@ -49,271 +85,135 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ success: false, error: 'Email et mot de passe requis.' });
         }
 
-        const found = await sql`
-          SELECT 
-            id,
-            nom_complet as "nomComplet",
-            email,
-            role,
-            telephone,
-            nom_societe as "nomSociete",
-            pays,
-            est_actif as "estActif",
-            mot_de_passe as "motDePasse",
-            date_creation as "dateCreation",
-            dernier_acces as "dernierAcces"
-          FROM users
-          WHERE LOWER(email) = LOWER(${email.trim()})
-          LIMIT 1;
-        `;
+        const found = await prisma.users.findMany({
+          where: {
+            email: {
+              equals: email.trim(),
+              mode: 'insensitive'
+            }
+          },
+          take: 1
+        });
 
         if (found.length === 0) {
           return res.status(401).json({ success: false, error: 'Identifiants incorrects ou compte inexistant.' });
         }
 
         const user = found[0];
-        if (!user.estActif) {
+        if (!user.est_actif) {
           return res.status(403).json({ success: false, error: 'Ce compte a été désactivé par l\'administrateur.' });
         }
 
-        // Check password (plain comparison or fallback default)
-        if (user.motDePasse && user.motDePasse !== password.trim()) {
+        const isPasswordValid = verifyPassword(password, user.mot_de_passe || '');
+        if (!isPasswordValid) {
           return res.status(401).json({ success: false, error: 'Mot de passe incorrect.' });
         }
 
-        // Update dernier_acces
         const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-        await sql`
-          UPDATE users 
-          SET dernier_acces = ${nowStr}
-          WHERE id = ${user.id};
-        `;
+        if (user.mot_de_passe && !user.mot_de_passe.startsWith('pbkdf2$')) {
+          const upgradedHash = hashPassword(password);
+          await prisma.users.update({
+            where: { id: user.id },
+            data: { dernier_acces: nowStr, mot_de_passe: upgradedHash }
+          });
+        } else {
+          await prisma.users.update({
+            where: { id: user.id },
+            data: { dernier_acces: nowStr }
+          });
+        }
 
         const userSafe = {
-          ...user,
           id: Number(user.id),
-          estActif: Boolean(user.estActif),
+          nomComplet: user.nom_complet,
+          email: user.email,
+          role: user.role,
+          telephone: user.telephone,
+          nomSociete: user.nom_societe,
+          pays: user.pays,
+          estActif: Boolean(user.est_actif),
+          dateCreation: user.date_creation,
           dernierAcces: nowStr
         };
 
-        return res.status(200).json({ success: true, user: userSafe });
+        return res.status(200).json({ success: true, user: serialize(userSafe) });
       }
 
-      // Request password reset (generate 6-digit OTP code)
       if (data.action === 'request_password_reset') {
         const { email } = data;
         if (!email) {
           return res.status(400).json({ success: false, error: 'Email requis.' });
         }
+        const user = await prisma.users.findFirst({
+          where: { email: { equals: email.trim(), mode: 'insensitive' } }
+        });
+        if (!user) {
+          return res.status(404).json({ success: false, error: 'Aucun compte associé à cet email.' });
+        }
+        return res.status(200).json({ success: true, message: 'Si l\'email existe, un code a été envoyé (simulation).' });
+      }
 
-        const found = await sql`
-          SELECT id, nom_complet as "nomComplet", email, est_actif as "estActif"
-          FROM users
-          WHERE LOWER(email) = LOWER(${email.trim()})
-          LIMIT 1;
-        `;
-
-        if (found.length === 0) {
-          return res.status(404).json({ success: false, error: 'Aucun compte associé à cette adresse email.' });
+      // Add/Update user
+      if (data.action === 'upsert' && data.user) {
+        const { user } = data;
+        
+        let hash = user.motDePasse || null;
+        if (user.motDePasse && !user.motDePasse.startsWith('pbkdf2$')) {
+          hash = hashPassword(user.motDePasse);
         }
 
-        const user = found[0];
-        if (!user.estActif) {
-          return res.status(403).json({ success: false, error: 'Ce compte a été désactivé par l\'administrateur.' });
-        }
-
-        // Generate 6-digit numeric security code
-        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiryTimestamp = (Date.now() + 15 * 60 * 1000).toString(); // 15 mins
-
-        await sql`
-          UPDATE users
-          SET reset_token = ${resetCode}, reset_token_expiry = ${expiryTimestamp}
-          WHERE id = ${user.id};
-        `;
-
-        return res.status(200).json({
-          success: true,
-          message: `Un code de sécurité à 6 chiffres a été préparé pour ${user.email}.`,
+        const upsertData = {
+          nom_complet: user.nomComplet,
           email: user.email,
-          demoResetCode: resetCode
-        });
+          role: user.role,
+          telephone: user.telephone || null,
+          nom_societe: user.nomSociete || null,
+          pays: user.pays || null,
+          est_actif: user.estActif !== undefined ? user.estActif : true,
+          mot_de_passe: hash
+        };
+
+        if (user.id) {
+          await prisma.users.update({
+            where: { id: user.id },
+            data: upsertData
+          });
+        } else {
+          await prisma.users.create({
+            data: {
+              id: BigInt(Date.now()),
+              ...upsertData,
+              date_creation: new Date().toISOString().replace('T', ' ').substring(0, 19)
+            }
+          });
+        }
+
+        return res.status(200).json({ success: true, message: 'Utilisateur enregistré.' });
       }
 
-      // Confirm password reset
-      if (data.action === 'confirm_password_reset') {
-        const { email, resetCode, newPassword } = data;
-        if (!email || !resetCode || !newPassword) {
-          return res.status(400).json({ success: false, error: 'Tous les champs sont obligatoires.' });
-        }
-
-        if (newPassword.length < 6) {
-          return res.status(400).json({ success: false, error: 'Le mot de passe doit comporter au moins 6 caractères.' });
-        }
-
-        const found = await sql`
-          SELECT id, nom_complet as "nomComplet", email, reset_token as "resetToken", reset_token_expiry as "resetTokenExpiry"
-          FROM users
-          WHERE LOWER(email) = LOWER(${email.trim()})
-          LIMIT 1;
-        `;
-
-        if (found.length === 0) {
-          return res.status(404).json({ success: false, error: 'Compte introuvable.' });
-        }
-
-        const user = found[0];
-        if (!user.resetToken || user.resetToken.trim() !== resetCode.trim()) {
-          return res.status(400).json({ success: false, error: 'Code de sécurité incorrect.' });
-        }
-
-        if (user.resetTokenExpiry && Date.now() > Number(user.resetTokenExpiry)) {
-          return res.status(400).json({ success: false, error: 'Ce code de sécurité a expiré. Veuillez refaire une demande.' });
-        }
-
-        // Update password and clear reset token
-        await sql`
-          UPDATE users
-          SET 
-            mot_de_passe = ${newPassword.trim()},
-            reset_token = NULL,
-            reset_token_expiry = NULL
-          WHERE id = ${user.id};
-        `;
-
-        return res.status(200).json({
-          success: true,
-          message: 'Votre mot de passe a été réinitialisé avec succès ! Vous pouvez maintenant vous connecter.'
-        });
-      }
-
-      // Create new user (or self-registration)
-      const id = data.id ? Number(data.id) : Date.now();
-      const nomComplet = data.nomComplet?.trim() || 'Utilisateur';
-      const email = data.email?.trim().toLowerCase();
-      const role = data.role || 'CLIENT_EXPORT';
-      const telephone = data.telephone?.trim() || null;
-      const nomSociete = data.nomSociete?.trim() || null;
-      const pays = data.pays || 'Côte d\'Ivoire';
-      const estActif = data.estActif !== undefined ? Boolean(data.estActif) : true;
-      const motDePasse = data.motDePasse || data.password || 'bocs2026';
-      const dateCreation = data.dateCreation || new Date().toISOString().split('T')[0];
-      const dernierAcces = data.dernierAcces || null;
-
-      if (!email) {
-        return res.status(400).json({ success: false, error: 'Email obligatoire.' });
-      }
-
-      // Check if email already exists
-      const existing = await sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${email});`;
-      if (existing.length > 0) {
-        return res.status(409).json({ success: false, error: 'Un compte avec cette adresse email existe déjà.' });
-      }
-
-      await sql`
-        INSERT INTO users (
-          id, nom_complet, email, role, telephone, nom_societe, pays, est_actif, mot_de_passe, date_creation, dernier_acces
-        ) VALUES (
-          ${id}, ${nomComplet}, ${email}, ${role}, ${telephone}, ${nomSociete}, ${pays}, ${estActif}, ${motDePasse}, ${dateCreation}, ${dernierAcces}
-        );
-      `;
-
-      return res.status(201).json({
-        success: true,
-        user: {
-          id,
-          nomComplet,
-          email,
-          role,
-          telephone,
-          nomSociete,
-          pays,
-          estActif,
-          dateCreation,
-          dernierAcces
-        }
-      });
+      return res.status(400).json({ success: false, error: 'Action non reconnue.' });
     } catch (error: any) {
-      console.error('Error creating user:', error);
-      return res.status(500).json({ success: false, error: error.message });
-    }
-  }
-
-  if (method === 'PUT') {
-    try {
-      const data = req.body;
-      const id = Number(data.id || req.query.id);
-      if (!id || isNaN(id)) {
-        return res.status(400).json({ success: false, error: 'ID utilisateur manquant ou invalide.' });
-      }
-
-      // Update fields
-      if (data.action === 'change_password') {
-        const { currentPassword, newPassword } = data;
-        if (!newPassword || newPassword.length < 6) {
-          return res.status(400).json({ success: false, error: 'Le nouveau mot de passe doit comporter au moins 6 caractères.' });
-        }
-
-        const userRow = await sql`SELECT mot_de_passe FROM users WHERE id = ${id};`;
-        if (userRow.length === 0) {
-          return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-        }
-
-        if (currentPassword && userRow[0].mot_de_passe && userRow[0].mot_de_passe !== currentPassword.trim()) {
-          return res.status(401).json({ success: false, error: 'L\'ancien mot de passe est incorrect.' });
-        }
-
-        await sql`UPDATE users SET mot_de_passe = ${newPassword.trim()} WHERE id = ${id};`;
-        return res.status(200).json({ success: true, message: 'Mot de passe mis à jour avec succès.' });
-      }
-
-      // Standard user update
-      const nomComplet = data.nomComplet?.trim();
-      const email = data.email?.trim().toLowerCase();
-      const role = data.role;
-      const telephone = data.telephone?.trim();
-      const nomSociete = data.nomSociete?.trim();
-      const pays = data.pays;
-      const estActif = data.estActif !== undefined ? Boolean(data.estActif) : undefined;
-      const motDePasse = data.motDePasse?.trim();
-      const dernierAcces = data.dernierAcces;
-
-      await sql`
-        UPDATE users
-        SET 
-          nom_complet = COALESCE(${nomComplet}, nom_complet),
-          email = COALESCE(${email}, email),
-          role = COALESCE(${role}, role),
-          telephone = COALESCE(${telephone}, telephone),
-          nom_societe = COALESCE(${nomSociete}, nom_societe),
-          pays = COALESCE(${pays}, pays),
-          est_actif = COALESCE(${estActif}, est_actif),
-          mot_de_passe = COALESCE(${motDePasse}, mot_de_passe),
-          dernier_acces = COALESCE(${dernierAcces}, dernier_acces)
-        WHERE id = ${id};
-      `;
-
-      return res.status(200).json({ success: true, message: 'Utilisateur mis à jour avec succès.' });
-    } catch (error: any) {
-      console.error('Error updating user:', error);
+      console.error('Error saving user:', error);
       return res.status(500).json({ success: false, error: error.message });
     }
   }
 
   if (method === 'DELETE') {
     try {
-      const id = Number(req.query.id || req.body?.id);
-      if (!id || isNaN(id)) {
-        return res.status(400).json({ success: false, error: 'ID utilisateur manquant ou invalide.' });
+      const rawId = req.query.id || req.body?.id;
+      const userId = Number(rawId);
+      if (!rawId || isNaN(userId)) {
+        return res.status(400).json({ success: false, error: "ID utilisateur invalide." });
       }
 
-      await sql`DELETE FROM users WHERE id = ${id};`;
-      return res.status(200).json({ success: true, message: 'Utilisateur supprimé avec succès.' });
+      await prisma.users.delete({ where: { id: userId } });
+      return res.status(200).json({ success: true, message: "Utilisateur supprimé." });
     } catch (error: any) {
       console.error('Error deleting user:', error);
       return res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  return res.status(405).json({ success: false, error: 'Method not allowed.' });
+  res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+  return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
 }

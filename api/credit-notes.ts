@@ -1,63 +1,45 @@
-import { sql } from './_db.js';
+import { prisma } from './_db.js';
+
+const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+));
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
-      const creditNotes = await sql`
-        SELECT 
-          id,
-          numero_avoir as "numeroAvoir",
-          facture_id as "factureId",
-          numero_facture_origine as "numeroFactureOrigine",
-          client_nom as "clientNom",
-          motif,
-          date_emission as "dateEmission",
-          montant_ht as "montantHtFcfa",
-          tva as "tvaFcfa",
-          montant_ttc as "montantTtcFcfa",
-          statut,
-          created_by as "createdBy"
-        FROM credit_notes
-        ORDER BY id DESC;
-      `;
-
-      const items = await sql`
-        SELECT 
-          id,
-          credit_note_id as "creditNoteId",
-          designation,
-          type_frais as "typeFrais",
-          quantite,
-          prix_unitaire as "prixUnitaireFcfa",
-          montant_ht as "montantHtFcfa",
-          taux_tva as "tauxTva"
-        FROM credit_note_items;
-      `;
-
-      const mappedCreditNotes = creditNotes.map((cn: any) => {
-        return {
-          ...cn,
-          id: Number(cn.id),
-          factureId: Number(cn.factureId),
-          montantHtFcfa: Number(cn.montantHtFcfa),
-          tvaFcfa: Number(cn.tvaFcfa),
-          montantTtcFcfa: Number(cn.montantTtcFcfa),
-          lignes: items
-            .filter((item: any) => Number(item.creditNoteId) === Number(cn.id))
-            .map((item: any) => ({
-              id: item.id,
-              creditNoteId: Number(item.creditNoteId),
-              designation: item.designation,
-              typeFrais: item.typeFrais,
-              quantite: Number(item.quantite),
-              prixUnitaireFcfa: Number(item.prixUnitaireFcfa),
-              montantHtFcfa: Number(item.montantHtFcfa),
-              tauxTva: Number(item.tauxTva)
-            }))
-        };
+      const creditNotes = await prisma.credit_notes.findMany({
+        orderBy: { id: 'desc' }
       });
+      const items = await prisma.credit_note_items.findMany();
 
-      return res.status(200).json({ success: true, creditNotes: mappedCreditNotes });
+      const mappedCreditNotes = creditNotes.map((cn: any) => ({
+        ...cn,
+        id: Number(cn.id),
+        numeroAvoir: cn.numero_avoir,
+        factureId: Number(cn.facture_id),
+        numeroFactureOrigine: cn.numero_facture_origine,
+        clientNom: cn.client_nom,
+        dateEmission: cn.date_emission,
+        montantHtFcfa: Number(cn.montant_ht),
+        tvaFcfa: Number(cn.tva),
+        montantTtcFcfa: Number(cn.montant_ttc),
+        createdBy: cn.created_by,
+        lignes: items
+          .filter((item: any) => Number(item.credit_note_id) === Number(cn.id))
+          .map((item: any) => ({
+            id: Number(item.id),
+            creditNoteId: Number(item.credit_note_id),
+            designation: item.designation,
+            typeFrais: item.type_frais,
+            quantite: Number(item.quantite),
+            prixUnitaireFcfa: Number(item.prix_unitaire),
+            montantHtFcfa: Number(item.montant_ht),
+            tauxTva: Number(item.taux_tva)
+          })),
+        deletedAt: cn.deleted_at?.toISOString()
+      }));
+
+      return res.status(200).json({ success: true, creditNotes: serialize(mappedCreditNotes) });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
     }
@@ -68,60 +50,62 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ success: false, error: "Informations d'avoir incomplètes ou motif manquant." });
       }
 
-      // Upsert/Insert Credit Note
-      await sql`DELETE FROM credit_note_items WHERE credit_note_id = ${creditNote.id};`;
-      await sql`DELETE FROM credit_notes WHERE id = ${creditNote.id};`;
+      await prisma.credit_note_items.deleteMany({ where: { credit_note_id: creditNote.id } });
+      await prisma.credit_notes.deleteMany({ where: { id: creditNote.id } });
 
-      await sql`
-        INSERT INTO credit_notes (
-          id, numero_avoir, facture_id, numero_facture_origine, client_nom,
-          motif, date_emission, montant_ht, tva, montant_ttc, statut, created_by
-        ) VALUES (
-          ${creditNote.id}, ${creditNote.numeroAvoir}, ${creditNote.factureId},
-          ${creditNote.numeroFactureOrigine}, ${creditNote.clientNom}, ${creditNote.motif},
-          ${creditNote.dateEmission}, ${creditNote.montantHtFcfa || 0}, ${creditNote.tvaFcfa || 0},
-          ${creditNote.montantTtcFcfa || 0}, ${creditNote.statut || 'VALIDE'}, ${creditNote.createdBy || ''}
-        );
-      `;
-
-      // Insert credit note items
-      if (creditNote.lignes && creditNote.lignes.length > 0) {
-        for (const line of creditNote.lignes) {
-          await sql`
-            INSERT INTO credit_note_items (
-              credit_note_id, designation, type_frais, quantite, prix_unitaire, montant_ht, taux_tva
-            ) VALUES (
-              ${creditNote.id}, ${line.designation}, ${line.typeFrais},
-              ${line.quantite}, ${line.prixUnitaireFcfa}, ${line.montantHtFcfa}, ${line.tauxTva}
-            );
-          `;
+      await prisma.credit_notes.create({
+        data: {
+          id: creditNote.id,
+          numero_avoir: creditNote.numeroAvoir,
+          facture_id: creditNote.factureId,
+          numero_facture_origine: creditNote.numeroFactureOrigine,
+          client_nom: creditNote.clientNom,
+          motif: creditNote.motif,
+          date_emission: creditNote.dateEmission,
+          montant_ht: creditNote.montantHtFcfa || 0,
+          tva: creditNote.tvaFcfa || 0,
+          montant_ttc: creditNote.montantTtcFcfa || 0,
+          statut: creditNote.statut || 'VALIDE',
+          created_by: creditNote.createdBy || ''
         }
+      });
+
+      if (creditNote.lignes && creditNote.lignes.length > 0) {
+        const itemsToInsert = creditNote.lignes.map((line: any) => ({
+          credit_note_id: creditNote.id,
+          designation: line.designation,
+          type_frais: line.typeFrais,
+          quantite: line.quantite,
+          prix_unitaire: line.prixUnitaireFcfa,
+          montant_ht: line.montantHtFcfa,
+          taux_tva: line.tauxTva
+        }));
+        await prisma.credit_note_items.createMany({ data: itemsToInsert });
       }
 
-      // Automatically update source invoice to 'ANNULEE' status
       const nowIso = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      await sql`
-        UPDATE invoices 
-        SET 
-          statut_facture = 'ANNULEE',
-          motif_annulation = ${creditNote.motif},
-          avoir_id = ${creditNote.id},
-          cancelled_at = ${nowIso},
-          solde_du = 0
-        WHERE id = ${creditNote.factureId};
-      `;
+      await prisma.invoices.update({
+        where: { id: creditNote.factureId },
+        data: {
+          statut_facture: 'ANNULEE',
+          motif_annulation: creditNote.motif,
+          avoir_id: creditNote.id,
+          cancelled_at: nowIso,
+          solde_du: 0
+        }
+      });
 
       return res.status(200).json({ success: true, message: "Avoir émis avec succès et facture d'origine annulée." });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
     }
   } else if (req.method === 'DELETE') {
-    // Interdiction stricte de suppression d'avoir pour respecter les normes fiscales
     return res.status(403).json({ 
       success: false, 
       error: "Conformité fiscale : Une note d'avoir émise et enregistrée est inaltérable et ne peut être supprimée de la base de données." 
     });
   } else {
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
     return res.status(405).json({ success: false, error: "Method not allowed." });
   }
 }

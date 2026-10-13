@@ -88,25 +88,26 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
   const numBl = isBl ? (targetBlOrDraft as BL).numeroBL : (targetBlOrDraft as DraftExport).numeroDraft;
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       onClick={overlayClickClose(onClose)}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-md shadow-2xl dark:shadow-black/70 w-full max-w-2xl overflow-hidden flex flex-col">
         
         {/* Header */}
         <div className="px-6 py-4 bg-primary text-on-primary flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-cargo-accent text-2xl">draw</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-cargo-accent text-2xl">draw</span>
             <div>
-              <h3 className="font-bold text-lg leading-tight">Signature Numérique BL Original</h3>
-              <p className="text-xs text-secondary-fixed-dim font-mono">{numBl}</p>
+              <h3 className="font-bold text-xl leading-tight">Signature Numérique BL Original</h3>
+              <p className="text-sm text-secondary-fixed-dim font-mono">{numBl}</p>
             </div>
           </div>
-          <button 
+          <button
+            aria-label="Fermer"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-primary-container text-on-primary hover:bg-secondary flex items-center justify-center transition"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
@@ -116,8 +117,8 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
           {/* Stamp Preview Box */}
           <div className="p-4 bg-surface-container-lowest border border-outline-variant rounded-lg space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase text-on-surface-variant tracking-wider">Cachet Officiel Agent BOCS</span>
-              <label className="flex items-center gap-2 text-xs font-bold text-secondary cursor-pointer">
+              <span className="text-sm font-bold uppercase text-slate-900 dark:text-night-ink-2 tracking-wider">Cachet Officiel Agent BOCS</span>
+              <label className="flex items-center gap-2 text-sm font-bold text-secondary cursor-pointer">
                 <input 
                   type="checkbox" 
                   checked={stampApposed} 
@@ -130,15 +131,15 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
 
             {stampApposed && (
               <div className="p-3 bg-secondary-fixed/20 border-2 border-dashed border-secondary/40 rounded flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full border-4 border-secondary text-secondary flex flex-col items-center justify-center font-bold text-[9px] uppercase tracking-tighter text-center leading-none p-1">
+                <div className="w-14 h-14 rounded-full border-4 border-secondary text-secondary flex flex-col items-center justify-center font-bold text-2xs uppercase tracking-tighter text-center leading-none p-1">
                   <span>BOCS</span>
-                  <span className="text-[7px]">AGENT</span>
+                  <span className="text-2xs">AGENT</span>
                   <span>MARITIME</span>
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-primary">BOCS MARITIME AGENT OFFICIEL</h4>
-                  <p className="text-[11px] text-on-surface-variant">Signé électroniquement selon protocole ISO 9001 / Port Abidjan</p>
-                  <p className="text-[10px] text-outline font-mono mt-0.5">SHA256: {Math.random().toString(36).substring(2, 15).toUpperCase()}</p>
+                  <h4 className="text-sm font-bold text-primary">BOCS MARITIME AGENT OFFICIEL</h4>
+                  <p className="text-xs text-slate-900 dark:text-night-ink-2">Signé électroniquement selon protocole ISO 9001 / Port Abidjan</p>
+                  <p className="text-2xs text-outline font-mono mt-0.5">SHA256: {Math.random().toString(36).substring(2, 15).toUpperCase()}</p>
                 </div>
               </div>
             )}
@@ -147,16 +148,16 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
           {/* Canvas for Hand Written Signature */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase text-on-surface-variant tracking-wider">
+              <label className="text-sm font-bold uppercase text-slate-900 dark:text-night-ink-2 tracking-wider">
                 Signature Manuscrite (Optionnelle)
               </label>
               {hasSignature && (
                 <button 
                   type="button"
                   onClick={clearCanvas}
-                  className="text-xs text-error hover:underline flex items-center gap-1 font-semibold"
+                  className="text-sm text-error hover:underline flex items-center gap-1 font-semibold"
                 >
-                  <span className="material-symbols-outlined text-sm">delete</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
                   <span>Effacer</span>
                 </button>
               )}
@@ -177,16 +178,16 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
                 className="w-full h-[160px] cursor-crosshair touch-none"
               />
               {!hasSignature && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-outline/40 font-semibold text-sm">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-outline/40 font-semibold text-base">
                   Dessinez votre signature ici
                 </div>
               )}
             </div>
           </div>
 
-          <div className="p-3 bg-surface-container-high rounded text-xs text-on-surface-variant space-y-1">
+          <div className="p-3 bg-surface-container-high rounded text-sm text-slate-900 dark:text-night-ink-2 space-y-1">
             <p className="font-bold text-primary flex items-center gap-1">
-              <span className="material-symbols-outlined text-base text-status-validated">verified</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-lg text-status-validated">verified</span>
               <span>Valeur Juridique BOCS Maritime</span>
             </p>
             <p>
@@ -201,16 +202,16 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high rounded transition-all"
+            className="px-4 py-2 text-base font-semibold text-slate-900 dark:text-night-ink-2 hover:bg-surface-container-high rounded transition-all"
           >
             Annuler
           </button>
           <button
             type="button"
             onClick={handleConfirmSignature}
-            className="px-6 py-2 bg-primary text-on-primary font-bold text-sm rounded hover:bg-secondary transition-all shadow flex items-center gap-2 active:scale-[0.98]"
+            className="px-6 py-2 bg-primary text-on-primary font-bold text-base rounded hover:bg-secondary transition-all shadow flex items-center gap-2 active:scale-[0.98]"
           >
-            <span className="material-symbols-outlined text-lg">verified</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-xl">verified</span>
             <span>Valider & Signer le BL</span>
           </button>
         </div>

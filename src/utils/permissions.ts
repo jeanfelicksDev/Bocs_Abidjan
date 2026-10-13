@@ -23,7 +23,7 @@ export interface PermissionItem {
     roles: Record<UserRole, boolean>;
 }
 
-// ─── Matrice d'usine BOCS (17 habilitations) ───
+// ─── Matrice d'usine BOCS (19 habilitations) ───
 export const INITIAL_PERMISSIONS: PermissionItem[] = [
     {
         id: 'view_escales',
@@ -87,7 +87,23 @@ export const INITIAL_PERMISSIONS: PermissionItem[] = [
         categoryLabel: '💳 Finance & Facturation Maritime',
         label: 'Émission Factures BL (Proforma & Définitive)',
         description: 'Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours)',
-        roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: true, COMPTABILITE: true, CLIENT_EXPORT: false }
+        roles: { ADMIN: true, AGENT_IMPORT: true, AGENT_EXPORT: true, COMPTABILITE: true, CLIENT_EXPORT: true }
+    },
+    {
+        id: 'validate_invoice',
+        category: 'FINANCE',
+        categoryLabel: '💳 Finance & Facturation Maritime',
+        label: 'Validation des Factures Définitives',
+        description: 'Seul le comptable ou l\'administrateur peut valider une proforma (passage au numéro fiscal FA-)',
+        roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
+    },
+    {
+        id: 'register_payment',
+        category: 'FINANCE',
+        categoryLabel: '💳 Finance & Facturation Maritime',
+        label: 'Enregistrement des Règlements & Encaissements',
+        description: 'Seul le comptable ou l\'administrateur peut encaisser un règlement sur une facture validée',
+        roles: { ADMIN: true, AGENT_IMPORT: false, AGENT_EXPORT: false, COMPTABILITE: true, CLIENT_EXPORT: false }
     },
     {
         id: 'fne_certification',
@@ -174,34 +190,49 @@ export interface PermissionSubject {
     estActif?: boolean;
 }
 
+let cachedPermissionsMatrix: PermissionItem[] | null = null;
+let cachedUserOverrides: Record<number, Record<string, boolean>> = {};
+
 // ─── Chargement de la matrice persistée (avec fusion des habilitations manquantes) ───
 export function loadPermissionsMatrix(): PermissionItem[] {
-    try {
-        const saved = localStorage.getItem(MATRIX_STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                // Fusion : conserve les personnalisations, réinjecte les habilitations d'usine absentes
-                const missing = INITIAL_PERMISSIONS.filter(
-                    init => !parsed.some((p: PermissionItem) => p && p.id === init.id)
-                );
-                return missing.length > 0 ? [...parsed, ...missing] : parsed;
-            }
-        }
-    } catch (e) { /* matrice corrompue → retour aux valeurs d'usine */ }
+    if (cachedPermissionsMatrix) return cachedPermissionsMatrix;
     return INITIAL_PERMISSIONS;
+}
+
+export async function fetchPermissionsMatrix(): Promise<void> {
+    try {
+        const res = await fetch('/api/permissions');
+        if (!res.ok) return;
+        const dbPerms = await res.json();
+        
+        // Rebuild matrix from dbPerms
+        const matrix = JSON.parse(JSON.stringify(INITIAL_PERMISSIONS)) as PermissionItem[];
+        
+        // Reset all roles to false (except ADMIN which is always true)
+        matrix.forEach(item => {
+            Object.keys(item.roles).forEach(role => {
+                if (role !== 'ADMIN') item.roles[role as UserRole] = false;
+            });
+        });
+
+        // Apply DB permissions
+        dbPerms.forEach((dbPerm: any) => {
+            const item = matrix.find(p => p.id === dbPerm.permission_code);
+            if (item && dbPerm.role) {
+                item.roles[dbPerm.role as UserRole] = true;
+            }
+        });
+
+        cachedPermissionsMatrix = matrix;
+        notifyPermissionsChanged();
+    } catch (e) {
+        console.error('Failed to fetch permissions matrix:', e);
+    }
 }
 
 // ─── Chargement des overrides individuels (userId → { permissionId → autorisé }) ───
 export function loadUserOverrides(): Record<number, Record<string, boolean>> {
-    try {
-        const saved = localStorage.getItem(OVERRIDES_STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed && typeof parsed === 'object') return parsed;
-        }
-    } catch (e) { /* overrides corrompus → ignorés */ }
-    return {};
+    return cachedUserOverrides;
 }
 
 // ─── Droit effectif par rôle (matrice uniquement — ADMIN conserve tous les droits) ───

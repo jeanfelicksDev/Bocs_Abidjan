@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { exportBlsCsv } from '../utils/exportCsv';
+import { INITIAL_VESSELS } from '../data/initialData';
 import { Escale, BL, Invoice, UserRole, Container, ContainerType, RubriqueConfig, FretCategory, InvoiceTypeConfig } from '../types';
 import { generateProformaPdf, generateDoBadPdf, generateImportManifestPdf } from '../utils/pdfGenerator';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { MultiPdfImportModal, EscaleCommitGroup } from '../components/import/MultiPdfImportModal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import { validateContainerNumber } from '../utils/containerValidator';
 import {
   getInvoiceTypePrefix,
   getInvoiceTypeDiscriminant,
@@ -14,10 +16,9 @@ import {
   resolveUniqueInvoiceNumber,
   rememberIssuedNumber
 } from '../utils/invoiceMatching';
+import { useEscales, useBls, useInvoices } from '../hooks/useData';
 
 interface ImportModuleProps {
-  escales: Escale[];
-  bls: BL[];
   onAddEscale: (escale: Escale) => void;
   onImportManifest: (escale: Escale, newBls: BL[]) => void;
   onDeleteEscaleIntegration?: (escaleId: number) => void;
@@ -26,21 +27,12 @@ interface ImportModuleProps {
   userRole: UserRole;
   rubriqueConfigs?: RubriqueConfig[];
   invoiceTypeConfigs?: InvoiceTypeConfig[];
-  invoices?: Invoice[];
   onUpdateBl?: (updatedBl: BL) => void;
   onUpdateInvoice?: (updatedInvoice: Invoice) => void;
   onNavigateToBilling?: (bl: BL) => void;
 }
 
-import { buildBocsBremenBls, parseAlisManifestText, BOCS_BREMEN_25586_ESCALE } from '../utils/manifestParser';
-
-function buildScreenshotBls(newEscaleId: number): BL[] {
-  return buildBocsBremenBls(newEscaleId);
-}
-
 export const ImportModule: React.FC<ImportModuleProps> = ({
-  escales,
-  bls,
   onAddEscale,
   onImportManifest,
   onDeleteEscaleIntegration,
@@ -50,10 +42,13 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   userRole,
   rubriqueConfigs = [],
   invoiceTypeConfigs = [],
-  invoices = [],
   onUpdateBl,
   onNavigateToBilling
 }) => {
+  const { escales } = useEscales();
+  const { bls } = useBls();
+  const { invoices } = useInvoices();
+
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddEscaleModal, setShowAddEscaleModal] = useState(false);
@@ -395,7 +390,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             }))
           }));
         } else {
-          extractedBls = buildScreenshotBls(newEscaleId);
+          // Aucun BL détecté dans le manifeste : on ne crée volontairement
+          // aucune donnée de démonstration.
+          extractedBls = [];
         }
 
         const actualFileName = (fileNameSource && fileNameSource !== 'Pasted_GUCE_Manifest.xml')
@@ -545,16 +542,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
     }
 
     const targetEscaleId = manualEscaleId ? Number(manualEscaleId) : (selectedEscaleId !== 'ALL' ? Number(selectedEscaleId) : (escales.length > 0 ? escales[0].id : Date.now()));
-    const targetEscale = escales.find(esc => esc.id === targetEscaleId) || {
-      id: targetEscaleId,
-      nomNavire: 'BOCS BREMEN',
-      callsign: 'D5ZW3',
-      numeroVoyage: '25586',
-      portChargement: 'ANVERS (BEANR)',
-      portDechargement: 'ABIDJAN (CIABJ)',
-      dateArrivee: '2025-07-16',
-      statut: 'EN_COURS' as const
-    };
+    const targetEscale = escales.find(esc => esc.id === targetEscaleId);
+    if (!targetEscale) {
+      toastError("Escale introuvable — créez ou importez d'abord une escale avant de saisir un BL manuel.");
+      return;
+    }
 
     const newBlId = Date.now();
     const ctn20Count = Number(manualCount20) || 0;
@@ -1014,14 +1006,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 ocean-glass-banner p-6 rounded-2xl shadow-sm border border-zinc-200 bg-white">
+      {/* Top Banner figée au défilement */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 ocean-glass-banner p-6 rounded-md shadow-sm dark:shadow-black/30 border border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-surface mb-6">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <span className="material-symbols-outlined text-[#005DAA] text-2xl font-black">arrow_right_alt</span>
-            <h1 className="text-2xl font-black text-[#005DAA] font-display tracking-tight">Gestion des Manifestes Import &amp; BLs</h1>
+            <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-ink text-2xl font-black">arrow_right_alt</span>
+            <h1 className="text-2xl font-black text-[#005DAA] dark:text-night-link font-display tracking-tight">Gestion des Manifestes Import &amp; BLs</h1>
           </div>
-          <p className="text-xs text-zinc-600 font-medium">
+          <p className="text-sm text-text-secondary dark:text-night-ink font-medium">
             Intégration des fichiers XML GUCE/ALIS, gestion des connaissements et émission des factures par connaissement.
           </p>
         </div>
@@ -1038,23 +1030,23 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           {/* Étape 1 : L'utilisateur crée l'escale */}
           <button
             onClick={() => setShowAddEscaleModal(true)}
-            className="px-3.5 py-2 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-xl border border-zinc-900 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-zinc-900 hover:bg-black text-white dark:text-night-ink font-bold text-sm rounded-md border border-zinc-900 shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             title="Créer une nouvelle escale maritime"
           >
-            <span className="material-symbols-outlined text-base text-[#005DAA]">add_circle</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005DAA] dark:text-night-link">add_circle</span>
             <span>1. Créer une Escale</span>
           </button>
 
           {/* Étape 2 : Chargement des manifestes rattachés à l'escale */}
           <button
             onClick={handleOpenMultiPdfModal}
-            className="px-3.5 py-2 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/40 font-black text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/40 font-black text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             title="Sélectionner les manifestes PDF dont les connaissements seront rattachés à l'escale"
           >
-            <span className="material-symbols-outlined text-base text-[#005DAA]">picture_as_pdf</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005DAA] dark:text-night-link">picture_as_pdf</span>
             <span>2. Charger Manifestes (PDF)</span>
             {selectedEscaleId !== 'ALL' && (
-              <span className="px-1.5 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-zinc-900 border border-[#005DAA]/25">
+              <span className="px-1.5 py-0.5 rounded bg-surface-canvas dark:bg-night-surface text-2xs font-mono font-bold text-text-primary dark:text-night-ink border border-[#005DAA] dark:border-night-line/25">
                 {escales.find(e => e.id === selectedEscaleId)?.nomNavire} (V.{escales.find(e => e.id === selectedEscaleId)?.numeroVoyage})
               </span>
             )}
@@ -1064,40 +1056,40 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             onClick={() => {
               document.getElementById('xml-upload')?.click();
             }}
-            className="px-3.5 py-2 bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-surface-base text-text-primary dark:text-night-ink border border-zinc-300 dark:border-night-line-strong font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
           >
-            <span className="material-symbols-outlined text-base text-[#005DAA]">file_upload</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005DAA] dark:text-night-link">file_upload</span>
             <span>Import XML/PDF</span>
           </button>
           <button
             onClick={() => setShowPasteXmlModal(true)}
-            className="px-3.5 py-2 bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-surface-base text-text-primary dark:text-night-ink border border-zinc-300 dark:border-night-line-strong font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
           >
-            <span className="material-symbols-outlined text-base text-[#005DAA]">code</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005DAA] dark:text-night-link">code</span>
             <span>Coller XML</span>
           </button>
           <button
             onClick={() => setShowAddBlModal(true)}
-            className="px-3.5 py-2 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm rounded-md shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
           >
-            <span className="material-symbols-outlined text-base">post_add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg">post_add</span>
             <span>Nouveau BL Manuel</span>
           </button>
         </div>
       </div>
 
       {/* BL Table Section */}
-      <div className="ocean-glass-card rounded-2xl overflow-hidden shadow-sm border border-zinc-200 bg-white !mt-2">
+      <div className="ocean-glass-card rounded-md overflow-hidden shadow-sm dark:shadow-black/30 border border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-surface !mt-2">
         
         {/* Table Controls */}
-        <div className="p-4 bg-zinc-50/80 border-b border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="p-4 bg-surface-base dark:bg-night-sunken/80 border-b border-border-default dark:border-night-line flex flex-col sm:flex-row items-center justify-between gap-4">
           
           {/* Escale Filter & Search */}
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <select
               value={selectedEscaleId}
               onChange={e => setSelectedEscaleId(e.target.value === 'ALL' ? 'ALL' : parseInt(e.target.value, 10))}
-              className="bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-300 rounded-xl px-3.5 py-2 text-xs font-bold shadow-xs transition-all cursor-pointer focus:outline-none focus:border-[#005DAA]"
+              className="bg-surface-canvas dark:bg-night-surface hover:bg-surface-base text-text-primary dark:text-night-ink border border-zinc-300 dark:border-night-line-strong rounded-md px-3.5 py-2 text-sm font-bold shadow-1 transition-all cursor-pointer focus:outline-none focus:border-[#005DAA] "
             >
               <option value="ALL">Toutes les Escales ({escales.length})</option>
               {escales.map(esc => (
@@ -1112,10 +1104,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 <button
                   type="button"
                   onClick={handleOpenMultiPdfModal}
-                  className="px-3 py-2 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/30 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-3 py-2 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/30 font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                   title="Sélectionner les manifestes PDF à rattacher à cette escale"
                 >
-                  <span className="material-symbols-outlined text-sm text-[#005DAA]">upload_file</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-link">upload_file</span>
                   <span>Charger Manifestes pour cette escale</span>
                 </button>
 
@@ -1128,10 +1120,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       generateImportManifestPdf(targetEsc, escBls);
                     }
                   }}
-                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                   title="Imprimer le Manifeste Import aux couleurs de BOCS"
                 >
-                  <span className="material-symbols-outlined text-sm">print</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">print</span>
                   <span>Manifeste BOCS</span>
                 </button>
               </>
@@ -1139,32 +1131,32 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
             <button
               onClick={() => setShowAddBlModal(true)}
-              className="px-3.5 py-2 bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="px-3.5 py-2 bg-surface-canvas dark:bg-night-surface hover:bg-surface-base text-text-primary dark:text-night-ink border border-zinc-300 dark:border-night-line-strong font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <span className="material-symbols-outlined text-sm text-[#005DAA]">post_add</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-link">post_add</span>
               <span>Ajouter un BL</span>
             </button>
 
             <div className="relative flex-1 sm:w-64">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">search</span>
+              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted dark:text-night-ink-3 text-base">search</span>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="N° BL, Consignee, Shipper, Conteneur..."
-                className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-300 rounded-xl text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#005DAA]"
+                className="w-full pl-9 pr-3 py-2 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm text-text-primary dark:text-night-ink placeholder-zinc-400 focus:outline-none focus:border-[#005DAA] "
               />
             </div>
           </div>
 
           {/* Quick Filter Chips & CSV Export */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 w-full border-t border-zinc-200">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 w-full border-t border-border-default dark:border-night-line">
+            <div className="flex flex-wrap items-center gap-1.5 text-sm">
               <button
                 type="button"
                 onClick={() => setQuickFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs ${
-                  quickFilter === 'ALL' ? 'bg-[#005DAA] text-white font-black shadow-xs' : 'bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200'
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-1 ${
+                  quickFilter === 'ALL' ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white font-black shadow-1' : 'bg-surface-canvas dark:bg-night-surface hover:bg-surface-sunken text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line'
                 }`}
               >
                 Tous ({bls.filter(b => selectedEscaleId === 'ALL' || b.escaleId === selectedEscaleId).length})
@@ -1172,55 +1164,55 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               <button
                 type="button"
                 onClick={() => setQuickFilter('DANGEROUS')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs ${
-                  quickFilter === 'DANGEROUS' ? 'bg-rose-600 text-white font-black shadow-xs' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
+                  quickFilter === 'DANGEROUS' ? 'bg-rose-600 text-white dark:text-night-ink font-black shadow-1' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
                 }`}
               >
-                <span className="material-symbols-outlined text-xs">warning</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">warning</span>
                 <span>Dangereux</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuickFilter('WITH_CONTAINERS')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs ${
-                  quickFilter === 'WITH_CONTAINERS' ? 'bg-blue-600 text-white font-black shadow-xs' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
+                  quickFilter === 'WITH_CONTAINERS' ? 'bg-blue-600 dark:bg-night-accent text-white dark:text-night-ink font-black shadow-1' : 'bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line text-blue-700 dark:text-night-link border border-blue-200 dark:border-night-accent-line'
                 }`}
               >
-                <span className="material-symbols-outlined text-xs">inventory_2</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">inventory_2</span>
                 <span>Avec Conteneurs</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuickFilter('WITHOUT_INVOICE')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs ${
-                  quickFilter === 'WITHOUT_INVOICE' ? 'bg-amber-600 text-white font-black shadow-xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
+                  quickFilter === 'WITHOUT_INVOICE' ? 'bg-amber-600 text-white dark:text-night-ink font-black shadow-1' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
                 }`}
               >
-                <span className="material-symbols-outlined text-xs">receipt_long</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">receipt_long</span>
                 <span>Sans Facture</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuickFilter('PENDING')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs ${
-                  quickFilter === 'PENDING' ? 'bg-zinc-800 text-white font-black shadow-xs' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
+                  quickFilter === 'PENDING' ? 'bg-zinc-800 text-white dark:text-night-ink font-black shadow-1' : 'bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line'
                 }`}
               >
-                <span className="material-symbols-outlined text-xs">hourglass_empty</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">hourglass_empty</span>
                 <span>En Attente</span>
               </button>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-500 font-bold font-mono">
+              <span className="text-sm text-text-muted dark:text-night-ink-2 font-bold font-mono">
                 {filteredBls.length} BL(s)
               </span>
               <button
                 onClick={() => exportBlsCsv(filteredBls)}
                 title="Exporter la liste des BLs en CSV (Excel)"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-300 text-xs font-bold rounded-lg transition-all active:scale-95 shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-canvas dark:bg-night-surface hover:bg-surface-base text-text-primary dark:text-night-ink border border-zinc-300 dark:border-night-line-strong text-sm font-bold rounded-lg transition-all active:scale-95 shadow-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-sm text-emerald-600">table_view</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-emerald-600 dark:text-night-positive">table_view</span>
                 <span>Exporter CSV</span>
               </button>
             </div>
@@ -1230,24 +1222,24 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         {/* Table avec Ascenseur Vertical & Horizontal (Scrollbar) */}
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-310px)] min-h-[500px] bocs-scrollbar relative">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-zinc-100/95 backdrop-blur-md shadow-xs">
-              <tr className="text-[11px] font-black text-zinc-800 uppercase tracking-wider border-b border-zinc-200 select-none">
-                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 transition-colors" onClick={() => toggleSort('numeroBL')}>
+            <thead className="sticky top-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 backdrop-blur-md shadow-1">
+              <tr className="text-xs font-black text-text-primary dark:text-night-ink uppercase tracking-wider border-b border-border-default dark:border-night-line select-none">
+                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 dark:hover:bg-night-raised/60 transition-colors" onClick={() => toggleSort('numeroBL')}>
                   <div className="flex items-center gap-1">
                     <span>Numéro BL</span>
-                    <span className="material-symbols-outlined text-[13px] opacity-80">{sortField === 'numeroBL' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-xs opacity-80">{sortField === 'numeroBL' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
                   </div>
                 </th>
-                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 transition-colors" onClick={() => toggleSort('consigneeNom')}>
+                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 dark:hover:bg-night-raised/60 transition-colors" onClick={() => toggleSort('consigneeNom')}>
                   <div className="flex items-center gap-1">
                     <span>Consignee (Destinataire)</span>
-                    <span className="material-symbols-outlined text-[13px] opacity-80">{sortField === 'consigneeNom' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-xs opacity-80">{sortField === 'consigneeNom' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
                   </div>
                 </th>
-                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 transition-colors" onClick={() => toggleSort('poidsBrutKg')}>
+                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 dark:hover:bg-night-raised/60 transition-colors" onClick={() => toggleSort('poidsBrutKg')}>
                   <div className="flex items-center gap-1">
                     <span>Poids / Vol / Colis</span>
-                    <span className="material-symbols-outlined text-[13px] opacity-80">{sortField === 'poidsBrutKg' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-xs opacity-80">{sortField === 'poidsBrutKg' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
                   </div>
                 </th>
                 <th className="p-3.5">
@@ -1255,16 +1247,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     <span>Conteneurs</span>
                   </div>
                 </th>
-                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 transition-colors" onClick={() => toggleSort('statutImport')}>
+                <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 dark:hover:bg-night-raised/60 transition-colors" onClick={() => toggleSort('statutImport')}>
                   <div className="flex items-center gap-1">
                     <span>Statut Import</span>
-                    <span className="material-symbols-outlined text-[13px] opacity-80">{sortField === 'statutImport' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-xs opacity-80">{sortField === 'statutImport' ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
                   </div>
                 </th>
                 <th className="p-3.5 text-right">Actions Proforma &amp; PDF</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 text-xs">
+            <tbody className="divide-y divide-zinc-200 dark:divide-night-line text-sm">
               {filteredBls.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-10 text-center">
@@ -1273,23 +1265,23 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         const targetEsc = escales.find(e => e.id === selectedEscaleId);
                         return (
                           <div className="max-w-md mx-auto space-y-3">
-                            <div className="w-12 h-12 mx-auto rounded-2xl bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/25 flex items-center justify-center shadow-xs">
-                              <span className="material-symbols-outlined text-2xl">directions_boat</span>
+                            <div className="w-12 h-12 mx-auto rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center shadow-1">
+                              <span aria-hidden="true" className="material-symbols-outlined text-2xl">directions_boat</span>
                             </div>
                             <div>
-                              <h4 className="font-black text-sm text-zinc-900 font-display">
+                              <h4 className="font-black text-base text-text-primary dark:text-night-ink font-display">
                                 Escale : {targetEsc?.nomNavire || 'Escale sélectionnée'} (Voyage {targetEsc?.numeroVoyage || ''})
                               </h4>
-                              <p className="text-xs text-zinc-500 font-medium mt-1">
+                              <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium mt-1">
                                 Aucun connaissement n'est encore rattaché à cette escale. Cliquez sur le bouton ci-dessous pour sélectionner vos manifestes PDF dont les connaissements seront rattachés à cette escale.
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={handleOpenMultiPdfModal}
-                              className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs rounded-xl shadow-md transition-all inline-flex items-center gap-2 cursor-pointer active:scale-95"
+                              className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm rounded-md shadow-md transition-all inline-flex items-center gap-2 cursor-pointer active:scale-95"
                             >
-                              <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-lg">picture_as_pdf</span>
                               <span>Charger les Manifestes PDF pour cette escale</span>
                             </button>
                           </div>
@@ -1297,8 +1289,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       })()
                     ) : (
                       <div className="space-y-1">
-                        <span className="material-symbols-outlined text-4xl block mb-2 text-zinc-400">search_off</span>
-                        <span className="font-bold text-zinc-600">Aucun connaissement (BL) trouvé pour ces critères.</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-4xl block mb-2 text-text-muted dark:text-night-ink-3">search_off</span>
+                        <span className="font-bold text-text-secondary dark:text-night-ink">Aucun connaissement (BL) trouvé pour ces critères.</span>
                       </div>
                     )}
                   </td>
@@ -1339,7 +1331,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   return (
                     <tr
                       key={bl.id}
-                      className="hover:bg-[#FFF8F5] transition-colors border-b border-zinc-100 group cursor-pointer"
+                      className="hover:bg-[#FFF8F5] transition-colors border-b border-border-default group cursor-pointer"
                       onClick={() => {
                         setEditingBl(bl);
                         setEditBlForm(JSON.parse(JSON.stringify(bl)));
@@ -1350,28 +1342,28 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       <td className="p-3.5">
                         <button
                           onClick={(e) => { e.stopPropagation(); setSelectedBlDetails(bl); }}
-                          className="font-mono font-black text-[#005DAA] group-hover:text-[#004580] hover:underline text-sm block cursor-pointer text-left focus:outline-none tracking-tight"
+                          className="font-mono font-black text-[#005DAA] dark:text-night-link group-hover:text-[#004580] hover:underline text-base block cursor-pointer text-left focus:outline-none tracking-tight"
                           title="Voir les détails de ce BL"
                         >
                           {bl.numeroBL}
                         </button>
-                        <span className="text-[11px] text-zinc-500 font-semibold truncate block max-w-[180px]" title={bl.shipperNom}>
+                        <span className="text-xs text-text-muted dark:text-night-ink-2 font-semibold truncate block max-w-[180px]" title={bl.shipperNom}>
                           {bl.shipperNom || 'Chargeur non spécifié'}
                         </span>
                       </td>
                       <td className="p-3.5">
-                        <div className="font-black text-black text-xs uppercase tracking-tight leading-snug">
+                        <div className="font-black text-black text-sm uppercase tracking-tight leading-snug">
                           {bl.consigneeNom}
                         </div>
                         {bl.consigneeAdresse && (
-                          <div className="text-[10px] text-zinc-500 font-medium truncate max-w-[200px] mt-0.5" title={bl.consigneeAdresse}>
+                          <div className="text-2xs text-text-muted dark:text-night-ink-2 font-medium truncate max-w-[200px] mt-0.5" title={bl.consigneeAdresse}>
                             {bl.consigneeAdresse}
                           </div>
                         )}
                       </td>
                       <td className="p-3.5 font-mono">
-                        <div className="font-bold text-zinc-950 text-xs">{(bl.poidsBrutKg || 0).toLocaleString('fr-FR')} kg</div>
-                        <div className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                        <div className="font-bold text-zinc-950 text-sm">{(bl.poidsBrutKg || 0).toLocaleString('fr-FR')} kg</div>
+                        <div className="text-2xs text-text-muted dark:text-night-ink-2 font-medium mt-0.5">
                           {bl.volumeM3 ? `${bl.volumeM3.toLocaleString('fr-FR')} m³ | ` : '0 m³ | '}
                           {bl.nombreColis} {bl.typeEmballage === 'VRAC' ? 'vrac' : bl.typeEmballage === 'RORO' ? 'véhicule(s)' : 'colis'}
                         </div>
@@ -1384,9 +1376,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                             const ctnsOther = bl.conteneurs.filter((c: Container) => !c.typeConteneur || (!c.typeConteneur.startsWith('20') && !c.typeConteneur.startsWith('40')));
 
                             const groups = [
-                              { type: '20', label: `${ctns20.length} x 20'`, ctns: ctns20, bgBadge: 'bg-[#F0F7FF] border-[#005DAA]/30 text-[#005DAA]' },
-                              { type: '40', label: `${ctns40.length} x 40'`, ctns: ctns40, bgBadge: 'bg-zinc-100 border-zinc-300 text-zinc-900' },
-                              { type: 'other', label: `${ctnsOther.length} x Divers`, ctns: ctnsOther, bgBadge: 'bg-zinc-100 border-zinc-200 text-zinc-800' }
+                              { type: '20', label: `${ctns20.length} x 20'`, ctns: ctns20, bgBadge: 'bg-[#F0F7FF] border-[#005DAA] dark:border-night-line/30 text-[#005DAA] dark:text-night-link' },
+                              { type: '40', label: `${ctns40.length} x 40'`, ctns: ctns40, bgBadge: 'bg-surface-sunken dark:bg-night-sunken border-zinc-300 dark:border-night-line-strong text-text-primary dark:text-night-ink' },
+                              { type: 'other', label: `${ctnsOther.length} x Divers`, ctns: ctnsOther, bgBadge: 'bg-surface-sunken dark:bg-night-sunken border-border-default dark:border-night-line text-text-primary dark:text-night-ink' }
                             ].filter(g => g.ctns.length > 0);
 
                             return (
@@ -1398,25 +1390,25 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                                   return (
                                     <div key={g.type} className="flex flex-col items-start gap-1">
-                                      <span className={`px-2 py-0.5 rounded-md border text-xs font-black shadow-2xs ${g.bgBadge}`}>
+                                      <span className={`px-2 py-0.5 rounded-md border text-sm font-black shadow-1 ${g.bgBadge}`}>
                                         {g.label}
                                       </span>
                                       <div className="flex flex-wrap items-center gap-1">
                                         {coc.length > 0 && (
-                                          <span className="px-1.5 py-0.2 rounded bg-zinc-100 border border-zinc-300 text-zinc-800 text-[9px] font-black flex items-center gap-0.5" title={`${coc.length} conteneur(s) COC (Armement)`}>
-                                            <span className="material-symbols-outlined text-[10px]">directions_boat</span>
+                                          <span className="px-1.5 py-0.2 rounded bg-surface-sunken dark:bg-night-sunken border border-zinc-300 dark:border-night-line-strong text-text-primary dark:text-night-ink text-2xs font-black flex items-center gap-0.5" title={`${coc.length} conteneur(s) COC (Armement)`}>
+                                            <span aria-hidden="true" className="material-symbols-outlined text-2xs">directions_boat</span>
                                             <span>{coc.length < g.ctns.length ? `${coc.length} COC` : 'COC'}</span>
                                           </span>
                                         )}
                                         {soc.length > 0 && (
-                                          <span className="px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200 text-purple-800 text-[9px] font-black flex items-center gap-0.5" title={`${soc.length} conteneur(s) SOC (Client)`}>
-                                            <span className="material-symbols-outlined text-[10px]">person</span>
+                                          <span className="px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200 text-purple-800 text-2xs font-black flex items-center gap-0.5" title={`${soc.length} conteneur(s) SOC (Client)`}>
+                                            <span aria-hidden="true" className="material-symbols-outlined text-2xs">person</span>
                                             <span>{soc.length < g.ctns.length ? `${soc.length} SOC` : 'SOC'}</span>
                                           </span>
                                         )}
                                         {dang.length > 0 && (
-                                          <span className="px-1.5 py-0.2 rounded bg-rose-50 border border-rose-300 text-rose-700 text-[9px] font-black flex items-center gap-0.5 animate-pulse" title={`${dang.length} conteneur(s) avec marchandises dangereuses (IMDG)`}>
-                                            <span className="material-symbols-outlined text-[10px] text-rose-600 font-bold">warning</span>
+                                          <span className="px-1.5 py-0.2 rounded bg-rose-50 border border-rose-300 text-rose-700 text-2xs font-black flex items-center gap-0.5 animate-pulse" title={`${dang.length} conteneur(s) avec marchandises dangereuses (IMDG)`}>
+                                            <span aria-hidden="true" className="material-symbols-outlined text-2xs text-rose-600 font-bold">warning</span>
                                             <span>{dang.length < g.ctns.length ? `${dang.length} DANG.` : 'DANG.'}</span>
                                           </span>
                                         )}
@@ -1430,11 +1422,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         ) : (bl.typeEmballage === 'VRAC' || bl.descriptionGoods?.toUpperCase().includes('VRAC')) ? (
                           <div className="flex flex-col gap-1 font-mono">
                             <div className="flex items-center gap-1.5">
-                              <span className="px-2.5 py-0.5 rounded-md border text-[11px] font-black bg-amber-50 border-amber-300 text-amber-900 flex items-center gap-1 shadow-2xs">
-                                <span className="material-symbols-outlined text-xs text-amber-600">grain</span>
+                              <span className="px-2.5 py-0.5 rounded-md border text-xs font-black bg-amber-50 border-amber-300 text-amber-900 flex items-center gap-1 shadow-1">
+                                <span aria-hidden="true" className="material-symbols-outlined text-sm text-amber-600">grain</span>
                                 <span>VRAC</span>
                               </span>
-                              <span className="text-zinc-900 text-xs font-bold truncate max-w-[140px]" title={bl.marquesEtNumeros || bl.descriptionGoods}>
+                              <span className="text-text-primary dark:text-night-ink text-sm font-bold truncate max-w-[140px]" title={bl.marquesEtNumeros || bl.descriptionGoods}>
                                 {bl.marquesEtNumeros || 'Vrac solide'}
                               </span>
                             </div>
@@ -1442,11 +1434,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         ) : (bl.typeEmballage === 'RORO' || bl.descriptionGoods?.toUpperCase().includes('VEHICULE') || bl.descriptionGoods?.toUpperCase().includes('TRUCK') || bl.descriptionGoods?.toUpperCase().includes('TRAILER')) ? (
                           <div className="flex flex-col gap-1 font-mono">
                             <div className="flex items-center gap-1.5">
-                              <span className="px-2.5 py-0.5 rounded-md border text-[11px] font-black bg-emerald-50 border-emerald-300 text-emerald-900 flex items-center gap-1 shadow-2xs">
-                                <span className="material-symbols-outlined text-xs text-emerald-600">directions_car</span>
+                              <span className="px-2.5 py-0.5 rounded-md border text-xs font-black bg-emerald-50 dark:bg-night-positive-soft border-emerald-300 text-emerald-900 flex items-center gap-1 shadow-1">
+                                <span aria-hidden="true" className="material-symbols-outlined text-sm text-emerald-600 dark:text-night-positive">directions_car</span>
                                 <span>RORO</span>
                               </span>
-                              <span className="text-zinc-900 font-bold text-xs truncate max-w-[150px]" title={bl.marquesEtNumeros || 'Véhicule RORO'}>
+                              <span className="text-text-primary dark:text-night-ink font-bold text-sm truncate max-w-[150px]" title={bl.marquesEtNumeros || 'Véhicule RORO'}>
                                 {bl.marquesEtNumeros || 'Véhicule'}
                               </span>
                             </div>
@@ -1454,11 +1446,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         ) : (
                           <div className="flex flex-col gap-1 font-mono">
                             <div className="flex items-center gap-1.5">
-                              <span className="px-2.5 py-0.5 rounded-md border text-[11px] font-black bg-zinc-100 border-zinc-300 text-zinc-900 flex items-center gap-1 shadow-2xs">
-                                <span className="material-symbols-outlined text-xs text-zinc-600">category</span>
+                              <span className="px-2.5 py-0.5 rounded-md border text-xs font-black bg-surface-sunken dark:bg-night-sunken border-zinc-300 dark:border-night-line-strong text-text-primary dark:text-night-ink flex items-center gap-1 shadow-1">
+                                <span aria-hidden="true" className="material-symbols-outlined text-sm text-text-secondary dark:text-night-ink">category</span>
                                 <span>CONV.</span>
                               </span>
-                              <span className="text-zinc-900 font-bold text-xs truncate max-w-[150px]" title={bl.marquesEtNumeros || 'Conventionnel'}>
+                              <span className="text-text-primary dark:text-night-ink font-bold text-sm truncate max-w-[150px]" title={bl.marquesEtNumeros || 'Conventionnel'}>
                                 {bl.marquesEtNumeros || 'Marchandise diverse'}
                               </span>
                             </div>
@@ -1471,54 +1463,54 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       {plannedConfigs.length === 0 ? (
                         activeBlInvoices.length > 0 ? (
                           activeBlInvoices.every(inv => inv.soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE') ? (
-                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black border border-emerald-200 bg-emerald-50 text-emerald-800 inline-flex items-center gap-1 shadow-2xs">
-                              <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                            <span className="px-2.5 py-1 rounded-lg text-2xs font-black border border-emerald-200 dark:border-night-positive-line bg-emerald-50 dark:bg-night-positive-soft text-emerald-800 inline-flex items-center gap-1 shadow-1">
+                              <span aria-hidden="true" className="material-symbols-outlined text-sm text-emerald-600 dark:text-night-positive">check_circle</span>
                               <span>FACTURÉ &amp; RÉGLÉ</span>
                             </span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-amber-200 bg-amber-50 text-amber-900 inline-flex items-center gap-1 shadow-2xs">
-                              <span className="material-symbols-outlined text-xs text-amber-600">pending</span>
+                            <span className="px-2.5 py-1 rounded-lg text-2xs font-bold border border-amber-200 bg-amber-50 text-amber-900 inline-flex items-center gap-1 shadow-1">
+                              <span aria-hidden="true" className="material-symbols-outlined text-sm text-amber-600">pending</span>
                               <span>FACTURÉ ({activeBlInvoices.filter(i => i.soldeDuFcfa === 0 || i.statutPaiement === 'PAYE').length}/{activeBlInvoices.length} réglé)</span>
                             </span>
                           )
                         ) : (
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-black border border-[#005DAA]/30 bg-[#F0F7FF] text-[#005DAA] shadow-2xs">
+                          <span className="px-2.5 py-1 rounded-lg text-2xs font-black border border-[#005DAA] dark:border-night-line/30 bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink shadow-1">
                             EN ATTENTE
                           </span>
                         )
                       ) : allPaid ? (
-                        <span className="px-2.5 py-1 rounded-lg text-[10px] font-black border border-emerald-200 bg-emerald-50 text-emerald-800 inline-flex items-center gap-1 shadow-2xs">
-                          <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                        <span className="px-2.5 py-1 rounded-lg text-2xs font-black border border-emerald-200 dark:border-night-positive-line bg-emerald-50 dark:bg-night-positive-soft text-emerald-800 inline-flex items-center gap-1 shadow-1">
+                          <span aria-hidden="true" className="material-symbols-outlined text-sm text-emerald-600 dark:text-night-positive">check_circle</span>
                           <span>FACTURÉ &amp; RÉGLÉ</span>
                         </span>
                       ) : allGenerated ? (
                         <div className="flex flex-col gap-1">
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-amber-200 bg-amber-50 text-amber-900 inline-flex items-center gap-1 shadow-2xs">
-                            <span className="material-symbols-outlined text-xs text-amber-600">pending</span>
+                          <span className="px-2.5 py-1 rounded-lg text-2xs font-bold border border-amber-200 bg-amber-50 text-amber-900 inline-flex items-center gap-1 shadow-1">
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm text-amber-600">pending</span>
                             <span>FACTURÉ (Paiement en attente)</span>
                           </span>
-                          <span className="text-[10px] text-zinc-500 font-mono font-bold">
+                          <span className="text-2xs text-text-muted dark:text-night-ink-2 font-mono font-bold">
                             {paidConfigs.length}/{plannedConfigs.length} réglée(s)
                           </span>
                         </div>
                       ) : cancelledConfigs.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-rose-200 bg-rose-50 text-rose-800 shadow-2xs inline-flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs text-rose-600">cancel</span>
+                          <span className="px-2.5 py-1 rounded-lg text-2xs font-bold border border-rose-200 bg-rose-50 text-rose-800 shadow-1 inline-flex items-center gap-1">
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm text-rose-600">cancel</span>
                             <span>{paidConfigs.length > 0 ? `${paidConfigs.length}/${plannedConfigs.length} réglé (${cancelledConfigs.length} annulée)` : 'FACTURE ANNULÉE'}</span>
                           </span>
-                          <span className="text-[10px] text-zinc-500 font-mono font-bold">
+                          <span className="text-2xs text-text-muted dark:text-night-ink-2 font-mono font-bold">
                             {pendingConfigs.length > 0 && `${pendingConfigs.length} en attente`}
                           </span>
                         </div>
                       ) : (
                         <div className="flex flex-col gap-1">
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-black border border-[#005DAA]/30 bg-[#F0F7FF] text-[#005DAA] shadow-2xs inline-flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs text-[#005DAA]">pending_actions</span>
+                          <span className="px-2.5 py-1 rounded-lg text-2xs font-black border border-[#005DAA] dark:border-night-line/30 bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink shadow-1 inline-flex items-center gap-1">
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm text-[#005DAA] dark:text-night-link">pending_actions</span>
                             <span>EN ATTENTE ({pendingConfigs.map(t => t.name.replace(/^Facture\s+/i, '')).join(', ')})</span>
                           </span>
                           {generatedConfigs.length > 0 && (
-                            <span className="text-[10px] text-zinc-500 font-mono font-bold">
+                            <span className="text-2xs text-text-muted dark:text-night-ink-2 font-mono font-bold">
                               {paidConfigs.length}/{plannedConfigs.length} réglée(s) ({generatedConfigs.length} éditée(s))
                             </span>
                           )}
@@ -1535,10 +1527,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                           <button
                             type="button"
                             onClick={() => onNavigateToBilling(bl)}
-                            className="px-3.5 py-1.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                            className="px-3.5 py-1.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black rounded-md text-sm transition-all shadow-1 flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
                             title="Ouvrir la page de Facturation dédiée pour ce BL"
                           >
-                            <span className="material-symbols-outlined text-sm">credit_card</span>
+                            <span aria-hidden="true" className="material-symbols-outlined text-base">credit_card</span>
                             <span>Facturer ce BL &rarr;</span>
                           </button>
                         )}
@@ -1547,20 +1539,20 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setEditingBl(bl); setEditBlForm(JSON.parse(JSON.stringify(bl))); setEditBlTab('general'); }}
-                          className="p-1.5 text-[#005DAA] hover:text-white bg-[#F0F7FF] hover:bg-[#005DAA] rounded-xl transition-all cursor-pointer border border-[#005DAA]/30 shadow-2xs"
+                          className="p-1.5 text-[#005DAA] dark:text-night-link hover:text-white bg-[#F0F7FF] hover:bg-[#005DAA] dark:bg-night-accent rounded-md transition-all cursor-pointer border border-[#005DAA] dark:border-night-line/30 shadow-1"
                           title="Modifier ce connaissement"
                         >
-                          <span className="material-symbols-outlined text-base">edit</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
                         </button>
 
                         {/* Bouton Consultation Détails BL */}
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setSelectedBlDetails(bl); }}
-                          className="p-1.5 text-zinc-600 hover:text-zinc-950 bg-white hover:bg-zinc-100 rounded-xl transition-all cursor-pointer border border-zinc-200 shadow-2xs"
+                          className="p-1.5 text-text-secondary dark:text-night-ink hover:text-zinc-950 bg-surface-canvas dark:bg-night-surface hover:bg-surface-sunken rounded-md transition-all cursor-pointer border border-border-default dark:border-night-line shadow-1"
                           title="Consulter tous les détails maritimes du BL"
                         >
-                          <span className="material-symbols-outlined text-base">visibility</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-lg">visibility</span>
                         </button>
 
                         {/* Raccourcis Factures existantes */}
@@ -1594,14 +1586,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                       handleGenerateProformaForType(bl, typeConfig);
                                     }
                                   }}
-                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs ${
+                                  className={`px-2 py-1 rounded-lg text-2xs font-bold border transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-1 ${
                                     isPaid
-                                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                      ? 'bg-emerald-50 dark:bg-night-positive-soft border-emerald-300 text-emerald-800'
                                       : isCancelled
                                       ? 'bg-rose-50 border-rose-300 text-rose-800'
                                       : isGen
                                       ? 'bg-amber-50 border-amber-300 text-amber-900'
-                                      : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950'
+                                      : 'bg-surface-canvas dark:bg-night-surface border-zinc-300 dark:border-night-line-strong text-text-secondary dark:text-night-ink hover:bg-surface-sunken hover:text-zinc-950'
                                   }`}
                                   title={
                                     isPaid 
@@ -1613,7 +1605,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                       : `Éditer la Facture Proforma ${typeName}`
                                   }
                                 >
-                                  <span className="material-symbols-outlined text-xs">
+                                  <span aria-hidden="true" className="material-symbols-outlined text-sm">
                                     {isPaid ? 'check_circle' : isCancelled ? 'cancel' : isGen ? 'pending' : 'receipt_long'}
                                   </span>
                                   <span>{typeName}{isCancelled ? ' (Annulée)' : ''}</span>
@@ -1641,48 +1633,48 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           const totalRoroCount = filteredBls.filter(b => b.typeEmballage === 'RORO').reduce((acc, b) => acc + (b.nombreColis || 0), 0);
 
           return (
-            <div className="p-4 bg-zinc-900 text-white border-t border-zinc-800 flex flex-wrap items-center justify-between gap-4 text-xs shadow-md rounded-b-2xl">
+            <div className="p-4 bg-zinc-900 text-white dark:text-night-ink border-t border-zinc-800 flex flex-wrap items-center justify-between gap-4 text-sm shadow-md rounded-b-2xl">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#005DAA] flex items-center justify-center text-white shadow-xs">
-                  <span className="material-symbols-outlined text-xl">analytics</span>
+                <div className="w-9 h-9 rounded-md bg-[#005DAA] dark:bg-night-accent flex items-center justify-center text-white dark:text-white shadow-1">
+                  <span aria-hidden="true" className="material-symbols-outlined text-xl">analytics</span>
                 </div>
                 <div>
-                  <span className="font-black text-xs uppercase tracking-wider text-white font-display block">Synthèse du Manifeste</span>
-                  <span className="text-[11px] text-zinc-400 font-mono font-semibold">{filteredBls.length} Connaissement(s) affiché(s)</span>
+                  <span className="font-black text-sm uppercase tracking-wider text-white dark:text-night-ink font-display block">Synthèse du Manifeste</span>
+                  <span className="text-xs text-text-muted dark:text-night-ink-3 font-mono font-semibold">{filteredBls.length} Connaissement(s) affiché(s)</span>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 font-mono">
                 
                 {/* Total Poids */}
-                <div className="flex items-center gap-2 bg-zinc-800/90 px-3.5 py-2 rounded-xl border border-zinc-700/80 shadow-xs">
-                  <span className="text-[10px] uppercase text-zinc-400 font-bold tracking-wider">Total Poids:</span>
-                  <span className="font-black text-[#005DAA] text-sm">{totalPoidsKg.toLocaleString('fr-FR')} kg</span>
-                  <span className="text-[10px] text-zinc-400 font-semibold">({(totalPoidsKg / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} T)</span>
+                <div className="flex items-center gap-2 bg-zinc-800/90 px-3.5 py-2 rounded-md border border-zinc-700/80 shadow-1">
+                  <span className="text-2xs uppercase text-text-muted dark:text-night-ink-3 font-bold tracking-wider">Total Poids:</span>
+                  <span className="font-black text-[#005DAA] dark:text-night-link text-base">{totalPoidsKg.toLocaleString('fr-FR')} kg</span>
+                  <span className="text-2xs text-text-muted dark:text-night-ink-3 font-semibold">({(totalPoidsKg / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} T)</span>
                 </div>
 
                 {/* Total Volume */}
-                <div className="flex items-center gap-2 bg-zinc-800/90 px-3.5 py-2 rounded-xl border border-zinc-700/80 shadow-xs">
-                  <span className="text-[10px] uppercase text-zinc-400 font-bold tracking-wider">Total Volume:</span>
-                  <span className="font-black text-white text-sm">{totalVolumeM3.toLocaleString('fr-FR')} m³</span>
+                <div className="flex items-center gap-2 bg-zinc-800/90 px-3.5 py-2 rounded-md border border-zinc-700/80 shadow-1">
+                  <span className="text-2xs uppercase text-text-muted dark:text-night-ink-3 font-bold tracking-wider">Total Volume:</span>
+                  <span className="font-black text-white dark:text-night-ink text-base">{totalVolumeM3.toLocaleString('fr-FR')} m³</span>
                 </div>
 
                 {/* Total Conteneurs */}
-                <div className="flex items-center gap-2 bg-[#005DAA] text-white px-3.5 py-2 rounded-xl border border-[#005DAA]/40 shadow-xs">
-                  <span className="text-[10px] uppercase text-white/90 font-black tracking-wider">Conteneurs:</span>
-                  <span className="font-black text-white text-sm">{totalConteneursCount} TC</span>
+                <div className="flex items-center gap-2 bg-[#005DAA] dark:bg-night-accent text-white dark:text-white px-3.5 py-2 rounded-md border border-[#005DAA] dark:border-night-line/40 shadow-1">
+                  <span className="text-2xs uppercase text-white dark:text-night-ink/90 font-black tracking-wider">Conteneurs:</span>
+                  <span className="font-black text-white dark:text-night-ink text-base">{totalConteneursCount} TC</span>
                 </div>
 
                 {/* Total Vrac */}
-                <div className="flex items-center gap-2 bg-zinc-800 text-white px-3.5 py-2 rounded-xl border border-zinc-700 shadow-xs">
-                  <span className="text-[10px] uppercase text-zinc-400 font-black tracking-wider">Vrac:</span>
-                  <span className="font-black text-amber-400 text-sm">{totalVracCount}</span>
+                <div className="flex items-center gap-2 bg-zinc-800 text-white dark:text-night-ink px-3.5 py-2 rounded-md border border-zinc-700 shadow-1">
+                  <span className="text-2xs uppercase text-text-muted dark:text-night-ink-3 font-black tracking-wider">Vrac:</span>
+                  <span className="font-black text-amber-400 text-base">{totalVracCount}</span>
                 </div>
 
                 {/* Total RoRo */}
-                <div className="flex items-center gap-2 bg-zinc-800 text-white px-3.5 py-2 rounded-xl border border-zinc-700 shadow-xs">
-                  <span className="text-[10px] uppercase text-zinc-400 font-black tracking-wider">RoRo:</span>
-                  <span className="font-black text-emerald-400 text-sm">{totalRoroCount}</span>
+                <div className="flex items-center gap-2 bg-zinc-800 text-white dark:text-night-ink px-3.5 py-2 rounded-md border border-zinc-700 shadow-1">
+                  <span className="text-2xs uppercase text-text-muted dark:text-night-ink-3 font-black tracking-wider">RoRo:</span>
+                  <span className="font-black text-emerald-400 text-base">{totalRoroCount}</span>
                 </div>
 
               </div>
@@ -1704,28 +1696,28 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         const allPaid = blInvoices.length > 0 && blInvoices.every(i => i.soldeDuFcfa === 0 || i.statutPaiement === 'PAYE');
 
         return (
-          <div
-            className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-md animate-fade-in text-zinc-900"
+          <div role="dialog" aria-modal="true"
+            className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-md animate-fade-in text-text-primary dark:text-night-ink"
             onClick={overlayClickClose(() => setSelectedBlDetails(null))}
           >
-            <div className="bg-white shadow-2xl max-w-5xl w-full overflow-hidden flex flex-col h-full animate-slide-in-right rounded-l-3xl border-l border-zinc-200">
+            <div className="bg-surface-canvas dark:bg-night-surface shadow-2xl dark:shadow-black/70 max-w-5xl w-full overflow-hidden flex flex-col h-full animate-slide-in-right rounded-l-3xl border-l border-border-default dark:border-night-line">
               
               {/* Header Ultra-Moderne & Épuré */}
-              <div className="px-6 py-5 bg-white text-zinc-950 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-4">
+              <div className="px-6 py-5 bg-surface-canvas dark:bg-night-surface text-zinc-950 border-b border-border-default dark:border-night-line flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/30 flex items-center justify-center font-bold shadow-xs">
-                    <span className="material-symbols-outlined text-2xl">description</span>
+                  <div className="w-12 h-12 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/30 flex items-center justify-center font-bold shadow-1">
+                    <span aria-hidden="true" className="material-symbols-outlined text-2xl">description</span>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                        <h3 className="font-black text-lg text-[#005DAA] uppercase tracking-wider font-display">
+                        <h3 className="font-black text-xl text-[#005DAA] dark:text-night-link uppercase tracking-wider font-display">
                         Connaissement Maritime (BL)
                       </h3>
-                      <span className="px-2.5 py-0.5 rounded-md bg-zinc-100 border border-zinc-200 text-zinc-800 font-mono font-bold text-xs">
+                      <span className="px-2.5 py-0.5 rounded-md bg-surface-sunken dark:bg-night-sunken border border-border-default dark:border-night-line text-text-primary dark:text-night-ink font-mono font-bold text-sm">
                         {selectedBlDetails.typeOperation || 'IMPORT'}
                       </span>
                     </div>
-                    <p className="text-sm text-[#005DAA] font-mono font-black tracking-wide">
+                    <p className="text-base text-[#005DAA] dark:text-night-link font-mono font-black tracking-wide">
                       N° {selectedBlDetails.numeroBL}
                     </p>
                   </div>
@@ -1734,87 +1726,87 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 <div className="flex items-center gap-2">
                   {/* Badge Nature */}
                   {blCat === 'VRAC' ? (
-                    <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 font-black text-xs flex items-center gap-1.5 shadow-2xs">
-                      <span className="material-symbols-outlined text-sm text-amber-600">grain</span>
+                    <span className="px-3 py-1 rounded-md bg-amber-50 border border-amber-300 text-amber-900 font-black text-sm flex items-center gap-1.5 shadow-1">
+                      <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600">grain</span>
                       <span>VRAC</span>
                     </span>
                   ) : blCat === 'RORO' ? (
-                    <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 font-black text-xs flex items-center gap-1.5 shadow-2xs">
-                      <span className="material-symbols-outlined text-sm text-emerald-600">directions_car</span>
+                    <span className="px-3 py-1 rounded-md bg-emerald-50 dark:bg-night-positive-soft border border-emerald-300 text-emerald-900 font-black text-sm flex items-center gap-1.5 shadow-1">
+                      <span aria-hidden="true" className="material-symbols-outlined text-base text-emerald-600 dark:text-night-positive">directions_car</span>
                       <span>RORO</span>
                     </span>
                   ) : blCat === 'CONVENTIONNEL' ? (
-                    <span className="px-3 py-1 rounded-xl bg-zinc-100 border border-zinc-300 text-zinc-900 font-black text-xs flex items-center gap-1.5 shadow-2xs">
-                      <span className="material-symbols-outlined text-sm text-zinc-600">inventory_2</span>
+                    <span className="px-3 py-1 rounded-md bg-surface-sunken dark:bg-night-sunken border border-zinc-300 dark:border-night-line-strong text-text-primary dark:text-night-ink font-black text-sm flex items-center gap-1.5 shadow-1">
+                      <span aria-hidden="true" className="material-symbols-outlined text-base text-text-secondary dark:text-night-ink">inventory_2</span>
                       <span>CONVENTIONNEL</span>
                     </span>
                   ) : (
-                    <span className="px-3 py-1 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/30 text-[#005DAA] font-black text-xs flex items-center gap-1.5 shadow-2xs">
-                      <span className="material-symbols-outlined text-sm">view_in_ar</span>
+                    <span className="px-3 py-1 rounded-md bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/30 text-[#005DAA] dark:text-night-link font-black text-sm flex items-center gap-1.5 shadow-1">
+                      <span aria-hidden="true" className="material-symbols-outlined text-base">view_in_ar</span>
                       <span>CONTENEURS ({selectedBlDetails.conteneurs?.length || 0})</span>
                     </span>
                   )}
 
                   {hasDangerous && (
-                    <span className="px-3 py-1 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 font-black text-xs flex items-center gap-1.5 animate-pulse">
-                      <span className="material-symbols-outlined text-sm text-rose-600">warning</span>
+                    <span className="px-3 py-1 rounded-md bg-rose-50 border border-rose-300 text-rose-700 font-black text-sm flex items-center gap-1.5 animate-pulse">
+                      <span aria-hidden="true" className="material-symbols-outlined text-base text-rose-600">warning</span>
                       <span>IMDG / DANGEREUX</span>
                     </span>
                   )}
 
                   <button 
                     onClick={() => setSelectedBlDetails(null)} 
-                    className="w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-950 flex items-center justify-center cursor-pointer transition-all ml-2 border border-zinc-200"
+                    className="w-9 h-9 rounded-full bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink hover:text-zinc-950 flex items-center justify-center cursor-pointer transition-all ml-2 border border-border-default dark:border-night-line"
                     title="Fermer la modal"
                   >
-                    <span className="material-symbols-outlined text-xl">close</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-xl">close</span>
                   </button>
                 </div>
               </div>
 
               {/* Scrollable Content */}
-              <div className="p-6 space-y-6 overflow-y-auto flex-1 text-xs bg-zinc-50/50">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 text-sm bg-surface-base dark:bg-night-sunken/50">
                 
                 {/* 1. Acteurs & Tiers Maritimes (Shipper, Consignee, Notify) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   
                   {/* Chargeur (Shipper) */}
-                  <div className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-2xs flex flex-col justify-between">
+                  <div className="p-4 bg-surface-canvas dark:bg-night-surface rounded-md border border-border-default dark:border-night-line shadow-1 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5 text-zinc-500 font-bold uppercase tracking-wider text-[10px] mb-2 pb-1.5 border-b border-zinc-100">
-                        <span className="material-symbols-outlined text-sm text-[#005DAA]">business</span>
+                      <div className="flex items-center gap-1.5 text-text-muted dark:text-night-ink-2 font-bold uppercase tracking-wider text-2xs mb-2 pb-1.5 border-b border-border-default">
+                        <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-link">business</span>
                         <span>Chargeur (Shipper / Expéditeur)</span>
                       </div>
-                      <p className="font-black text-zinc-950 text-sm leading-snug">{selectedBlDetails.shipperNom}</p>
-                      <p className="text-zinc-600 text-[11px] mt-1.5 leading-relaxed font-medium">
+                      <p className="font-black text-zinc-950 text-base leading-snug">{selectedBlDetails.shipperNom}</p>
+                      <p className="text-text-secondary dark:text-night-ink text-xs mt-1.5 leading-relaxed font-medium">
                         {selectedBlDetails.shipperAdresse || 'Adresse non spécifiée'}
                       </p>
                     </div>
                   </div>
 
                   {/* Réceptionnaire (Consignee) */}
-                  <div className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-2xs flex flex-col justify-between">
+                  <div className="p-4 bg-surface-canvas dark:bg-night-surface rounded-md border border-border-default dark:border-night-line shadow-1 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5 text-zinc-500 font-bold uppercase tracking-wider text-[10px] mb-2 pb-1.5 border-b border-zinc-100">
-                        <span className="material-symbols-outlined text-sm text-emerald-600">person_pin</span>
+                      <div className="flex items-center gap-1.5 text-text-muted dark:text-night-ink-2 font-bold uppercase tracking-wider text-2xs mb-2 pb-1.5 border-b border-border-default">
+                        <span aria-hidden="true" className="material-symbols-outlined text-base text-emerald-600 dark:text-night-positive">person_pin</span>
                         <span>Destinataire (Consignee / Réceptionnaire)</span>
                       </div>
-                      <p className="font-black text-[#005DAA] text-sm leading-snug">{selectedBlDetails.consigneeNom}</p>
-                      <p className="text-zinc-600 text-[11px] mt-1.5 leading-relaxed font-medium">
+                      <p className="font-black text-[#005DAA] dark:text-night-link text-base leading-snug">{selectedBlDetails.consigneeNom}</p>
+                      <p className="text-text-secondary dark:text-night-ink text-xs mt-1.5 leading-relaxed font-medium">
                         {selectedBlDetails.consigneeAdresse || 'Adresse non spécifiée'}
                       </p>
                     </div>
                   </div>
 
                   {/* Partie à Notifier (Notify) */}
-                  <div className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-2xs flex flex-col justify-between">
+                  <div className="p-4 bg-surface-canvas dark:bg-night-surface rounded-md border border-border-default dark:border-night-line shadow-1 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5 text-zinc-500 font-bold uppercase tracking-wider text-[10px] mb-2 pb-1.5 border-b border-zinc-100">
-                        <span className="material-symbols-outlined text-sm text-amber-600">notifications_active</span>
+                      <div className="flex items-center gap-1.5 text-text-muted dark:text-night-ink-2 font-bold uppercase tracking-wider text-2xs mb-2 pb-1.5 border-b border-border-default">
+                        <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600">notifications_active</span>
                         <span>Partie à Notifier (Notify Party)</span>
                       </div>
-                      <p className="font-black text-zinc-950 text-sm leading-snug">{selectedBlDetails.notifyNom || selectedBlDetails.consigneeNom || 'TO ORDER'}</p>
-                      <p className="text-zinc-600 text-[11px] mt-1.5 leading-relaxed font-medium">
+                      <p className="font-black text-zinc-950 text-base leading-snug">{selectedBlDetails.notifyNom || selectedBlDetails.consigneeNom || 'TO ORDER'}</p>
+                      <p className="text-text-secondary dark:text-night-ink text-xs mt-1.5 leading-relaxed font-medium">
                         {selectedBlDetails.notifyAdresse || selectedBlDetails.consigneeAdresse || 'Même adresse que le destinataire'}
                       </p>
                     </div>
@@ -1826,103 +1818,103 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   
                   {/* Info Escale & Trajet (5 colonnes) */}
-                  <div className="lg:col-span-5 p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                      <h4 className="font-bold text-[11px] text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base text-[#005daa]">directions_boat</span>
+                  <div className="lg:col-span-5 p-4 bg-surface-canvas dark:bg-night-surface rounded-md border border-slate-200 dark:border-night-line shadow-1 space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-night-line">
+                      <h4 className="font-bold text-xs text-slate-800 dark:text-night-ink uppercase tracking-wider flex items-center gap-1.5">
+                        <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005daa]">directions_boat</span>
                         <span>Escale & Navigation</span>
                       </h4>
-                      <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                      <span className="text-2xs font-mono font-bold text-slate-500 dark:text-night-ink-2 bg-[#f4f4f5] dark:bg-night-sunken px-2 py-0.5 rounded">
                         Escale #{selectedBlDetails.escaleId}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-[11px]">
-                      <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold text-[9px] uppercase block">Navire</span>
-                        <strong className="text-slate-900 font-black text-xs">{matchedEscale?.nomNavire || 'BOCS BREMEN'}</strong>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="p-2 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                        <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase block">Navire</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-black text-sm">{matchedEscale?.nomNavire || 'BOCS BREMEN'}</strong>
                         {matchedEscale?.callsign && (
-                          <span className="text-[10px] text-slate-500 font-mono block">Call: {matchedEscale.callsign}</span>
+                          <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-mono block">Call: {matchedEscale.callsign}</span>
                         )}
                       </div>
 
-                      <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold text-[9px] uppercase block">N° Voyage</span>
-                        <strong className="text-slate-900 font-mono font-black text-xs">{matchedEscale?.numeroVoyage || '25586'}</strong>
-                        <span className="text-[10px] text-slate-500 block">Ligne ALIS</span>
+                      <div className="p-2 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                        <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase block">N° Voyage</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-mono font-black text-sm">{matchedEscale?.numeroVoyage || '25586'}</strong>
+                        <span className="text-2xs text-slate-500 dark:text-night-ink-2 block">Ligne ALIS</span>
                       </div>
 
-                      <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold text-[9px] uppercase block">Port de Chargement (POL)</span>
-                        <strong className="text-slate-900 font-mono font-black text-xs">{selectedBlDetails.portChargementCode}</strong>
-                        <span className="text-[10px] text-slate-500 block">
+                      <div className="p-2 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                        <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase block">Port de Chargement (POL)</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-mono font-black text-sm">{selectedBlDetails.portChargementCode}</strong>
+                        <span className="text-2xs text-slate-500 dark:text-night-ink-2 block">
                           {selectedBlDetails.portChargementCode?.includes('ANR') ? 'Anvers (Belgique)' : selectedBlDetails.portChargementCode?.includes('URO') ? 'Rouen (France)' : 'Port d\'origine'}
                         </span>
                       </div>
 
-                      <div className="p-2 bg-blue-50/60 rounded-xl border border-blue-100">
-                        <span className="text-blue-600 font-bold text-[9px] uppercase block">Port de Déchargement (POD)</span>
-                        <strong className="text-[#005daa] font-mono font-black text-xs">{selectedBlDetails.portDechargementCode}</strong>
-                        <span className="text-[10px] text-blue-700 block">Abidjan (Côte d'Ivoire)</span>
+                      <div className="p-2 bg-blue-50 dark:bg-night-accent-soft/60 rounded-md border border-blue-100">
+                        <span className="text-blue-600 dark:text-night-link font-bold text-2xs uppercase block">Port de Déchargement (POD)</span>
+                        <strong className="text-[#005daa] font-mono font-black text-sm">{selectedBlDetails.portDechargementCode}</strong>
+                        <span className="text-2xs text-blue-700 dark:text-night-link block">Abidjan (Côte d'Ivoire)</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] px-2 py-1 bg-slate-50 rounded-lg text-slate-600">
+                    <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#f4f4f5] dark:bg-night-sunken rounded-lg text-slate-600 dark:text-night-ink">
                       <span>Destination finale : <strong>{selectedBlDetails.destinationFinale || 'CI - Côte d\'Ivoire'}</strong></span>
                       <span>Date d'arrivée : <strong className="font-mono">{matchedEscale?.dateArrivee || '15/07/2025'}</strong></span>
                     </div>
                   </div>
 
                   {/* Métriques & Description Marchandises (7 colonnes) */}
-                  <div className="lg:col-span-7 p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                      <h4 className="font-bold text-[11px] text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base text-emerald-600">inventory_2</span>
+                  <div className="lg:col-span-7 p-4 bg-surface-canvas dark:bg-night-surface rounded-md border border-slate-200 dark:border-night-line shadow-1 space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-night-line">
+                      <h4 className="font-bold text-xs text-slate-800 dark:text-night-ink uppercase tracking-wider flex items-center gap-1.5">
+                        <span aria-hidden="true" className="material-symbols-outlined text-lg text-emerald-600 dark:text-night-positive">inventory_2</span>
                         <span>Spécifications de Cargaison</span>
                       </h4>
-                      <span className="font-mono font-bold text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <span className="font-mono font-bold text-sm text-emerald-700 bg-emerald-50 dark:bg-night-positive-soft px-2 py-0.5 rounded border border-emerald-200 dark:border-night-positive-line">
                         {(selectedBlDetails.poidsBrutKg || 0).toLocaleString('fr-FR')} kg
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2.5 text-[11px]">
-                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold text-[9px] uppercase block">Poids Brut Total</span>
-                        <strong className="text-slate-900 font-mono font-black text-xs">{(selectedBlDetails.poidsBrutKg || 0).toLocaleString('fr-FR')} kg</strong>
-                        <span className="text-[10px] text-slate-500 font-semibold block">
+                    <div className="grid grid-cols-3 gap-2.5 text-xs">
+                      <div className="p-2.5 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                        <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase block">Poids Brut Total</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-mono font-black text-sm">{(selectedBlDetails.poidsBrutKg || 0).toLocaleString('fr-FR')} kg</strong>
+                        <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-semibold block">
                           ({((selectedBlDetails.poidsBrutKg || 0) / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 3 })} T)
                         </span>
                       </div>
 
-                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold text-[9px] uppercase block">Volume Cubé</span>
-                        <strong className="text-slate-900 font-mono font-black text-xs">
+                      <div className="p-2.5 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                        <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase block">Volume Cubé</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-mono font-black text-sm">
                           {selectedBlDetails.volumeM3 > 0 ? `${selectedBlDetails.volumeM3.toLocaleString('fr-FR')} m³` : 'N/C (Poids seul)'}
                         </strong>
-                        <span className="text-[10px] text-slate-500 block">Cubage total</span>
+                        <span className="text-2xs text-slate-500 dark:text-night-ink-2 block">Cubage total</span>
                       </div>
 
-                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold text-[9px] uppercase block">Colisage / Unités</span>
-                        <strong className="text-slate-900 font-black text-xs">
+                      <div className="p-2.5 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                        <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase block">Colisage / Unités</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-black text-sm">
                           {selectedBlDetails.nombreColis} {selectedBlDetails.typeEmballage === 'VRAC' ? 'Vrac' : selectedBlDetails.typeEmballage === 'RORO' ? 'Véhicule(s)' : selectedBlDetails.typeEmballage || 'Colis'}
                         </strong>
-                        <span className="text-[10px] text-slate-500 block">{selectedBlDetails.typeEmballage || 'COLIS'}</span>
+                        <span className="text-2xs text-slate-500 dark:text-night-ink-2 block">{selectedBlDetails.typeEmballage || 'COLIS'}</span>
                       </div>
                     </div>
 
                     {/* Marques & Numéros */}
-                    <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider block mb-1">Marques & Numéros (Marks & Numbers) / Châssis / Scellés</span>
-                      <p className="font-mono font-bold text-slate-800 text-xs select-all">
+                    <div className="p-2.5 bg-[#f4f4f5] dark:bg-night-sunken rounded-md border border-slate-100 dark:border-night-line">
+                      <span className="text-slate-400 dark:text-night-ink-3 font-bold text-2xs uppercase tracking-wider block mb-1">Marques & Numéros (Marks & Numbers) / Châssis / Scellés</span>
+                      <p className="font-mono font-bold text-slate-800 dark:text-night-ink text-sm select-all">
                         {selectedBlDetails.marquesEtNumeros || 'N/M (Sans repères particuliers)'}
                       </p>
                     </div>
 
                     {/* Description Goods */}
-                    <div className="p-2.5 bg-blue-50/40 rounded-xl border border-blue-100">
-                      <span className="text-blue-600 font-bold text-[9px] uppercase tracking-wider block mb-1">Description Déclarée des Marchandises (Manifeste / BESC / DA)</span>
-                      <p className="font-medium text-slate-800 text-xs leading-relaxed select-all">
+                    <div className="p-2.5 bg-blue-50 dark:bg-night-accent-soft/40 rounded-md border border-blue-100">
+                      <span className="text-blue-600 dark:text-night-link font-bold text-2xs uppercase tracking-wider block mb-1">Description Déclarée des Marchandises (Manifeste / BESC / DA)</span>
+                      <p className="font-medium text-slate-800 dark:text-night-ink text-sm leading-relaxed select-all">
                         {selectedBlDetails.descriptionGoods || 'Marchandises diverses extraites du manifeste cargo.'}
                       </p>
                     </div>
@@ -1932,21 +1924,21 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                 {/* 3. Section Dédiée : Conteneurs ou Spécificités Véhicules/Vrac */}
                 {selectedBlDetails.conteneurs && selectedBlDetails.conteneurs.length > 0 ? (
-                  <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                      <h4 className="font-bold text-[11px] text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base text-[#005daa]">grid_view</span>
+                  <div className="space-y-3 bg-surface-canvas dark:bg-night-surface p-4 rounded-md border border-slate-200 dark:border-night-line shadow-1">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-night-line">
+                      <h4 className="font-bold text-xs text-slate-800 dark:text-night-ink uppercase tracking-wider flex items-center gap-1.5">
+                        <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005daa]">grid_view</span>
                         <span>Inventaire des Conteneurs Rattachés ({selectedBlDetails.conteneurs.length})</span>
                       </h4>
-                      <span className="text-[10px] font-bold text-slate-500">
+                      <span className="text-2xs font-bold text-slate-500 dark:text-night-ink-2">
                         {selectedBlDetails.conteneurs.filter(c => c.socCoc === 'SOC').length} SOC • {selectedBlDetails.conteneurs.filter(c => c.socCoc === 'COC' || !c.socCoc).length} COC
                       </span>
                     </div>
                     
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                      <table className="w-full text-[11px] text-left border-collapse">
+                    <div className="border border-slate-200 dark:border-night-line rounded-md overflow-hidden shadow-1">
+                      <table className="w-full text-xs text-left border-collapse">
                         <thead>
-                          <tr className="bg-slate-100 text-slate-700 font-black border-b border-slate-200 text-[10px] uppercase">
+                          <tr className="bg-[#f4f4f5] dark:bg-night-sunken text-slate-700 dark:text-night-ink font-black border-b border-slate-200 dark:border-night-line text-2xs uppercase">
                             <th className="p-3">N° Conteneur</th>
                             <th className="p-3">Type</th>
                             <th className="p-3">Régime</th>
@@ -1958,23 +1950,23 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                             <th className="p-3 text-center">Statut Parc</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white font-mono">
+                        <tbody className="divide-y divide-slate-100 dark:divide-night-line bg-surface-canvas dark:bg-night-surface font-mono">
                           {selectedBlDetails.conteneurs.map((ctn, cIdx) => (
-                            <tr key={ctn.id || cIdx} className={`hover:bg-slate-50/70 transition-colors ${ctn.isDangerous ? 'bg-rose-50/30' : ''}`}>
-                              <td className="p-3 font-bold text-slate-900">
+                            <tr key={ctn.id || cIdx} className={`hover:bg-slate-50 dark:hover:bg-night-raised/70 transition-colors ${ctn.isDangerous ? 'bg-rose-50/30' : ''}`}>
+                              <td className="p-3 font-bold text-slate-900 dark:text-night-ink">
                                 <div className="flex items-center gap-1.5">
                                   <span>{ctn.numeroConteneur}</span>
                                   {ctn.isDangerous && (
-                                    <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[9px] font-black uppercase flex items-center gap-0.5 animate-pulse" title="Marchandises Dangereuses IMDG">
-                                      <span className="material-symbols-outlined text-[10px]">warning</span>
+                                    <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-2xs font-black uppercase flex items-center gap-0.5 animate-pulse" title="Marchandises Dangereuses IMDG">
+                                      <span aria-hidden="true" className="material-symbols-outlined text-2xs">warning</span>
                                       <span>DANG.</span>
                                     </span>
                                   )}
                                 </div>
                               </td>
-                              <td className="p-3 font-semibold text-slate-700">{ctn.typeConteneur}</td>
+                              <td className="p-3 font-semibold text-slate-700 dark:text-night-ink">{ctn.typeConteneur}</td>
                               <td className="p-3">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                                <span className={`px-2 py-0.5 rounded text-2xs font-black ${
                                   ctn.socCoc === 'SOC' 
                                     ? 'bg-purple-50 text-purple-700 border border-purple-200' 
                                     : 'bg-sky-50 text-sky-700 border border-sky-200'
@@ -1982,15 +1974,15 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                   {ctn.socCoc || 'COC'}
                                 </span>
                               </td>
-                              <td className="p-3 text-slate-600">{ctn.numeroScelle || 'SANS SCELLÉ'}</td>
-                              <td className="p-3 text-right font-bold text-slate-900">{(ctn.poidsKg || 0).toLocaleString('fr-FR')} kg</td>
-                              <td className="p-3 text-right text-slate-500">{(ctn.tareKg || 0).toLocaleString('fr-FR')} kg</td>
-                              <td className="p-3 text-center text-slate-700 font-sans">{ctn.nombreColis || 0}</td>
-                              <td className="p-3 text-right font-bold text-slate-800">
+                              <td className="p-3 text-slate-600 dark:text-night-ink">{ctn.numeroScelle || 'SANS SCELLÉ'}</td>
+                              <td className="p-3 text-right font-bold text-slate-900 dark:text-night-ink">{(ctn.poidsKg || 0).toLocaleString('fr-FR')} kg</td>
+                              <td className="p-3 text-right text-slate-500 dark:text-night-ink-2">{(ctn.tareKg || 0).toLocaleString('fr-FR')} kg</td>
+                              <td className="p-3 text-center text-slate-700 dark:text-night-ink font-sans">{ctn.nombreColis || 0}</td>
+                              <td className="p-3 text-right font-bold text-slate-800 dark:text-night-ink">
                                 {(ctn.montantCautionFcfa || 0).toLocaleString('fr-FR')} FCFA
                               </td>
                               <td className="p-3 text-center font-sans">
-                                <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-[#005daa] text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line text-[#005daa] text-2xs font-bold">
                                   {ctn.statutLivraison === 'AU_PARC' ? 'Au Parc' : ctn.statutLivraison === 'LIVRE' ? 'Livré' : 'Au Parc'}
                                 </span>
                               </td>
@@ -2001,35 +1993,35 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     </div>
                   </div>
                 ) : blCat === 'RORO' ? (
-                  <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-2xs space-y-2">
-                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-emerald-800 font-bold">
-                      <span className="material-symbols-outlined text-lg">directions_car</span>
-                      <span className="uppercase text-xs tracking-wider font-heading">Fiche Véhicule RORO Intégrée</span>
+                  <div className="bg-surface-canvas dark:bg-night-surface p-4 rounded-md border border-emerald-200 dark:border-night-positive-line shadow-1 space-y-2">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-night-line text-emerald-800 font-bold">
+                      <span aria-hidden="true" className="material-symbols-outlined text-xl">directions_car</span>
+                      <span className="uppercase text-sm tracking-wider font-heading">Fiche Véhicule RORO Intégrée</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                      <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                        <span className="text-[10px] uppercase font-bold text-emerald-800 block">Numéro de Châssis (VIN)</span>
-                        <strong className="font-mono text-slate-900 font-black text-sm">{selectedBlDetails.marquesEtNumeros || 'N/C'}</strong>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                      <div className="p-3 bg-emerald-50 dark:bg-night-positive-soft/50 rounded-md border border-emerald-100">
+                        <span className="text-2xs uppercase font-bold text-emerald-800 block">Numéro de Châssis (VIN)</span>
+                        <strong className="font-mono text-slate-900 dark:text-night-ink font-black text-base">{selectedBlDetails.marquesEtNumeros || 'N/C'}</strong>
                       </div>
-                      <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                        <span className="text-[10px] uppercase font-bold text-emerald-800 block">Désignation Véhicule</span>
-                        <strong className="text-slate-900 font-bold text-xs">{selectedBlDetails.descriptionGoods}</strong>
+                      <div className="p-3 bg-emerald-50 dark:bg-night-positive-soft/50 rounded-md border border-emerald-100">
+                        <span className="text-2xs uppercase font-bold text-emerald-800 block">Désignation Véhicule</span>
+                        <strong className="text-slate-900 dark:text-night-ink font-bold text-sm">{selectedBlDetails.descriptionGoods}</strong>
                       </div>
-                      <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                        <span className="text-[10px] uppercase font-bold text-emerald-800 block">Volume & Poids RORO</span>
-                        <strong className="font-mono text-emerald-900 font-black text-xs">
+                      <div className="p-3 bg-emerald-50 dark:bg-night-positive-soft/50 rounded-md border border-emerald-100">
+                        <span className="text-2xs uppercase font-bold text-emerald-800 block">Volume & Poids RORO</span>
+                        <strong className="font-mono text-emerald-900 font-black text-sm">
                           {selectedBlDetails.volumeM3} m³ • {(selectedBlDetails.poidsBrutKg || 0).toLocaleString('fr-FR')} kg
                         </strong>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-slate-700 font-bold">
-                      <span className="material-symbols-outlined text-lg text-amber-600">grain</span>
-                      <span className="uppercase text-xs tracking-wider font-heading">Marchandise Conventionnelle / Vrac</span>
+                  <div className="bg-surface-canvas dark:bg-night-surface p-4 rounded-md border border-slate-200 dark:border-night-line shadow-1 space-y-2">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-night-line text-slate-700 dark:text-night-ink font-bold">
+                      <span aria-hidden="true" className="material-symbols-outlined text-xl text-amber-600">grain</span>
+                      <span className="uppercase text-sm tracking-wider font-heading">Marchandise Conventionnelle / Vrac</span>
                     </div>
-                    <p className="text-slate-600 text-xs leading-relaxed">
+                    <p className="text-slate-600 dark:text-night-ink text-sm leading-relaxed">
                       Ce connaissement porte sur du <strong>{blCat === 'VRAC' ? 'Vrac Solide / Liquide' : 'Conventionnel (Breakbulk)'}</strong> non conteneurisé. 
                       Poids net contrôlé : <strong>{(selectedBlDetails.poidsBrutKg || 0).toLocaleString('fr-FR')} kg</strong>.
                     </p>
@@ -2037,7 +2029,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 )}
 
                 {/* 4. Historique des Factures Émises pour ce BL */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                <div className="bg-surface-canvas dark:bg-night-surface p-4 rounded-md border border-slate-200 dark:border-night-line shadow-1 space-y-3">
                   {(() => {
                     const plannedIds = plannedInvoicesByBl[selectedBlDetails.id] || [];
                     const plannedConfigs = invoiceTypeConfigs.filter(t => plannedIds.includes(t.id));
@@ -2046,32 +2038,32 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     );
                     return (
                       <>
-                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-night-line">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-[11px] text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                              <span className="material-symbols-outlined text-base text-[#005daa]">receipt_long</span>
+                            <h4 className="font-bold text-xs text-slate-800 dark:text-night-ink uppercase tracking-wider flex items-center gap-1.5">
+                              <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005daa]">receipt_long</span>
                               <span>Factures Associées à ce BL ({blInvoices.length + pendingConfigs.length})</span>
                             </h4>
                             <button
                               onClick={() => handleOpenInvoiceSelection(selectedBlDetails)}
-                              className="p-1 text-slate-400 hover:text-[#005daa] hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                              className="p-1 text-blue-700 dark:text-night-ink-3 hover:text-[#005daa] hover:bg-blue-50 dark:hover:bg-night-accent-line dark:bg-night-accent-soft rounded-lg transition-all cursor-pointer"
                               title="Modifier la sélection des factures pour ce BL"
                             >
-                              <span className="material-symbols-outlined text-base">settings</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-lg">settings</span>
                             </button>
                           </div>
                           {allPaid && pendingConfigs.length === 0 ? (
-                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs">check_circle</span>
+                            <span className="px-2.5 py-0.5 rounded-md text-2xs font-black bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center gap-1">
+                              <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
                               <span>Facturé & Réglé</span>
                             </span>
                           ) : blInvoices.length > 0 || pendingConfigs.length > 0 ? (
-                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-amber-100 border border-amber-300 text-amber-800 flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs">pending</span>
+                            <span className="px-2.5 py-0.5 rounded-md text-2xs font-black bg-amber-100 border border-amber-300 text-amber-800 flex items-center gap-1">
+                              <span aria-hidden="true" className="material-symbols-outlined text-sm">pending</span>
                               <span>En cours</span>
                             </span>
                           ) : (
-                            <span className="text-[10px] text-slate-400 italic">Aucune facture émise pour le moment</span>
+                            <span className="text-2xs text-slate-400 dark:text-night-ink-3 italic">Aucune facture émise pour le moment</span>
                           )}
                         </div>
 
@@ -2086,14 +2078,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                     e.stopPropagation();
                                     generateProformaPdf(inv, selectedBlDetails, 'Agence BOCS Abidjan');
                                   }}
-                                  className={`px-3 py-1.5 text-[11px] font-bold rounded flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${
+                                  className={`px-3 py-1.5 text-xs font-bold rounded flex items-center gap-1.5 shadow-sm dark:shadow-black/30 transition-colors cursor-pointer ${
                                     isPaid 
                                       ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300'
                                       : 'bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300'
                                   }`}
                                   title={`Voir la facture ${inv.numeroFacture || ''} (${isPaid ? 'Réglée' : 'En attente de paiement'})`}
                                 >
-                                  <span className="material-symbols-outlined text-[13px]">receipt_long</span>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-xs">receipt_long</span>
                                   {invoiceTypeConfigs.find(t => t.id === inv.invoiceTypeId)?.name || inv.typeFacture}
                                 </button>
                               );
@@ -2105,16 +2097,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                   e.stopPropagation();
                                   handleGenerateProformaForType(selectedBlDetails, config);
                                 }}
-                                className="px-3 py-1.5 bg-[#1762a3] hover:bg-blue-800 text-white text-[11px] font-bold rounded flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                                className="px-3 py-1.5 bg-[#1762a3] hover:bg-blue-800 text-white dark:text-night-ink text-xs font-bold rounded flex items-center gap-1.5 shadow-sm dark:shadow-black/30 transition-colors cursor-pointer"
                                 title={`Éditer la Proforma PDF pour ${config.name}`}
                               >
-                                <span className="material-symbols-outlined text-[13px]">description</span>
+                                <span aria-hidden="true" className="material-symbols-outlined text-xs">description</span>
                                 {config.name}
                               </button>
                             ))}
                           </div>
                         ) : (
-                          <div className="p-4 text-center bg-slate-50 rounded-xl text-slate-400 italic text-xs">
+                          <div className="p-4 text-center bg-[#f4f4f5] dark:bg-night-sunken rounded-md text-slate-400 dark:text-night-ink-3 italic text-sm">
                             Cliquez sur l'icône de paramètre pour sélectionner les factures de ce BL.
                           </div>
                         )}
@@ -2126,15 +2118,15 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </div>
 
               {/* Footer avec Actions Rapides */}
-              <div className="p-4 sm:px-6 sm:py-4 bg-white border-t border-zinc-200 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-zinc-500 text-xs font-medium">
-                  BL <strong className="font-mono text-[#005DAA]">{selectedBlDetails.numeroBL}</strong> • Escale <strong className="font-mono text-zinc-900">{matchedEscale?.numeroVoyage || '25586'}</strong>
+              <div className="p-4 sm:px-6 sm:py-4 bg-surface-canvas dark:bg-night-surface border-t border-border-default dark:border-night-line flex flex-wrap items-center justify-between gap-3">
+                <div className="text-text-muted dark:text-night-ink-2 text-sm font-medium">
+                  BL <strong className="font-mono text-[#005DAA] dark:text-night-link">{selectedBlDetails.numeroBL}</strong> • Escale <strong className="font-mono text-text-primary dark:text-night-ink">{matchedEscale?.numeroVoyage || '25586'}</strong>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setSelectedBlDetails(null)}
-                    className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-extrabold rounded-xl transition-all cursor-pointer text-xs border border-zinc-200"
+                    className="px-4 py-2.5 bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink font-extrabold rounded-md transition-all cursor-pointer text-sm border border-border-default dark:border-night-line"
                   >
                     Fermer
                   </button>
@@ -2146,9 +2138,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         setSelectedBlDetails(null);
                         generateDoBadPdf(target, matchedEscale);
                       }}
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer text-xs active:scale-95"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-extrabold rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer text-sm active:scale-95"
                     >
-                      <span className="material-symbols-outlined text-base">verified</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-lg">verified</span>
                       <span>Imprimer DO / BAD</span>
                     </button>
                   )}
@@ -2161,9 +2153,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         handleOpenInvoiceSelection(target);
                       }
                     }}
-                    className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer text-xs active:scale-95"
+                    className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black rounded-md shadow-sm dark:shadow-black/30 transition-all flex items-center gap-1.5 cursor-pointer text-sm active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-base">fact_check</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-lg">fact_check</span>
                     <span>Planifier / Facturer ce BL</span>
                   </button>
                 </div>
@@ -2176,51 +2168,51 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Modal Create Escale */}
       {showAddEscaleModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+        <div role="dialog" aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-sm animate-fade-in"
           onClick={overlayClickClose(() => setShowAddEscaleModal(false))}
         >
-          <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-              <h3 className="font-black text-lg text-[#005DAA] font-display">Créer une Escale Manuelle</h3>
-              <button onClick={() => setShowAddEscaleModal(false)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+          <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-border-default pb-3">
+              <h3 className="font-black text-xl text-[#005DAA] dark:text-night-link font-display">Créer une Escale Manuelle</h3>
+              <button aria-label="Fermer" onClick={() => setShowAddEscaleModal(false)} className="text-text-muted dark:text-night-ink-3 hover:text-text-secondary cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleCreateEscaleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleCreateEscaleSubmit} className="space-y-3 text-sm">
               <div>
-                <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Nom du Navire</label>
+                <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Nom du Navire</label>
                 <input
                   type="text"
                   required
                   value={nomNavire}
                   onChange={e => setNomNavire(e.target.value)}
                   placeholder="ex: BOCS BREMEN"
-                  className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                  className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Callsign</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Callsign</label>
                   <input
                     type="text"
                     value={callsign}
                     onChange={e => setCallsign(e.target.value)}
                     placeholder="CS-9021"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">N° Voyage</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">N° Voyage</label>
                   <input
                     type="text"
                     required
                     value={numeroVoyage}
                     onChange={e => setNumeroVoyage(e.target.value)}
                     placeholder="VOY-2026-09"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
               </div>
@@ -2229,13 +2221,13 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddEscaleModal(false)}
-                  className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-zinc-200"
+                  className="px-4 py-2.5 bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink rounded-md text-sm font-bold transition-all cursor-pointer border border-border-default dark:border-night-line"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black rounded-xl text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black rounded-md text-sm shadow-sm dark:shadow-black/30 transition-all cursor-pointer active:scale-95"
                 >
                   Enregistrer
                 </button>
@@ -2247,22 +2239,22 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Modal: Coller du texte XML GUCE */}
       {showPasteXmlModal && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div role="dialog" aria-modal="true"
+          className="fixed inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={overlayClickClose(() => setShowPasteXmlModal(false))}
         >
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 border border-zinc-200 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+          <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-3xl w-full p-6 shadow-2xl dark:shadow-black/70 space-y-4 border border-border-default dark:border-night-line animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-border-default pb-3">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#005DAA]">code</span>
-                <h3 className="font-black text-base text-[#005DAA] font-display">Coller un texte XML GUCE Import</h3>
+                <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link">code</span>
+                <h3 className="font-black text-lg text-[#005DAA] dark:text-night-link font-display">Coller un texte XML GUCE Import</h3>
               </div>
-              <button onClick={() => setShowPasteXmlModal(false)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowPasteXmlModal(false)} className="text-text-muted dark:text-night-ink-3 hover:text-text-secondary cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <p className="text-xs text-zinc-600">
+            <p className="text-sm text-text-secondary dark:text-night-ink">
               Collez ci-dessous le contenu brut XML du manifeste GUCE d'Abidjan. Le système créera automatiquement l'Escale du navire et extraira l'ensemble des lettres de voiture (BLs) et conteneurs associés.
             </p>
 
@@ -2270,14 +2262,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               value={pastedXmlText}
               onChange={(e) => setPastedXmlText(e.target.value)}
               placeholder="<manifest> <manifest_general_segment> ... </manifest_general_segment> </manifest>"
-              className="w-full h-64 p-3 bg-zinc-950 text-emerald-400 font-mono text-xs rounded-xl border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#005DAA]"
+              className="w-full h-64 p-3 bg-zinc-950 text-emerald-400 font-mono text-sm rounded-md border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#005DAA]"
             />
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowPasteXmlModal(false)}
-                className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-zinc-200"
+                className="px-4 py-2.5 bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer border border-border-default dark:border-night-line"
               >
                 Annuler
               </button>
@@ -2285,9 +2277,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 type="button"
                 disabled={!pastedXmlText.trim() || isProcessingXml}
                 onClick={() => processXmlContent(pastedXmlText, 'Pasted_GUCE_Manifest.xml')}
-                className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
+                className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm rounded-md shadow-sm dark:shadow-black/30 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
               >
-                <span className="material-symbols-outlined text-base">download_done</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">download_done</span>
                 <span>Traiter et Extraire le Manifeste</span>
               </button>
             </div>
@@ -2308,54 +2300,54 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         );
 
         return (
-          <div
+          <div role="dialog" aria-modal="true"
             className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
             onClick={overlayClickClose(() => setEscaleToDelete(null))}
           >
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-rose-200 animate-in fade-in zoom-in duration-150">
+            <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full p-6 shadow-2xl dark:shadow-black/70 space-y-4 border border-rose-200 animate-in fade-in zoom-in duration-150">
               <div className="flex items-center gap-3 text-rose-600 border-b border-rose-100 pb-3">
-                <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shadow-2xs">
-                  <span className="material-symbols-outlined text-2xl">warning</span>
+                <div className="w-11 h-11 rounded-md bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shadow-1">
+                  <span aria-hidden="true" className="material-symbols-outlined text-2xl">warning</span>
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-slate-900 font-heading">Suppression de l'Escale / Intégration XML</h3>
-                  <p className="text-[11px] text-rose-600 font-bold uppercase tracking-wider">Avertissement critique & Action irréversible</p>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-night-ink font-heading">Suppression de l'Escale / Intégration XML</h3>
+                  <p className="text-xs text-rose-600 font-bold uppercase tracking-wider">Avertissement critique & Action irréversible</p>
                 </div>
               </div>
 
-              <div className="space-y-3 text-xs">
-                <p className="font-semibold text-slate-800">
-                  Vous êtes sur le point de supprimer l'escale du navire <span className="font-bold text-slate-900 underline">{escaleToDelete.nomNavire}</span> (Voyage <span className="font-mono font-bold text-blue-600">{escaleToDelete.numeroVoyage}</span>).
+              <div className="space-y-3 text-sm">
+                <p className="font-semibold text-slate-800 dark:text-night-ink">
+                  Vous êtes sur le point de supprimer l'escale du navire <span className="font-bold text-slate-900 dark:text-night-ink underline">{escaleToDelete.nomNavire}</span> (Voyage <span className="font-mono font-bold text-blue-600 dark:text-night-link">{escaleToDelete.numeroVoyage}</span>).
                 </p>
 
                 {/* Détail des impacts */}
-                <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5 space-y-2">
-                  <div className="text-[11px] font-black uppercase text-rose-900 tracking-wider flex items-center gap-1.5 font-heading">
-                    <span className="material-symbols-outlined text-sm text-rose-600">inventory_2</span>
+                <div className="bg-rose-50/70 border border-rose-200/80 rounded-md p-3.5 space-y-2">
+                  <div className="text-xs font-black uppercase text-rose-900 tracking-wider flex items-center gap-1.5 font-heading">
+                    <span aria-hidden="true" className="material-symbols-outlined text-base text-rose-600">inventory_2</span>
                     <span>Bilan des éléments qui seront définitivement effacés :</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="bg-white p-2.5 rounded-lg border border-rose-200/60 flex items-center justify-between shadow-2xs">
-                      <span className="text-slate-600 text-[11px] font-sans font-medium">Connaissements (BLs) :</span>
-                      <span className="font-bold text-rose-700 text-sm">{relatedBls.length}</span>
+                  <div className="grid grid-cols-2 gap-2 text-sm font-mono">
+                    <div className="bg-surface-canvas dark:bg-night-surface p-2.5 rounded-lg border border-rose-200/60 flex items-center justify-between shadow-1">
+                      <span className="text-slate-600 dark:text-night-ink text-xs font-sans font-medium">Connaissements (BLs) :</span>
+                      <span className="font-bold text-rose-700 text-base">{relatedBls.length}</span>
                     </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-rose-200/60 flex items-center justify-between shadow-2xs">
-                      <span className="text-slate-600 text-[11px] font-sans font-medium">Conteneurs / Colis :</span>
-                      <span className="font-bold text-rose-700 text-sm">{relatedContainersCount}</span>
+                    <div className="bg-surface-canvas dark:bg-night-surface p-2.5 rounded-lg border border-rose-200/60 flex items-center justify-between shadow-1">
+                      <span className="text-slate-600 dark:text-night-ink text-xs font-sans font-medium">Conteneurs / Colis :</span>
+                      <span className="font-bold text-rose-700 text-base">{relatedContainersCount}</span>
                     </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-rose-200/60 flex items-center justify-between shadow-2xs text-left col-span-2">
-                      <span className="text-slate-600 text-[11px] font-sans font-medium">Factures proforma/définitives :</span>
-                      <span className="font-bold text-rose-700 text-sm">{relatedInvoices.length}</span>
+                    <div className="bg-surface-canvas dark:bg-night-surface p-2.5 rounded-lg border border-rose-200/60 flex items-center justify-between shadow-1 text-left col-span-2">
+                      <span className="text-slate-600 dark:text-night-ink text-xs font-sans font-medium">Factures proforma/définitives :</span>
+                      <span className="font-bold text-rose-700 text-base">{relatedInvoices.length}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-slate-100 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 leading-relaxed space-y-1">
-                  <div className="font-bold text-slate-800 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm text-amber-600">info</span>
+                <div className="bg-[#f4f4f5] dark:bg-night-sunken p-3 rounded-md border border-slate-200 dark:border-night-line text-xs text-slate-600 dark:text-night-ink leading-relaxed space-y-1">
+                  <div className="font-bold text-slate-800 dark:text-night-ink flex items-center gap-1">
+                    <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600">info</span>
                     <span>Implications de cette action :</span>
                   </div>
-                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 font-sans">
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-night-ink font-sans">
                     <li>Retrait immédiat de l'escale et de tous ses connaissements du module Import.</li>
                     <li>Purge de toutes les factures et règlements associés en base de données.</li>
                     <li>Journalisation automatique de la suppression dans l'audit de sécurité.</li>
@@ -2363,11 +2355,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-night-line">
                 <button
                   type="button"
                   onClick={() => setEscaleToDelete(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer"
                 >
                   Annuler
                 </button>
@@ -2380,9 +2372,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     setEscaleToDelete(null);
                     setSelectedEscaleId('ALL');
                   }}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <span className="material-symbols-outlined text-base">delete_forever</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">delete_forever</span>
                   <span>Confirmer la Suppression Définitive</span>
                 </button>
               </div>
@@ -2394,33 +2386,33 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       {blForInvoiceSelection && (() => {
         const blCat = getBlCategory(blForInvoiceSelection);
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+          <div role="dialog" aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-xs animate-fade-in"
             onClick={overlayClickClose(() => setBlForInvoiceSelection(null))}
           >
-            <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-xl w-full p-6 space-y-4">
               
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center justify-between border-b border-border-default pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/20 flex items-center justify-center font-bold">
-                    <span className="material-symbols-outlined text-xl">fact_check</span>
+                  <div className="w-10 h-10 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center font-bold">
+                    <span aria-hidden="true" className="material-symbols-outlined text-xl">fact_check</span>
                   </div>
                   <div>
-                    <h3 className="font-black text-sm text-zinc-950 uppercase tracking-wider font-display">
+                    <h3 className="font-black text-base text-zinc-950 uppercase tracking-wider font-display">
                       Types de Factures à Émettre
                     </h3>
-                    <p className="text-[11px] text-zinc-500 font-medium">
-                      BL <strong className="font-mono text-[#005DAA]">{blForInvoiceSelection.numeroBL}</strong> • Marchandise : <span className="px-2 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-zinc-800 font-bold">{blCat}</span>
+                    <p className="text-xs text-text-muted dark:text-night-ink-2 font-medium">
+                      BL <strong className="font-mono text-[#005DAA] dark:text-night-link">{blForInvoiceSelection.numeroBL}</strong> • Marchandise : <span className="px-2 py-0.5 rounded bg-surface-sunken dark:bg-night-sunken border border-border-default dark:border-night-line text-text-primary dark:text-night-ink font-bold">{blCat}</span>
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setBlForInvoiceSelection(null)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
-                  <span className="material-symbols-outlined">close</span>
+                <button aria-label="Fermer" onClick={() => setBlForInvoiceSelection(null)} className="text-text-muted dark:text-night-ink-3 hover:text-text-secondary cursor-pointer">
+                  <span aria-hidden="true" className="material-symbols-outlined">close</span>
                 </button>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs text-slate-600 font-medium">
+                <p className="text-sm text-slate-600 dark:text-night-ink font-medium">
                   Cochez les factures que vous souhaitez émettre pour ce BL. Chaque type coché apparaîtra sous forme de bouton sur la ligne du BL :
                 </p>
 
@@ -2543,25 +2535,25 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       return (
                         <div
                           key={typeConfig.id}
-                          className="flex items-start gap-3.5 p-3.5 rounded-xl border border-emerald-300 bg-emerald-50/50 shadow-2xs select-none cursor-default"
+                          className="flex items-start gap-3.5 p-3.5 rounded-md border border-emerald-300 bg-emerald-50 dark:bg-night-positive-soft/50 shadow-1 select-none cursor-default"
                         >
-                          <span className="material-symbols-outlined text-emerald-600 text-lg mt-0.5 shrink-0">task_alt</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-emerald-600 dark:text-night-positive text-xl mt-0.5 shrink-0">task_alt</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-slate-900 text-xs font-heading">
+                                <span className="font-bold text-slate-900 dark:text-night-ink text-sm font-heading">
                                   {dynamicTypeName}
                                 </span>
-                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-500 text-emerald-700 flex items-center gap-0.5">
-                                  <span className="material-symbols-outlined text-[10px]">check_circle</span>
+                                <span className="px-2 py-0.5 rounded text-2xs font-black uppercase border border-emerald-500 text-emerald-700 flex items-center gap-0.5">
+                                  <span aria-hidden="true" className="material-symbols-outlined text-2xs">check_circle</span>
                                   <span>Facturé & Réglé</span>
                                 </span>
                               </div>
-                              <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">
+                              <span className="text-sm font-mono font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 dark:border-night-positive-line">
                                 {matchingInv?.numeroFacture}
                               </span>
                             </div>
-                            <p className="text-[11px] text-emerald-800/90 mt-1 font-medium">
+                            <p className="text-xs text-emerald-800/90 mt-1 font-medium">
                               Cette facture a déjà été émise et soldée ({(matchingInv?.montantTtcFcfa || 0).toLocaleString('fr-FR')} FCFA TTC). Elle est définitivement verrouillée.
                             </p>
                           </div>
@@ -2573,20 +2565,20 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       return (
                         <div
                           key={typeConfig.id}
-                          className="flex items-start gap-3.5 p-3.5 rounded-xl border border-slate-200 bg-slate-100/60 shadow-2xs select-none opacity-60 cursor-not-allowed"
+                          className="flex items-start gap-3.5 p-3.5 rounded-md border border-slate-200 dark:border-night-line bg-slate-100/60 shadow-1 select-none opacity-60 cursor-not-allowed"
                           title={disableReason}
                         >
-                          <span className="material-symbols-outlined text-slate-400 text-lg mt-0.5 shrink-0">block</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-slate-400 dark:text-night-ink-3 text-xl mt-0.5 shrink-0">block</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-slate-500 text-xs font-heading">
+                              <span className="font-bold text-slate-500 dark:text-night-ink-2 text-sm font-heading">
                                 {typeConfig.name}
                               </span>
-                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase border border-slate-300 text-slate-500">
+                              <span className="px-2 py-0.5 rounded text-2xs font-black uppercase border border-slate-300 dark:border-night-line-strong text-slate-500 dark:text-night-ink-2">
                                 Non Applicable
                               </span>
                             </div>
-                            <p className="text-[11px] text-amber-700/90 mt-1 font-medium italic">
+                            <p className="text-xs text-amber-700/90 mt-1 font-medium italic">
                               {disableReason}
                             </p>
                           </div>
@@ -2629,12 +2621,12 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                             setSelectedTypeIdsForBl(prev => [...prev, typeConfig.id]);
                           }
                         }}
-                        className={`flex items-start gap-3.5 p-3.5 rounded-xl border transition-all select-none ${
+                        className={`flex items-start gap-3.5 p-3.5 rounded-md border transition-all select-none ${
                           isChecked
-                            ? 'bg-blue-50/60 border-[#005daa] shadow-xs cursor-pointer'
+                            ? 'bg-blue-50 dark:bg-night-accent-soft/60 border-[#005daa] shadow-1 cursor-pointer'
                             : isUncalculatedDmdt
-                            ? 'bg-slate-50/80 border-slate-200 hover:border-slate-300 cursor-pointer'
-                            : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50 cursor-pointer'
+                            ? 'bg-slate-50/80 border-slate-200 dark:border-night-line hover:border-slate-300 cursor-pointer'
+                            : 'bg-surface-canvas dark:bg-night-surface border-slate-200 dark:border-night-line hover:border-blue-300 hover:bg-[#f4f4f5] cursor-pointer'
                         }`}
                       >
                         <input
@@ -2647,16 +2639,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 text-xs font-heading">
+                              <span className="font-bold text-slate-900 dark:text-night-ink text-sm font-heading">
                                 {dynamicTypeName}
                               </span>
                               {isSurestarieOrDetentionType && !isAlreadyPaid && (
-                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-0.5 ${
+                                <span className={`px-1.5 py-0.5 rounded text-2xs font-black uppercase flex items-center gap-0.5 ${
                                   isCalcValidated
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                    ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 border border-emerald-300'
                                     : 'bg-rose-50 text-rose-700 border border-rose-300'
                                 }`}>
-                                  <span className="material-symbols-outlined text-[9px]">{isCalcValidated ? 'task_alt' : 'lock'}</span>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-2xs">{isCalcValidated ? 'task_alt' : 'lock'}</span>
                                   <span>{isCalcValidated ? 'Prêt' : 'Calcul requis'}</span>
                                 </span>
                               )}
@@ -2670,44 +2662,44 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                   e.stopPropagation();
                                   setCalculationModalData({ bl: blForInvoiceSelection, typeConfig });
                                 }}
-                                className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer ${
+                                className={`px-2.5 py-1 text-2xs font-black rounded-lg transition-all shadow-1 flex items-center gap-1 active:scale-95 cursor-pointer ${
                                   isCalcValidated
                                     ? 'bg-emerald-100 border border-emerald-300 text-emerald-800 hover:bg-emerald-200'
-                                    : 'bg-[#00182f] text-white hover:bg-blue-600'
+                                    : 'bg-[#00182f] text-white dark:text-night-ink hover:bg-blue-600 dark:bg-night-accent'
                                 }`}
                               >
-                                <span className="material-symbols-outlined text-[12px]">{isCalcValidated ? 'edit' : 'calculate'}</span>
+                                <span aria-hidden="true" className="material-symbols-outlined text-sm">{isCalcValidated ? 'edit' : 'calculate'}</span>
                                 <span>{isCalcValidated ? 'Modifier' : 'Calculer'}</span>
                               </button>
                             )}
 
                             {estimatedHt > 0 && !isSurestarieOrDetentionType && (
-                              <span className="text-xs font-mono font-black text-[#005daa]">
+                              <span className="text-sm font-mono font-black text-[#005daa]">
                                 ~{estimatedHt.toLocaleString('fr-FR')} FCFA
                               </span>
                             )}
                             {isSurestarieOrDetentionType && isCalcValidated && !isAlreadyPaid && (
-                              <span className="text-xs font-mono font-black text-emerald-600">
+                              <span className="text-sm font-mono font-black text-emerald-600 dark:text-night-positive">
                                 {validatedCalculations[calcKey].total.toLocaleString('fr-FR')} FCFA
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-500 dark:text-night-ink-2 mt-0.5">
                             {typeConfig.description || 'Frais et rubriques applicables'}
                           </p>
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {isSurestarieOrDetentionType ? (
-                              <span className="text-[10px] text-slate-400 italic">
+                              <span className="text-2xs text-slate-400 dark:text-night-ink-3 italic">
                                 Grille tarifaire dynamique des conteneurs
                               </span>
                             ) : matchingRubriques.length > 0 ? (
                               matchingRubriques.map(r => (
-                                <span key={r.id} className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-mono text-slate-700 font-semibold">
+                                <span key={r.id} className="px-2 py-0.5 rounded bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line text-2xs font-mono text-slate-700 dark:text-night-ink font-semibold">
                                   {r.name} ({r.montantUnitaire.toLocaleString('fr-FR')} FCFA/{r.baseCalcul})
                                 </span>
                               ))
                             ) : (
-                              <span className="text-[10px] text-slate-400 italic">
+                              <span className="text-2xs text-slate-400 dark:text-night-ink-3 italic">
                                 Frais standard par défaut pour {blCat}
                               </span>
                             )}
@@ -2791,50 +2783,50 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 const totalTtc = totalEstimatedHt + totalTva;
 
                 return totalEstimatedHt > 0 ? (
-                  <div className="bg-[#F0F7FF] border border-[#005DAA]/30 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                  <div className="bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/30 rounded-md p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-1">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[#005DAA] text-xl">calculate</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link text-xl">calculate</span>
                       <div>
-                        <span className="text-xs font-bold text-zinc-950">Estimation Financière Prévisionnelle</span>
-                        <p className="text-[10px] text-zinc-500">Montant total pour les {selectedTypeIdsForBl.length} facture(s) sélectionnée(s)</p>
+                        <span className="text-sm font-bold text-zinc-950">Estimation Financière Prévisionnelle</span>
+                        <p className="text-2xs text-text-muted dark:text-night-ink-2">Montant total pour les {selectedTypeIdsForBl.length} facture(s) sélectionnée(s)</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs font-mono">
+                    <div className="flex items-center gap-4 text-sm font-mono">
                       <div>
-                        <span className="text-[10px] text-zinc-500 block">Total HT :</span>
+                        <span className="text-2xs text-text-muted dark:text-night-ink-2 block">Total HT :</span>
                         <span className="font-bold text-zinc-950">{totalEstimatedHt.toLocaleString('fr-FR')} FCFA</span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-zinc-500 block">TVA (18%) :</span>
+                        <span className="text-2xs text-text-muted dark:text-night-ink-2 block">TVA (18%) :</span>
                         <span className="font-bold text-zinc-950">{totalTva.toLocaleString('fr-FR')} FCFA</span>
                       </div>
-                      <div className="pl-3 border-l border-[#005DAA]/20">
-                        <span className="text-[10px] text-[#005DAA] font-black block">TOTAL TTC :</span>
-                        <span className="font-black text-sm text-[#005DAA]">{totalTtc.toLocaleString('fr-FR')} FCFA</span>
+                      <div className="pl-3 border-l border-[#005DAA] dark:border-night-line/20">
+                        <span className="text-2xs text-[#005DAA] dark:text-night-link font-black block">TOTAL TTC :</span>
+                        <span className="font-black text-base text-[#005DAA] dark:text-night-link">{totalTtc.toLocaleString('fr-FR')} FCFA</span>
                       </div>
                     </div>
                   </div>
                 ) : null;
               })()}
 
-              <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
-                <span className="text-xs font-bold text-zinc-600">
+              <div className="flex items-center justify-between pt-3 border-t border-border-default">
+                <span className="text-sm font-bold text-text-secondary dark:text-night-ink">
                   {selectedTypeIdsForBl.length} type(s) de facture sélectionné(s)
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setBlForInvoiceSelection(null)}
-                    className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-zinc-200"
+                    className="px-4 py-2.5 bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer border border-border-default dark:border-night-line"
                   >
                     Annuler
                   </button>
                   <button
                     type="button"
                     onClick={handleConfirmInvoiceSelection}
-                    className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm rounded-md shadow-sm dark:shadow-black/30 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-base">check</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
                     <span>Valider la Sélection</span>
                   </button>
                 </div>
@@ -2847,41 +2839,41 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Modal: Ajouter un Connaissement (BL) Manuel */}
       {showAddBlModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+        <div role="dialog" aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-xs animate-fade-in"
           onClick={overlayClickClose(() => setShowAddBlModal(false))}
         >
-          <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto bocs-scrollbar">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto bocs-scrollbar">
             
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+            <div className="flex items-center justify-between border-b border-border-default pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/20 flex items-center justify-center font-bold">
-                  <span className="material-symbols-outlined text-2xl">post_add</span>
+                <div className="w-10 h-10 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center font-bold">
+                  <span aria-hidden="true" className="material-symbols-outlined text-2xl">post_add</span>
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-[#005DAA] font-display">
+                  <h3 className="font-black text-lg text-[#005DAA] dark:text-night-link font-display">
                     Nouveau Connaissement (BL) Manuel
                   </h3>
-                  <p className="text-xs text-zinc-500 font-medium">
+                  <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium">
                     Saisissez les informations de la lettre de voiture maritime à ajouter à l'import.
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowAddBlModal(false)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+              <button aria-label="Fermer" onClick={() => setShowAddBlModal(false)} className="text-text-muted dark:text-night-ink-3 hover:text-text-secondary cursor-pointer">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleCreateBlSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateBlSubmit} className="space-y-4 text-sm">
               
               {/* Escale & Numéro BL */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Escale du Navire *</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Escale du Navire *</label>
                   <select
                     value={manualEscaleId}
                     onChange={e => setManualEscaleId(e.target.value ? parseInt(e.target.value, 10) : '')}
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   >
                     {escales.map(esc => (
                       <option key={esc.id} value={esc.id}>
@@ -2892,14 +2884,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Numéro BL *</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Numéro BL *</label>
                   <input
                     type="text"
                     required
                     value={manualNumeroBl}
                     onChange={e => setManualNumeroBl(e.target.value)}
                     placeholder="ex: 00LU4055069990"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-black text-[#005DAA] uppercase focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-mono font-black text-[#005DAA] dark:text-night-link uppercase focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
               </div>
@@ -2907,24 +2899,24 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               {/* Expéditeur & Destinataire */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Expéditeur (Shipper)</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Expéditeur (Shipper)</label>
                   <input
                     type="text"
                     value={manualShipperNom}
                     onChange={e => setManualShipperNom(e.target.value)}
                     placeholder="ex: LA COMPAGNIE DES CAOUTCHOUCS..."
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-medium text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Destinataire (Consignee)</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Destinataire (Consignee)</label>
                   <input
                     type="text"
                     value={manualConsigneeNom}
                     onChange={e => setManualConsigneeNom(e.target.value)}
                     placeholder="ex: TO ORDER / DESTINATAIRE SA"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-medium text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
               </div>
@@ -2932,22 +2924,22 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               {/* Description & Type emballage */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Description Marchandises</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Description Marchandises</label>
                   <input
                     type="text"
                     value={manualDescriptionGoods}
                     onChange={e => setManualDescriptionGoods(e.target.value)}
                     placeholder="ex: RUBBER IN BALES / CAOUTCHOUC"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-medium text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Type d'Emballage</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Type d'Emballage</label>
                   <select
                     value={manualTypeEmballage}
                     onChange={e => setManualTypeEmballage(e.target.value)}
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   >
                     <option value="COLIS">COLIS / CARTONS / SACS</option>
                     <option value="CONTENEUR">CONTENEUR</option>
@@ -2960,83 +2952,83 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               {/* Poids, Colis, Volume */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Poids Brut (Kg)</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Poids Brut (Kg)</label>
                   <input
                     type="number"
                     value={manualPoidsBrutKg}
                     onChange={e => setManualPoidsBrutKg(e.target.value ? parseFloat(e.target.value) : '')}
                     placeholder="25000"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-mono font-bold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Nbr de Colis</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Nbr de Colis</label>
                   <input
                     type="number"
                     value={manualNombreColis}
                     onChange={e => setManualNombreColis(e.target.value ? parseInt(e.target.value, 10) : '')}
                     placeholder="500"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-mono font-bold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-zinc-700 uppercase text-[11px] mb-1">Volume (m³)</label>
+                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Volume (m³)</label>
                   <input
                     type="number"
                     value={manualVolumeM3}
                     onChange={e => setManualVolumeM3(e.target.value ? parseFloat(e.target.value) : '')}
                     placeholder="0"
-                    className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-mono font-bold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                   />
                 </div>
               </div>
 
               {/* Conteneurs associés */}
-              <div className="p-3.5 bg-[#F0F7FF] border border-[#005DAA]/20 rounded-xl space-y-2">
-                <div className="text-[11px] font-black uppercase text-zinc-950 tracking-wider flex items-center gap-1.5 font-display">
-                  <span className="material-symbols-outlined text-sm text-[#005DAA]">inventory_2</span>
+              <div className="p-3.5 bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/20 rounded-md space-y-2">
+                <div className="text-xs font-black uppercase text-zinc-950 tracking-wider flex items-center gap-1.5 font-display">
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-link">inventory_2</span>
                   <span>Génération Automatique de Conteneurs Rattachés :</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-zinc-600 mb-1">Conteneurs 20' (20' DRY Standard)</label>
+                    <label className="block text-xs font-bold text-text-secondary dark:text-night-ink mb-1">Conteneurs 20' (20' DRY Standard)</label>
                     <input
                       type="number"
                       min="0"
                       value={manualCount20}
                       onChange={e => setManualCount20(parseInt(e.target.value, 10) || 0)}
-                      className="w-full h-10 px-3 bg-white border border-[#005DAA]/30 rounded-xl text-xs font-mono font-bold text-[#005DAA] focus:outline-none focus:border-[#005DAA]"
+                      className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-[#005DAA] dark:border-night-line/30 rounded-md text-sm font-mono font-bold text-[#005DAA] dark:text-night-link focus:outline-none focus:border-[#005DAA] "
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-zinc-600 mb-1">Conteneurs 40' (40' DRY / High Cube)</label>
+                    <label className="block text-xs font-bold text-text-secondary dark:text-night-ink mb-1">Conteneurs 40' (40' DRY / High Cube)</label>
                     <input
                       type="number"
                       min="0"
                       value={manualCount40}
                       onChange={e => setManualCount40(parseInt(e.target.value, 10) || 0)}
-                      className="w-full h-10 px-3 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-[#005DAA]"
+                      className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-mono font-bold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-default">
                 <button
                   type="button"
                   onClick={() => setShowAddBlModal(false)}
-                  className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-zinc-200"
+                  className="px-4 py-2.5 bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer border border-border-default dark:border-night-line"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm rounded-md shadow-sm dark:shadow-black/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <span className="material-symbols-outlined text-base">check</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
                   <span>Créer le BL Manuel</span>
                 </button>
               </div>
@@ -3049,32 +3041,32 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
       {/* Calculateur Modal */}
       {calculationModalData && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        <div role="dialog" aria-modal="true"
+          className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-sm flex items-center justify-center p-4"
           onClick={overlayClickClose(() => setCalculationModalData(null))}
         >
-          <div className="bg-white border border-zinc-200 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
+          <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
             
             {/* Header */}
-            <div className="p-4 bg-white border-b border-zinc-200 flex items-center justify-between">
+            <div className="p-4 bg-surface-canvas dark:bg-night-surface border-b border-border-default dark:border-night-line flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/20 flex items-center justify-center font-bold">
-                  <span className="material-symbols-outlined text-xl">calculate</span>
+                <div className="w-9 h-9 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center font-bold">
+                  <span aria-hidden="true" className="material-symbols-outlined text-xl">calculate</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-zinc-950 text-sm font-display uppercase tracking-wider">
+                  <h3 className="font-bold text-zinc-950 text-base font-display uppercase tracking-wider">
                     Calculateur de {calculationModalData.typeConfig.name}
                   </h3>
-                  <p className="text-[11px] text-zinc-500 font-semibold font-mono">
-                    BL : <span className="text-[#005DAA] font-bold">{calculationModalData.bl.numeroBL}</span> • {calculationModalData.bl.consigneeNom}
+                  <p className="text-xs text-text-muted dark:text-night-ink-2 font-semibold font-mono">
+                    BL : <span className="text-[#005DAA] dark:text-night-link font-bold">{calculationModalData.bl.numeroBL}</span> • {calculationModalData.bl.consigneeNom}
                   </p>
                 </div>
               </div>
-              <button 
+              <button aria-label="Fermer" 
                 onClick={() => setCalculationModalData(null)}
-                className="text-zinc-400 hover:text-zinc-700 cursor-pointer"
+                className="text-text-muted dark:text-night-ink-3 hover:text-text-secondary cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
 
@@ -3082,22 +3074,22 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             <div className="p-5 flex-1 overflow-y-auto space-y-4">
               
               {!calculationModalData.bl.conteneurs || calculationModalData.bl.conteneurs.length === 0 ? (
-                <div className="p-8 text-center bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-semibold text-xs flex flex-col items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-3xl">warning</span>
+                <div className="p-8 text-center bg-rose-50 border border-rose-200 rounded-md text-rose-800 font-semibold text-sm flex flex-col items-center justify-center gap-2">
+                  <span aria-hidden="true" className="material-symbols-outlined text-3xl">warning</span>
                   <span>Ce BL ne contient aucun conteneur. Les surestaries et détentions ne s'appliquent qu'aux conteneurs.</span>
-                  <p className="text-[10px] text-rose-700 font-medium">Veuillez d'abord déclarer des conteneurs pour ce BL.</p>
+                  <p className="text-2xs text-rose-700 font-medium">Veuillez d'abord déclarer des conteneurs pour ce BL.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   
-                  <div className="px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 font-medium">
+                  <div className="px-4 py-2.5 bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line rounded-md text-xs text-blue-900 font-medium">
                     Formule de calcul : <strong>[(Date livraison - Date accostage) - Franchise] x Tarif de la tranche correspondante</strong>. Les franchises restent toujours actives et modifiables.
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-150 rounded-xl">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-100 text-slate-700">
-                        <tr className="font-bold border-b border-slate-200 uppercase text-[10px]">
+                  <div className="overflow-x-auto border border-slate-150 rounded-md">
+                    <table className="w-full text-left text-sm border-collapse">
+                      <thead className="bg-[#f4f4f5] dark:bg-night-sunken text-slate-700 dark:text-night-ink">
+                        <tr className="font-bold border-b border-slate-200 dark:border-night-line uppercase text-2xs">
                           <th className="p-3">Conteneur</th>
                           <th className="p-3">Type</th>
                           <th className="p-3">Date Accostage</th>
@@ -3108,7 +3100,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                           <th className="p-3 text-right">Montant HT</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-150 bg-white">
+                      <tbody className="divide-y divide-slate-150 bg-surface-canvas dark:bg-night-surface">
                         {modalRows.map((row, idx) => {
                           const dateAcc = new Date(row.dateAccostage);
                           const dateLiv = new Date(row.dateLivraison);
@@ -3120,11 +3112,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                           return (
                             <React.Fragment key={row.containerId || idx}>
-                            <tr className="hover:bg-slate-50/50">
-                              <td className="p-3 font-semibold text-slate-800 font-mono">
+                            <tr className="hover:bg-slate-50 dark:hover:bg-night-raised/50">
+                              <td className="p-3 font-semibold text-slate-800 dark:text-night-ink font-mono">
                                 {row.numeroConteneur}
                               </td>
-                              <td className="p-3 text-slate-500 font-mono font-bold">
+                              <td className="p-3 text-slate-500 dark:text-night-ink-2 font-mono font-bold">
                                 {row.typeConteneur}
                               </td>
                               <td className="p-2">
@@ -3136,7 +3128,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                     updated[idx].dateAccostage = e.target.value;
                                     setModalRows(updated);
                                   }}
-                                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#005daa] w-36 font-semibold"
+                                  className="h-8 px-2 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-lg text-sm outline-none focus:border-[#005daa] w-36 font-semibold"
                                 />
                               </td>
                               <td className="p-2">
@@ -3148,7 +3140,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                     updated[idx].dateLivraison = e.target.value;
                                     setModalRows(updated);
                                   }}
-                                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#005daa] w-36 font-semibold"
+                                  className="h-8 px-2 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-lg text-sm outline-none focus:border-[#005daa] w-36 font-semibold"
                                 />
                               </td>
                               <td className="p-2">
@@ -3161,16 +3153,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                     updated[idx].franchise = parseInt(e.target.value, 10) || 0;
                                     setModalRows(updated);
                                   }}
-                                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#005daa] w-20 font-mono font-bold text-center"
+                                  className="h-8 px-2 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-lg text-sm outline-none focus:border-[#005daa] w-20 font-mono font-bold text-center"
                                 />
                               </td>
-                              <td className="p-3 text-center font-mono font-semibold text-slate-700">
+                              <td className="p-3 text-center font-mono font-semibold text-slate-700 dark:text-night-ink">
                                 {stayDays} j
                               </td>
                               <td className="p-3 text-center font-mono font-bold text-rose-600">
                                 {billableDays} j
                               </td>
-                              <td className="p-3 text-right font-mono font-extrabold text-[#005daa] text-sm">
+                              <td className="p-3 text-right font-mono font-extrabold text-[#005daa] text-base">
                                 {montant.toLocaleString('fr-FR')} F
                               </td>
                             </tr>
@@ -3178,10 +3170,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                               <tr className="bg-slate-50/30">
                                 <td colSpan={8} className="p-2 border-b border-slate-150">
                                   <div className="flex flex-wrap gap-2 justify-end px-4">
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center mr-2">Détail Tranches :</span>
+                                    <span className="text-2xs font-bold text-slate-500 dark:text-night-ink-2 uppercase tracking-wider flex items-center mr-2">Détail Tranches :</span>
                                     {calcResult.breakdown.map((b, bIdx) => (
-                                      <span key={bIdx} className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-mono text-slate-600 shadow-2xs">
-                                        <strong className="text-slate-800 font-sans">{b.label}</strong> : {b.days} j x {b.rate.toLocaleString('fr-FR')} = <strong className="text-emerald-700">{b.amount.toLocaleString('fr-FR')} F</strong>
+                                      <span key={bIdx} className="px-2 py-1 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded text-2xs font-mono text-slate-600 dark:text-night-ink shadow-1">
+                                        <strong className="text-slate-800 dark:text-night-ink font-sans">{b.label}</strong> : {b.days} j x {b.rate.toLocaleString('fr-FR')} = <strong className="text-emerald-700">{b.amount.toLocaleString('fr-FR')} F</strong>
                                       </span>
                                     ))}
                                   </div>
@@ -3197,9 +3189,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                   {/* Summary Totals */}
                   <div className="flex justify-end pt-2">
-                    <div className="px-5 py-3 bg-zinc-950 text-white rounded-xl shadow-xs text-right space-y-1 border border-zinc-800">
-                      <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block font-mono">Total Calculé HT</span>
-                      <strong className="text-lg font-black font-mono text-[#005DAA]">
+                    <div className="px-5 py-3 bg-zinc-950 text-white dark:text-night-ink rounded-md shadow-1 text-right space-y-1 border border-zinc-800">
+                      <span className="text-2xs text-text-muted dark:text-night-ink-3 font-bold uppercase tracking-wider block font-mono">Total Calculé HT</span>
+                      <strong className="text-xl font-black font-mono text-[#005DAA] dark:text-night-link">
                         {modalRows.reduce((sum, row) => {
                           const dateAcc = new Date(row.dateAccostage);
                           const dateLiv = new Date(row.dateLivraison);
@@ -3218,11 +3210,11 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex items-center justify-end gap-3">
+            <div className="p-4 bg-surface-base dark:bg-night-sunken border-t border-border-default dark:border-night-line flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setCalculationModalData(null)}
-                className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-zinc-200"
+                className="px-4 py-2.5 bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer border border-border-default dark:border-night-line"
               >
                 Annuler
               </button>
@@ -3263,9 +3255,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     
                     setCalculationModalData(null);
                   }}
-                  className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm rounded-md shadow-sm dark:shadow-black/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <span className="material-symbols-outlined text-base">check</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
                   <span>Valider les calculs</span>
                 </button>
               )}
@@ -3314,51 +3306,51 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           toastSuccess(`BL ${editBlForm.numeroBL} mis à jour avec succès.`);
         };
 
-        const inputCls = "w-full h-10 px-3 text-sm font-bold text-zinc-900 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#005DAA]/30 focus:border-[#005DAA] transition-all";
-        const labelCls = "block text-[11px] font-black text-zinc-600 uppercase tracking-wider mb-1";
+        const inputCls = "w-full h-10 px-3 text-base font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md focus:outline-none focus:ring-2 focus:ring-[#005DAA]/30 focus:border-[#005DAA] transition-all";
+        const labelCls = "block text-xs font-black text-text-secondary dark:text-night-ink uppercase tracking-wider mb-1";
         const tabCls = (tab: string) =>
-          `px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+          `px-4 py-2 rounded-md text-sm font-black transition-all cursor-pointer border ${
             editBlTab === tab
-              ? 'bg-[#005DAA] text-white border-[#005DAA] shadow-sm'
-              : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900'
+              ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white border-[#005DAA] dark:border-night-line shadow-sm dark:shadow-black/30'
+              : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink border-border-default dark:border-night-line hover:bg-surface-base hover:text-text-primary '
           }`;
 
         return (
-          <div
+          <div role="dialog" aria-modal="true"
             className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm"
             style={{ zIndex: 99999 }}
             onClick={overlayClickClose(() => { setEditingBl(null); setEditBlForm(null); })}
           >
             <div
-              className="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden"
+              className="bg-surface-canvas dark:bg-night-surface rounded-lg w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="px-7 py-5 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
+              <div className="px-7 py-5 border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#005DAA]/10 border border-[#005DAA]/25 flex items-center justify-center text-[#005DAA]">
-                    <span className="material-symbols-outlined text-2xl">edit_document</span>
+                  <div className="w-12 h-12 rounded-md bg-[#005DAA] dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-link">
+                    <span aria-hidden="true" className="material-symbols-outlined text-2xl">edit_document</span>
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-zinc-950 font-mono tracking-tight">
-                      Correction BL : <span className="text-[#005DAA]">{editBlForm.numeroBL}</span>
+                      Correction BL : <span className="text-[#005DAA] dark:text-night-link">{editBlForm.numeroBL}</span>
                     </h3>
-                    <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                    <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium mt-0.5">
                       {editBlForm.consigneeNom} — {editBlForm.conteneurs?.length > 0 ? `${editBlForm.conteneurs.length} conteneur(s)` : editBlForm.typeEmballage || 'Conventionnel'}
                     </p>
                   </div>
                 </div>
-                <button
+                <button aria-label="Fermer"
                   type="button"
                   onClick={() => { setEditingBl(null); setEditBlForm(null); }}
-                  className="w-10 h-10 rounded-2xl hover:bg-zinc-200 text-zinc-400 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-10 h-10 rounded-md hover:bg-zinc-200 text-text-muted dark:text-night-ink-3 hover:text-text-primary flex items-center justify-center transition-colors cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-xl">close</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-xl">close</span>
                 </button>
               </div>
 
               {/* Tabs */}
-              <div className="flex items-center gap-2 px-7 pt-4 pb-3 border-b border-zinc-100 bg-white overflow-x-auto shrink-0">
+              <div className="flex items-center gap-2 px-7 pt-4 pb-3 border-b border-border-default bg-surface-canvas dark:bg-night-surface overflow-x-auto shrink-0">
                 {(['general', 'parties', 'cargo', 'containers'] as const).map(tab => (
                   <button key={tab} type="button" onClick={() => setEditBlTab(tab)} className={tabCls(tab)}>
                     {tab === 'general' && '📄 Général'}
@@ -3444,7 +3436,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     <div className="sm:col-span-2 lg:col-span-3">
                       <label className={labelCls}>Description des Marchandises</label>
                       <textarea
-                        className="w-full px-3 py-2.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#005DAA]/30 focus:border-[#005DAA] transition-all resize-none"
+                        className="w-full px-3 py-2.5 text-base font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md focus:outline-none focus:ring-2 focus:ring-[#005DAA]/30 focus:border-[#005DAA] transition-all resize-none"
                         rows={3}
                         value={editBlForm.descriptionGoods || ''}
                         onChange={e => setF({ descriptionGoods: e.target.value })}
@@ -3473,7 +3465,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 {editBlTab === 'containers' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-black text-zinc-700">{editBlForm.conteneurs?.length || 0} conteneur(s) rattaché(s)</p>
+                      <p className="text-base font-black text-text-secondary dark:text-night-ink">{editBlForm.conteneurs?.length || 0} conteneur(s) rattaché(s)</p>
                       <button
                         type="button"
                         onClick={() => {
@@ -3493,34 +3485,47 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                           };
                           setF({ conteneurs: [...(editBlForm.conteneurs || []), newCtr] });
                         }}
-                        className="px-4 py-2 bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-black rounded-xl flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+                        className="px-4 py-2 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white text-sm font-black rounded-md flex items-center gap-2 cursor-pointer transition-all shadow-sm dark:shadow-black/30"
                       >
-                        <span className="material-symbols-outlined text-sm">add</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>
                         Ajouter un conteneur
                       </button>
                     </div>
                     {(editBlForm.conteneurs || []).length === 0 ? (
-                      <div className="text-center py-10 text-zinc-400 text-sm font-medium border-2 border-dashed border-zinc-200 rounded-2xl">
+                      <div className="text-center py-10 text-text-muted dark:text-night-ink-3 text-base font-medium border-2 border-dashed border-border-default dark:border-night-line rounded-md">
                         Aucun conteneur. Cliquez « Ajouter un conteneur » pour commencer.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {(editBlForm.conteneurs || []).map((ctr, idx) => (
-                          <div key={ctr.id || idx} className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-200 relative">
-                            <button
+                          <div key={ctr.id || idx} className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-surface-base dark:bg-night-sunken rounded-md border border-border-default dark:border-night-line relative">
+                            <button aria-label="Supprimer"
                               type="button"
                               onClick={() => setF({ conteneurs: editBlForm.conteneurs.filter((_, i) => i !== idx) })}
-                              className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-white hover:bg-rose-50 border border-zinc-200 hover:border-rose-300 text-zinc-400 hover:text-rose-600 flex items-center justify-center cursor-pointer transition-all"
+                              className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-surface-canvas dark:bg-night-surface hover:bg-rose-50 border border-border-default dark:border-night-line hover:border-rose-300 text-text-muted dark:text-night-ink-3 hover:text-rose-600 flex items-center justify-center cursor-pointer transition-all"
                             >
-                              <span className="material-symbols-outlined text-sm">delete</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
                             </button>
                             <div>
                               <label className={labelCls}>N° Conteneur</label>
-                              <input className={inputCls} value={ctr.numeroConteneur} onChange={e => {
-                                const ctrs = [...editBlForm.conteneurs];
-                                ctrs[idx] = { ...ctrs[idx], numeroConteneur: e.target.value.toUpperCase() };
-                                setF({ conteneurs: ctrs });
-                              }} />
+                              <input
+                                className={inputCls}
+                                value={ctr.numeroConteneur}
+                                onChange={e => {
+                                  const ctrs = [...editBlForm.conteneurs];
+                                  ctrs[idx] = { ...ctrs[idx], numeroConteneur: e.target.value.toUpperCase() };
+                                  setF({ conteneurs: ctrs });
+                                }}
+                                onBlur={e => {
+                                  const val = e.target.value.trim();
+                                  if (val) {
+                                    const res = validateContainerNumber(val);
+                                    if (!res.isValid) {
+                                      toastError(res.error || 'Numéro de conteneur non conforme à la norme ISO 6346.');
+                                    }
+                                  }
+                                }}
+                              />
                             </div>
                             <div>
                               <label className={labelCls}>Type</label>
@@ -3558,20 +3563,20 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </div>
 
               {/* Footer */}
-              <div className="px-7 py-4 border-t border-zinc-100 bg-zinc-50/80 flex items-center justify-between shrink-0">
+              <div className="px-7 py-4 border-t border-border-default bg-surface-base dark:bg-night-sunken/80 flex items-center justify-between shrink-0">
                 <button
                   type="button"
                   onClick={() => { setEditingBl(null); setEditBlForm(null); }}
-                  className="px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-bold text-zinc-700 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-md border border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-surface hover:bg-surface-base text-sm font-bold text-text-secondary dark:text-night-ink transition-all cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveBl}
-                  className="px-7 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
+                  className="px-7 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white rounded-md text-sm font-black flex items-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
                 >
-                  <span className="material-symbols-outlined text-base">check</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
                   Enregistrer les modifications
                 </button>
               </div>

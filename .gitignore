@@ -38,3 +38,12 @@ ehthumbs.db
 .vercel
 .env*
 pgdata/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+/src/generated/prisma

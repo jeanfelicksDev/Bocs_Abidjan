@@ -1,30 +1,39 @@
-import { sql } from './_db.js';
+import { prisma } from './_db.js';
+
+// Helper pour gérer le BigInt
+const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+));
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
-      const escales = await sql`
-        SELECT DISTINCT ON (nom_navire, numero_voyage)
-          id, 
-          nom_navire as "nomNavire", 
-          callsign, 
-          numero_voyage as "numeroVoyage", 
-          port_chargement as "portChargement", 
-          port_dechargement as "portDechargement", 
-          date_arrivee as "dateArrivee", 
-          date_accostage as "dateAccostage",
-          date_depart as "dateDepart", 
-          quai,
-          statut, 
-          created_by as "createdBy"
-        FROM escales 
-        ORDER BY nom_navire, numero_voyage, id DESC;
-      `;
+      const escales = await prisma.escales.findMany({
+        where: { deleted_at: null },
+        orderBy: [
+          { nom_navire: 'asc' },
+          { numero_voyage: 'asc' },
+          { id: 'desc' }
+        ]
+      });
+      
       const mappedEscales = escales.map((e: any) => ({
         ...e,
-        id: Number(e.id)
+        id: Number(e.id),
+        nomNavire: e.nom_navire,
+        numeroVoyage: e.numero_voyage,
+        portChargement: e.port_chargement,
+        portDechargement: e.port_dechargement,
+        dateArrivee: e.date_arrivee,
+        dateAccostage: e.date_accostage,
+        dateDepart: e.date_depart,
+        quai: e.quai,
+        createdBy: e.created_by,
+        vesselId: e.vessel_id ? Number(e.vessel_id) : undefined,
+        statusGeofencing: e.status_geofencing,
+        deletedAt: e.deleted_at?.toISOString()
       }));
-      return res.status(200).json({ success: true, escales: mappedEscales });
+      return res.status(200).json({ success: true, escales: serialize(mappedEscales) });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
     }
@@ -35,25 +44,57 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ success: false, error: "Missing escale data." });
       }
 
-      await sql`
-        DELETE FROM escales 
-        WHERE id = ${escale.id} 
-           OR (nom_navire = ${escale.nomNavire} AND numero_voyage = ${escale.numeroVoyage});
-      `;
+      const data = {
+        nom_navire: escale.nomNavire,
+        callsign: escale.callsign,
+        numero_voyage: escale.numeroVoyage,
+        port_chargement: escale.portChargement,
+        port_dechargement: escale.portDechargement,
+        date_arrivee: escale.dateArrivee,
+        date_accostage: escale.dateAccostage || null,
+        date_depart: escale.dateDepart || null,
+        quai: escale.quai || null,
+        statut: escale.statut,
+        created_by: escale.createdBy || null
+      };
 
-      await sql`
-        INSERT INTO escales (
-          id, nom_navire, callsign, numero_voyage, port_chargement, port_dechargement,
-          date_arrivee, date_accostage, date_depart, quai, statut, created_by
-        ) VALUES (
-          ${escale.id}, ${escale.nomNavire}, ${escale.callsign}, ${escale.numeroVoyage},
-          ${escale.portChargement}, ${escale.portDechargement}, ${escale.dateArrivee},
-          ${escale.dateAccostage || null}, ${escale.dateDepart || null}, ${escale.quai || null}, 
-          ${escale.statut}, ${escale.createdBy || null}
-        );
-      `;
+      // A failed write must never erase an existing escale. For a re-import of
+      // the same vessel/voyage, retain its primary key and its linked BLs.
+      const saved = await prisma.$transaction(async (tx) => {
+        const existing = await tx.escales.findFirst({
+          where: {
+            OR: [
+              { id: escale.id },
+              { nom_navire: escale.nomNavire, numero_voyage: escale.numeroVoyage }
+            ]
+          },
+          select: { id: true }
+        });
 
-      return res.status(200).json({ success: true, message: "Escale saved successfully." });
+        if (existing) {
+          return tx.escales.update({ where: { id: existing.id }, data });
+        } else {
+          return tx.escales.create({ data: { id: escale.id, ...data } });
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Escale saved successfully.",
+        escale: serialize({
+          ...saved,
+          id: Number(saved.id),
+          nomNavire: saved.nom_navire,
+          numeroVoyage: saved.numero_voyage,
+          portChargement: saved.port_chargement,
+          portDechargement: saved.port_dechargement,
+          dateArrivee: saved.date_arrivee,
+          dateAccostage: saved.date_accostage,
+          dateDepart: saved.date_depart,
+          quai: saved.quai,
+          createdBy: saved.created_by
+        })
+      });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
     }
@@ -62,14 +103,14 @@ export default async function handler(req: any, res: any) {
       const rawId = req.query.id || req.body?.id;
       
       if (rawId === 'ALL') {
-        await sql`DELETE FROM payments;`;
-        await sql`DELETE FROM credit_note_items;`;
-        await sql`DELETE FROM credit_notes;`;
-        await sql`DELETE FROM invoice_items;`;
-        await sql`DELETE FROM invoices;`;
-        await sql`DELETE FROM containers;`;
-        await sql`DELETE FROM bls;`;
-        await sql`DELETE FROM escales;`;
+        await prisma.payments.deleteMany();
+        await prisma.credit_note_items.deleteMany();
+        await prisma.credit_notes.deleteMany();
+        await prisma.invoice_items.deleteMany();
+        await prisma.invoices.deleteMany();
+        await prisma.containers.deleteMany();
+        await prisma.bls.deleteMany();
+        await prisma.escales.deleteMany();
         return res.status(200).json({ success: true, message: "Toutes les escales et données associées ont été supprimées." });
       }
 
@@ -78,61 +119,64 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ success: false, error: "Missing or invalid escale ID." });
       }
 
-      // 1. Find all BLs for this escale
-      const blsResult = await sql`SELECT id, numero_bl FROM bls WHERE escale_id = ${escaleId};`;
-      const blIds = blsResult.map((b: any) => b.id);
-      const blNumbers = blsResult.map((b: any) => b.numero_bl).filter(Boolean);
+      const blsResult = await prisma.bls.findMany({
+        where: { escale_id: escaleId },
+        select: { id: true, numero_bl: true }
+      });
+      const blIds = blsResult.map(b => b.id);
+      const blNumbers = blsResult.map(b => b.numero_bl).filter(Boolean);
 
-      let invoiceIds: number[] = [];
-
+      let invoiceIds: bigint[] = [];
       if (blIds.length > 0 || blNumbers.length > 0) {
-        // 2. Find all invoices for these BLs
-        // We use two queries to avoid full table scan OR conditions if possible, or just a simple query
-        const invoicesResult = await sql`
-          SELECT id FROM invoices 
-          WHERE (bl_id = ANY(${blIds.length > 0 ? blIds : [0]}::bigint[]))
-             OR (numero_bl = ANY(${blNumbers.length > 0 ? blNumbers : ['']}::text[]))
-        `;
-        invoiceIds = invoicesResult.map((i: any) => i.id);
+        const invoicesResult = await prisma.invoices.findMany({
+          where: {
+            OR: [
+              { bl_id: { in: blIds } },
+              { numero_bl: { in: blNumbers } }
+            ]
+          },
+          select: { id: true }
+        });
+        invoiceIds = invoicesResult.map(i => i.id);
       }
 
-      let creditNoteIds: number[] = [];
+      let creditNoteIds: bigint[] = [];
+      if (invoiceIds.length > 0) {
+        const creditNotesResult = await prisma.credit_notes.findMany({
+          where: { facture_id: { in: invoiceIds } },
+          select: { id: true }
+        });
+        creditNoteIds = creditNotesResult.map(c => c.id);
+      }
+
+      // Deletions in order of dependencies
+      if (invoiceIds.length > 0) {
+        await prisma.payments.deleteMany({ where: { facture_id: { in: invoiceIds.map(id => Number(id)) } } });
+      }
+      
+      if (creditNoteIds.length > 0) {
+        await prisma.credit_note_items.deleteMany({ where: { credit_note_id: { in: creditNoteIds } } });
+        await prisma.credit_notes.deleteMany({ where: { id: { in: creditNoteIds } } });
+      }
 
       if (invoiceIds.length > 0) {
-        // 3. Find all credit notes for these invoices
-        const creditNotesResult = await sql`
-          SELECT id FROM credit_notes 
-          WHERE facture_id = ANY(${invoiceIds}::bigint[])
-        `;
-        creditNoteIds = creditNotesResult.map((cn: any) => cn.id);
-
-        // 4. Cascade Delete
-        if (creditNoteIds.length > 0) {
-          await sql`DELETE FROM credit_note_items WHERE credit_note_id = ANY(${creditNoteIds}::bigint[])`;
-        }
-        await sql`DELETE FROM credit_notes WHERE facture_id = ANY(${invoiceIds}::bigint[])`;
-        await sql`DELETE FROM payments WHERE facture_id = ANY(${invoiceIds}::bigint[])`;
-        await sql`DELETE FROM invoice_items WHERE invoice_id = ANY(${invoiceIds}::bigint[])`;
-        await sql`DELETE FROM invoices WHERE id = ANY(${invoiceIds}::bigint[])`;
+        await prisma.invoice_items.deleteMany({ where: { invoice_id: { in: invoiceIds } } });
+        await prisma.invoices.deleteMany({ where: { id: { in: invoiceIds } } });
       }
 
       if (blIds.length > 0) {
-        await sql`DELETE FROM containers WHERE bl_id = ANY(${blIds}::bigint[])`;
+        await prisma.containers.deleteMany({ where: { bl_id: { in: blIds } } });
+        await prisma.bls.deleteMany({ where: { id: { in: blIds } } });
       }
 
-      await sql`DELETE FROM bls WHERE escale_id = ${escaleId};`;
-      await sql`DELETE FROM escales WHERE id = ${escaleId};`;
+      await prisma.escales.deleteMany({ where: { id: escaleId } });
 
-      // Clean any potential orphan records
-      await sql`DELETE FROM containers WHERE bl_id NOT IN (SELECT id FROM bls);`;
-      await sql`DELETE FROM bls WHERE escale_id NOT IN (SELECT id FROM escales);`;
-
-      return res.status(200).json({ success: true, message: "Escale and associated data deleted successfully." });
+      return res.status(200).json({ success: true, message: `Escale ${escaleId} et ses dépendances supprimées.` });
     } catch (error: any) {
-      console.error("Erreur suppression escale:", error);
       return res.status(500).json({ success: false, error: error.message });
     }
   } else {
-    return res.status(405).json({ success: false, error: "Method not allowed." });
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   }
 }

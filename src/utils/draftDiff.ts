@@ -120,7 +120,10 @@ export function getDraftFieldColor(diff: DraftDiff | null, section: string, fiel
   return diff?.fields[`${section}.${field}`] || 'NORMAL';
 }
 
-/** Le diff est visible uniquement pendant la période de correction autorisée. */
+/** Le diff est visible uniquement pendant la période de correction autorisée (délai de 2h). */
 export function isDraftEnPeriodeCorrection(draft: DraftExport): boolean {
+  if (draft.verrouilleApresCorrection) return false;
+  if (draft.dateLimiteCorrection && new Date(draft.dateLimiteCorrection).getTime() < Date.now()) return false;
   return Boolean(draft.estDeverrouille) || draft.statut === 'CORRECTION_AUTORISEE';
 }
+

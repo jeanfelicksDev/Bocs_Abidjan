@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BocsLogo } from "../BocsLogo";
 import { User, UserRole } from '../../types';
 import { toastSuccess, toastError, toastWarning } from '../common/Toast';
 import { 
@@ -15,6 +16,7 @@ import {
   EyeOff,
   UserCheck
 } from 'lucide-react';
+import { ThemeSwitcher } from '../common/ThemeSwitcher';
 
 interface LoginScreenProps {
   allUsers: User[];
@@ -288,7 +290,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-50 relative overflow-hidden font-sans">
       
       {/* Subtle ambient background glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-blue-100/40 via-slate-50 to-slate-100/80 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-blue-100/40 via-slate-50 to-slate-100/80 dark:from-night-accent-soft/70 dark:via-night-canvas dark:to-night-canvas pointer-events-none"></div>
       
       {/* Geometric architectural pattern - very subtle */}
       <div 
@@ -302,16 +304,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       <div className="w-full max-w-[440px] relative z-10 my-auto">
         
         {/* Main Clean Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-200/60 p-7 sm:p-9 transition-all">
-          
+        <div className="bg-white dark:bg-night-surface rounded-2xl border border-slate-200/90 dark:border-night-line shadow-xl shadow-slate-200/60 dark:shadow-black/40 p-7 sm:p-9 transition-all relative">
+        
+          {/* Theme Toggle */}
+          <div className="absolute top-5 right-5 z-50">
+            <ThemeSwitcher />
+          </div>
+
           {/* Logo & Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center mb-3">
-              <svg className="h-9 w-auto" viewBox="0 0 350 90" xmlns="http://www.w3.org/2000/svg">
-                <text x="340" y="42" fontFamily="'Arial Black', Arial, sans-serif" fontWeight="900" fontSize="52" fontStyle="italic" fill="#00875A" textAnchor="end" letterSpacing="-2">BOCS</text>
-                <polygon points="0,48 350,48 315,88 290,88 316.25,58 0,58" fill="#002B49" />
-                <text x="282" y="81" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="19" fill="#002B49" textAnchor="end">ABIDJAN</text>
-              </svg>
+              <BocsLogo className="h-9 w-auto" />
             </div>
             
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -421,13 +424,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               {/* DEMO QUICK ACCESS CHIPS */}
               <div className="pt-5 border-t border-slate-100 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  <span className="text-2xs font-semibold text-slate-400 uppercase tracking-wider">
                     Comptes de test (1-clic)
                   </span>
-                  <span className="text-[10px] text-slate-400">Mode démo</span>
+                  <span className="text-2xs text-slate-400">Mode démo</span>
                 </div>
 
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                <div className="grid grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => handleQuickLogin('ADMIN')}
@@ -435,7 +438,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Se connecter en tant qu'Administrateur"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    <span className="text-[9px] font-bold">Admin</span>
+                    <span className="text-2xs font-bold">Admin</span>
                   </button>
 
                   <button
@@ -445,7 +448,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Se connecter en tant qu'Agent Import"
                   >
                     <FileText className="w-3.5 h-3.5 text-blue-600" />
-                    <span className="text-[9px] font-bold">Import</span>
+                    <span className="text-2xs font-bold">Import</span>
                   </button>
 
                   <button
@@ -455,7 +458,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Se connecter en tant qu'Agent Export"
                   >
                     <Anchor className="w-3.5 h-3.5 text-amber-600" />
-                    <span className="text-[9px] font-bold">Export</span>
+                    <span className="text-2xs font-bold">Export</span>
                   </button>
 
                   <button
@@ -465,7 +468,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Se connecter en tant que Comptabilité"
                   >
                     <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[9px] font-bold">Compta</span>
+                    <span className="text-2xs font-bold">Compta</span>
                   </button>
 
                   <button
@@ -475,7 +478,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Client Agro Export SA (Moussa TRAORE)"
                   >
                     <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                    <span className="text-[9px] font-extrabold truncate max-w-full">Agro</span>
+                    <span className="text-2xs font-extrabold truncate max-w-full">Agro</span>
                   </button>
 
                   <button
@@ -485,7 +488,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Client SIFCA Cacao SA (ZIAGOUE Jean-Félix)"
                   >
                     <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[9px] font-extrabold truncate max-w-full">SIFCA</span>
+                    <span className="text-2xs font-extrabold truncate max-w-full">SIFCA</span>
                   </button>
 
                   <button
@@ -495,7 +498,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     title="Client Tropica Trading CI (Fatoumata KONE)"
                   >
                     <UserCheck className="w-3.5 h-3.5 text-teal-600" />
-                    <span className="text-[9px] font-extrabold truncate max-w-full">Tropica</span>
+                    <span className="text-2xs font-extrabold truncate max-w-full">Tropica</span>
                   </button>
                 </div>
               </div>
@@ -674,14 +677,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       <button
                         type="button"
                         onClick={() => setForgotStep('request')}
-                        className="text-[11px] text-[#005DAA] hover:underline font-semibold"
+                        className="text-2xs text-[#005DAA] hover:underline font-semibold"
                       >
                         Changer
                       </button>
                     </div>
                     {demoResetCode && (
                       <div className="pt-1 flex items-center justify-between border-t border-blue-200">
-                        <span className="text-[11px] text-slate-600">Code de test :</span>
+                        <span className="text-2xs text-slate-600">Code de test :</span>
                         <button
                           type="button"
                           onClick={() => setResetCode(demoResetCode)}
@@ -778,7 +781,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               Plateforme Sécurisée
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">© {new Date().getFullYear()} BOCS Abidjan — Tous droits réservés</p>
+          <p className="text-2xs text-slate-400">© {new Date().getFullYear()} BOCS Abidjan — Tous droits réservés</p>
         </div>
 
       </div>

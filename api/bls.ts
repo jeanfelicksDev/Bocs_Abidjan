@@ -1,93 +1,91 @@
-import { sql } from './_db.js';
+import { prisma } from './_db.js';
+
+// Helper pour gérer le BigInt
+const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+));
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
-      const bls = await sql`
-        SELECT DISTINCT ON (numero_bl, escale_id)
-          id, 
-          escale_id as "escaleId", 
-          numero_bl as "numeroBL", 
-          type_operation as "typeOperation", 
-          shipper_nom as "shipperNom", 
-          shipper_adresse as "shipperAdresse", 
-          consignee_nom as "consigneeNom", 
-          consignee_adresse as "consigneeAdresse", 
-          notify_nom as "notifyNom", 
-          notify_adresse as "notifyAdresse", 
-          port_chargement_code as "portChargementCode", 
-          port_dechargement_code as "portDechargementCode", 
-          destination_finale as "destinationFinale", 
-          description_goods as "descriptionGoods", 
-          nombre_colis as "nombreColis", 
-          type_emballage as "typeEmballage", 
-          poids_brut_kg as "poidsBrutKg", 
-          volume_m3 as "volumeM3", 
-          statut_import as "statutImport", 
-          selected_invoice_type_ids as "selectedInvoiceTypeIds", 
-          client_id as "clientId", 
-          code_nature as "codeNature", 
-          unique_carrier_ref as "uniqueCarrierRef", 
-          marques_et_numeros as "marquesEtNumeros", 
-          cachet_agent_appose as "cachetAgentAppose", 
-          date_signature as "dateSignature", 
-          hash_signature as "hashSignature"
-        FROM bls 
-        ORDER BY numero_bl, escale_id, id DESC;
-      `;
+      const bls = await prisma.bls.findMany({
+        where: { deleted_at: null },
+        orderBy: [
+          { numero_bl: 'asc' },
+          { escale_id: 'asc' },
+          { id: 'desc' }
+        ]
+      });
 
-      const containers = await sql`
-        SELECT 
-          id, 
-          bl_id as "blId", 
-          numero_conteneur as "numeroConteneur", 
-          type_conteneur as "typeConteneur", 
-          numero_scelle as "numeroScelle", 
-          poids_kg as "poidsKg", 
-          tare_kg as "tareKg", 
-          nombre_colis as "nombreColis", 
-          date_entree_parc as "dateEntreeParc", 
-          date_sortie_parc as "dateSortieParc", 
-          montant_caution_fcfa as "montantCautionFcfa", 
-          statut_livraison as "statutLivraison",
-          is_dangerous as "isDangerous",
-          soc_coc as "socCoc"
-        FROM containers;
-      `;
+      const containers = await prisma.containers.findMany({
+        where: { deleted_at: null }
+      });
 
       const mappedBls = bls.map((bl: any) => {
         const blIdNum = Number(bl.id);
-        const selectedInvoiceTypeIds = bl.selectedInvoiceTypeIds 
-          ? bl.selectedInvoiceTypeIds.split(',').filter(Boolean) 
+        const selectedInvoiceTypeIds = bl.selected_invoice_type_ids 
+          ? bl.selected_invoice_type_ids.split(',').filter(Boolean) 
           : [];
         return {
           ...bl,
           id: blIdNum,
-          escaleId: Number(bl.escaleId),
-          nombreColis: Number(bl.nombreColis),
-          poidsBrutKg: Number(bl.poidsBrutKg),
-          volumeM3: Number(bl.volumeM3),
-          clientId: bl.clientId ? Number(bl.clientId) : undefined,
-          cachetAgentAppose: Boolean(bl.cachetAgentAppose),
+          escaleId: Number(bl.escale_id),
+          numeroBL: bl.numero_bl,
+          typeOperation: bl.type_operation,
+          shipperNom: bl.shipper_nom,
+          shipperAdresse: bl.shipper_adresse,
+          consigneeNom: bl.consignee_nom,
+          consigneeAdresse: bl.consignee_adresse,
+          notifyNom: bl.notify_nom,
+          notifyAdresse: bl.notify_adresse,
+          portChargementCode: bl.port_chargement_code,
+          portDechargementCode: bl.port_dechargement_code,
+          destinationFinale: bl.destination_finale,
+          descriptionGoods: bl.description_goods,
+          nombreColis: Number(bl.nombre_colis),
+          typeEmballage: bl.type_emballage,
+          poidsBrutKg: Number(bl.poids_brut_kg),
+          volumeM3: Number(bl.volume_m3),
+          statutImport: bl.statut_import,
+          clientId: bl.client_id ? Number(bl.client_id) : undefined,
+          codeNature: bl.code_nature,
+          uniqueCarrierRef: bl.unique_carrier_ref,
+          marquesEtNumeros: bl.marques_et_numeros,
+          cachetAgentAppose: Boolean(bl.cachet_agent_appose),
+          dateSignature: bl.date_signature,
+          hashSignature: bl.hash_signature,
           selectedInvoiceTypeIds,
           conteneurs: containers
-            .filter((c: any) => Number(c.blId) === blIdNum)
+            .filter((c: any) => Number(c.bl_id) === blIdNum)
             .map((c: any) => ({
               ...c,
               id: Number(c.id),
-              blId: Number(c.blId),
-              poidsKg: Number(c.poidsKg),
-              tareKg: Number(c.tareKg),
-              nombreColis: Number(c.nombreColis),
-              montantCautionFcfa: Number(c.montantCautionFcfa),
-              isDangerous: Boolean(c.isDangerous),
-              socCoc: c.socCoc || undefined
-            }))
+              blId: Number(c.bl_id),
+              numeroConteneur: c.numero_conteneur,
+              typeConteneur: c.type_conteneur,
+              numeroScelle: c.numero_scelle,
+              poidsKg: Number(c.poids_kg),
+              tareKg: Number(c.tare_kg),
+              nombreColis: Number(c.nombre_colis),
+              dateEntreeParc: c.date_entree_parc,
+              dateSortieParc: c.date_sortie_parc,
+              montantCautionFcfa: Number(c.montant_caution_fcfa),
+              statutLivraison: c.statut_livraison,
+              isDangerous: Boolean(c.is_dangerous),
+              socCoc: c.soc_coc || undefined,
+              dmdtWaiverStatus: c.dmdt_waiver_status || undefined,
+              dmdtWaiverDays: c.dmdt_waiver_days ? Number(c.dmdt_waiver_days) : undefined,
+              dmdtWaiverReason: c.dmdt_waiver_reason || undefined,
+              dmdtWaiverApproverId: c.dmdt_waiver_approver_id ? Number(c.dmdt_waiver_approver_id) : undefined,
+              deletedAt: c.deleted_at?.toISOString()
+            })),
+          deletedAt: bl.deleted_at?.toISOString()
         };
       });
 
-      return res.status(200).json({ success: true, bls: mappedBls });
+      return res.status(200).json({ success: true, bls: serialize(mappedBls) });
     } catch (error: any) {
+      console.error(error);
       return res.status(500).json({ success: false, error: error.message });
     }
   } else if (req.method === 'POST') {
@@ -102,22 +100,8 @@ export default async function handler(req: any, res: any) {
       const blIds = blsList.map((bl: any) => bl.id);
       const blNumbers = blsList.map((bl: any) => bl.numeroBL).filter(Boolean);
 
-      // 1. Bulk Delete existing BLs and containers to avoid duplicates
-      await sql`
-        DELETE FROM containers 
-        WHERE bl_id IN (
-          SELECT id FROM bls 
-          WHERE id = ANY(${blIds}::bigint[]) 
-             OR numero_bl = ANY(${blNumbers.length > 0 ? blNumbers : ['']}::text[])
-        );
-      `;
-      await sql`
-        DELETE FROM bls 
-        WHERE id = ANY(${blIds}::bigint[]) 
-           OR numero_bl = ANY(${blNumbers.length > 0 ? blNumbers : ['']}::text[]);
-      `;
-
-      // 2. Prepare bulk insert arrays
+      // We cannot bulk insert easily in Prisma with different structures, but createMany is possible
+      // Let's create one by one or createMany:
       const blsToInsert = blsList.map((bl: any) => ({
         id: bl.id,
         escale_id: bl.escaleId,
@@ -148,13 +132,14 @@ export default async function handler(req: any, res: any) {
         hash_signature: bl.hashSignature || null
       }));
 
+      // Containers
       const containersToInsert: any[] = [];
-      for (const bl of blsList) {
-        if (bl.conteneurs && bl.conteneurs.length > 0) {
-          for (const c of bl.conteneurs) {
+      blsList.forEach((bl: any) => {
+        if (bl.conteneurs && Array.isArray(bl.conteneurs)) {
+          bl.conteneurs.forEach((c: any) => {
             containersToInsert.push({
               id: c.id,
-              bl_id: bl.id,
+              bl_id: c.blId || bl.id,
               numero_conteneur: c.numeroConteneur,
               type_conteneur: c.typeConteneur,
               numero_scelle: c.numeroScelle,
@@ -163,113 +148,104 @@ export default async function handler(req: any, res: any) {
               nombre_colis: c.nombreColis,
               date_entree_parc: c.dateEntreeParc || null,
               date_sortie_parc: c.dateSortieParc || null,
-              montant_caution_fcfa: c.montantCautionFcfa,
+              montant_caution_fcfa: c.montantCautionFcfa || 0,
               statut_livraison: c.statutLivraison || null,
               is_dangerous: c.isDangerous || false,
               soc_coc: c.socCoc || null
             });
-          }
+          });
         }
-      }
+      });
 
-      // 3. Execute inserts
-      for (const bl of blsToInsert) {
-        await sql`
-          INSERT INTO bls (
-            id, escale_id, numero_bl, type_operation, shipper_nom, shipper_adresse,
-            consignee_nom, consignee_adresse, notify_nom, notify_adresse,
-            port_chargement_code, port_dechargement_code, destination_finale,
-            description_goods, nombre_colis, type_emballage, poids_brut_kg,
-            volume_m3, statut_import, selected_invoice_type_ids, client_id,
-            code_nature, unique_carrier_ref, marques_et_numeros, cachet_agent_appose,
-            date_signature, hash_signature
-          ) VALUES (
-            ${bl.id}, ${bl.escale_id}, ${bl.numero_bl}, ${bl.type_operation}, ${bl.shipper_nom}, ${bl.shipper_adresse},
-            ${bl.consignee_nom}, ${bl.consignee_adresse}, ${bl.notify_nom}, ${bl.notify_adresse},
-            ${bl.port_chargement_code}, ${bl.port_dechargement_code}, ${bl.destination_finale},
-            ${bl.description_goods}, ${bl.nombre_colis}, ${bl.type_emballage}, ${bl.poids_brut_kg},
-            ${bl.volume_m3}, ${bl.statut_import}, ${bl.selected_invoice_type_ids}, ${bl.client_id},
-            ${bl.code_nature}, ${bl.unique_carrier_ref}, ${bl.marques_et_numeros}, ${bl.cachet_agent_appose},
-            ${bl.date_signature}, ${bl.hash_signature}
-          );
-        `;
-      }
+      // A rejected replacement must not erase the current manifest.
+      await prisma.$transaction(async (tx) => {
+        const existingBls = await tx.bls.findMany({
+          where: { OR: [{ id: { in: blIds } }, { numero_bl: { in: blNumbers } }] },
+          select: { id: true }
+        });
+        const existingBlIds = existingBls.map(bl => bl.id);
 
-      for (const c of containersToInsert) {
-        await sql`
-          INSERT INTO containers (
-            id, bl_id, numero_conteneur, type_conteneur, numero_scelle,
-            poids_kg, tare_kg, nombre_colis, date_entree_parc, date_sortie_parc,
-            montant_caution_fcfa, statut_livraison, is_dangerous, soc_coc
-          ) VALUES (
-            ${c.id}, ${c.bl_id}, ${c.numero_conteneur}, ${c.type_conteneur}, ${c.numero_scelle},
-            ${c.poids_kg}, ${c.tare_kg}, ${c.nombre_colis}, ${c.date_entree_parc}, ${c.date_sortie_parc},
-            ${c.montant_caution_fcfa}, ${c.statut_livraison}, ${c.is_dangerous}, ${c.soc_coc}
-          );
-        `;
-      }
+        if (existingBlIds.length > 0) {
+          await tx.containers.deleteMany({ where: { bl_id: { in: existingBlIds } } });
+          await tx.bls.deleteMany({ where: { id: { in: existingBlIds } } });
+        }
 
-      return res.status(200).json({ success: true, message: "BLs and containers saved successfully." });
+        await tx.bls.createMany({ data: blsToInsert });
+        if (containersToInsert.length > 0) {
+          await tx.containers.createMany({ data: containersToInsert });
+        }
+      });
+
+      return res.status(200).json({ success: true, message: `${blsList.length} BL(s) saved successfully.` });
     } catch (error: any) {
-      console.error("Erreur bulk insert BLs:", error);
+      console.error(error);
       return res.status(500).json({ success: false, error: error.message });
     }
   } else if (req.method === 'DELETE') {
     try {
       const rawId = req.query.id || req.body?.id;
       const blId = Number(rawId);
+      
       if (!rawId || isNaN(blId)) {
         return res.status(400).json({ success: false, error: "Missing or invalid BL ID." });
       }
 
-      // 1. Fetch BL info
-      const blResult = await sql`SELECT numero_bl FROM bls WHERE id = ${blId};`;
-      const numeroBl = blResult.length > 0 ? blResult[0].numero_bl : '';
+      // 1. Find the BL to get the BL number
+      const blResult = await prisma.bls.findUnique({
+        where: { id: blId },
+        select: { numero_bl: true }
+      });
 
-      // 2. Fetch linked invoices
-      let invoiceIds: number[] = [];
-      if (numeroBl) {
-        const invoicesResult = await sql`
-          SELECT id FROM invoices 
-          WHERE bl_id = ${blId} OR numero_bl = ${numeroBl}
-        `;
-        invoiceIds = invoicesResult.map((i: any) => i.id);
-      } else {
-        const invoicesResult = await sql`
-          SELECT id FROM invoices WHERE bl_id = ${blId}
-        `;
-        invoiceIds = invoicesResult.map((i: any) => i.id);
+      if (!blResult) {
+        return res.status(404).json({ success: false, error: "BL not found." });
       }
 
-      let creditNoteIds: number[] = [];
+      const blNumber = blResult.numero_bl;
+
+      // 2. Find all invoices for this BL
+      const invoicesResult = await prisma.invoices.findMany({
+        where: {
+          OR: [ { bl_id: blId }, { numero_bl: blNumber } ]
+        },
+        select: { id: true }
+      });
+      const invoiceIds = invoicesResult.map((i: any) => i.id);
+
+      // 3. Find credit notes
+      let creditNoteIds: bigint[] = [];
       if (invoiceIds.length > 0) {
-        // 3. Fetch linked credit notes
-        const cnResult = await sql`
-          SELECT id FROM credit_notes 
-          WHERE facture_id = ANY(${invoiceIds}::bigint[])
-        `;
-        creditNoteIds = cnResult.map((cn: any) => cn.id);
-
-        // 4. Execute cascading delete for related records
-        if (creditNoteIds.length > 0) {
-          await sql`DELETE FROM credit_note_items WHERE credit_note_id = ANY(${creditNoteIds}::bigint[])`;
-        }
-        await sql`DELETE FROM credit_notes WHERE facture_id = ANY(${invoiceIds}::bigint[])`;
-        await sql`DELETE FROM payments WHERE facture_id = ANY(${invoiceIds}::bigint[])`;
-        await sql`DELETE FROM invoice_items WHERE invoice_id = ANY(${invoiceIds}::bigint[])`;
-        await sql`DELETE FROM invoices WHERE id = ANY(${invoiceIds}::bigint[])`;
+        const creditNotesResult = await prisma.credit_notes.findMany({
+          where: { facture_id: { in: invoiceIds } },
+          select: { id: true }
+        });
+        creditNoteIds = creditNotesResult.map((c: any) => c.id);
       }
 
-      // 5. Delete containers and BL
-      await sql`DELETE FROM containers WHERE bl_id = ${blId};`;
-      await sql`DELETE FROM bls WHERE id = ${blId};`;
+      // 4. Delete dependent data
+      if (invoiceIds.length > 0) {
+        await prisma.payments.deleteMany({ where: { facture_id: { in: invoiceIds.map(id => Number(id)) } } });
+      }
 
-      return res.status(200).json({ success: true, message: "BL and associated containers, invoices deleted successfully." });
+      if (creditNoteIds.length > 0) {
+        await prisma.credit_note_items.deleteMany({ where: { credit_note_id: { in: creditNoteIds } } });
+        await prisma.credit_notes.deleteMany({ where: { id: { in: creditNoteIds } } });
+      }
+
+      if (invoiceIds.length > 0) {
+        await prisma.invoice_items.deleteMany({ where: { invoice_id: { in: invoiceIds } } });
+        await prisma.invoices.deleteMany({ where: { id: { in: invoiceIds } } });
+      }
+
+      await prisma.containers.deleteMany({ where: { bl_id: blId } });
+      await prisma.bls.deleteMany({ where: { id: blId } });
+
+      return res.status(200).json({ success: true, message: `BL ${blId} et dépendances supprimés.` });
     } catch (error: any) {
-      console.error("Erreur suppression BL:", error);
+      console.error(error);
       return res.status(500).json({ success: false, error: error.message });
     }
   } else {
-    return res.status(405).json({ success: false, error: "Method not allowed." });
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   }
 }

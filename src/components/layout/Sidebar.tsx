@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BocsLogo } from "../BocsLogo";
 import { User, UserRole } from '../../types';
 import { isTabAllowed, usePermissionsSync } from '../../utils/permissions';
 import { useEscapeClose } from '../../hooks/useEscapeClose';
@@ -82,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isAllowed = (tab: NavTab) => isTabAllowed(currentUser || { id: -1, role: userRole }, tab);
 
-  const sections: NavSection[] = [
+    const sections: NavSection[] = [
     {
       title: 'VUE D\'ENSEMBLE',
       items: [
@@ -96,16 +97,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'OPÉRATIONS MARITIMES',
       items: [
-
+        {
+          id: 'vessels',
+          label: 'Navires & Escales',
+          icon: 'directions_boat',
+          colorClass: 'text-emerald-500 hover:text-emerald-400'
+        },
+        {
+          id: 'import',
+          label: 'Registre Import',
+          icon: 'file_download',
+          badge: counts.blsCount > 0 ? counts.blsCount : null,
+          colorClass: 'text-indigo-400 hover:text-indigo-300'
+        },
         {
           id: 'export',
-          label: 'Exportation & Draft BL',
-          icon: 'anchor',
+          label: 'Exportation',
+          icon: 'file_upload',
           badge: counts.draftsCount > 0 ? counts.draftsCount : null,
           colorClass: 'text-amber-500 hover:text-amber-400',
           subItems: [
             { id: 'export_saisie', label: 'Saisie Draft BL', icon: 'edit_note' },
-            { id: 'export_list', label: 'Espace Client / Drafts', icon: 'folder_open' },
+            { id: 'export_list', label: 'Drafts Clients', icon: 'folder_open' },
             { id: 'export_consolidation', label: 'Consolidation Manifeste', icon: 'inventory' }
           ]
         }
@@ -116,35 +129,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         {
           id: 'facturation',
-          label: 'Facturation BL par BL',
-          icon: 'credit_card',
+          label: 'Facturation & Caisse',
+          icon: 'point_of_sale',
           badge: counts.facturesCount > 0 ? counts.facturesCount : null,
           colorClass: 'text-blue-400 hover:text-blue-300',
           subItems: [
-            { id: 'facturation', label: 'Facturation BL par BL', icon: 'credit_card' },
+            { id: 'facturation', label: 'Nouvelle Facture', icon: 'add_card' },
             { id: 'facturation_journal', label: 'Journal des Factures', icon: 'receipt_long' },
-            { id: 'facturation_avoirs', label: 'Notes d\'Avoir & Crédits', icon: 'assignment_return' },
-            { id: 'facturation_tarifs', label: 'Tarifs Surestaries', icon: 'payments' },
-            { id: 'facturation_balance', label: 'Balance Client', icon: 'account_balance' },
-            { id: 'facturation_config', label: 'Configuration Factures', icon: 'settings' },
-            { id: 'surestarie', label: 'Surestaries & Détentions', icon: 'timer' }
+            { id: 'facturation_avoirs', label: 'Avoirs & Crédits', icon: 'assignment_return' },
+            { id: 'facturation_balance', label: 'Balance Client', icon: 'account_balance' }
+          ]
+        },
+        {
+          id: 'surestarie',
+          label: 'Surestaries & Tarifs',
+          icon: 'timer',
+          colorClass: 'text-purple-400 hover:text-purple-300',
+          subItems: [
+            { id: 'surestarie', label: 'Calcul Surestaries', icon: 'calculate' },
+            { id: 'facturation_tarifs', label: 'Grille Tarifaire', icon: 'payments' },
+            { id: 'facturation_config', label: 'Configuration Rubriques', icon: 'settings' }
           ]
         }
       ]
     },
     {
-      title: 'ADMINISTRATION & SÉCURITÉ',
+      title: 'ADMINISTRATION',
       items: [
         {
           id: 'admin',
-          label: 'Console Administrateur',
-          icon: 'settings_suggest',
+          label: 'Console Admin',
+          icon: 'shield_person',
           colorClass: 'text-rose-500 hover:text-rose-400',
           subItems: [
-            { id: 'admin_users', label: 'Comptes Utilisateurs', icon: 'manage_accounts' },
-            { id: 'admin_rights', label: 'Attribution des Droits', icon: 'shield_lock' },
-            { id: 'admin_fne', label: 'Params Factures & Devise', icon: 'tune' },
-            { id: 'admin_audit', label: 'Journal d\'Audit', icon: 'verified_user' }
+            { id: 'admin_users', label: 'Utilisateurs', icon: 'group' },
+            { id: 'admin_rights', label: 'Habilitations', icon: 'security' },
+            { id: 'admin_fne', label: 'Paramètres Généraux', icon: 'tune' },
+            { id: 'admin_audit', label: 'Journal d\'Audit', icon: 'history' }
           ]
         }
       ]
@@ -168,11 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div>
           <div className="p-4 bg-[#a4acb6]">
             <div className="flex items-center justify-center py-1">
-              <svg className="w-full h-auto max-h-11" viewBox="0 0 350 90" xmlns="http://www.w3.org/2000/svg">
-                <text x="340" y="42" fontFamily="'Arial Black', Arial, sans-serif" fontWeight="900" fontSize="52" fontStyle="italic" fill="#00875A" textAnchor="end" letterSpacing="-2">BOCS</text>
-                <polygon points="0,48 350,48 315,88 290,88 316.25,58 0,58" fill="#002B49" />
-                <text x="282" y="81" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="19" fill="#002B49" textAnchor="end">ABIDJAN</text>
-              </svg>
+              <BocsLogo className="w-full h-auto max-h-11" />
             </div>
           </div>
 
@@ -186,7 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div key={secIdx} className="space-y-1">
 
                   {/* Section Title Header */}
-                  <div className="px-3 py-1 text-[10px] font-black uppercase text-slate-400 tracking-wider font-mono">
+                  <div className="px-3 py-1 text-xs font-black uppercase text-slate-400 tracking-wider font-mono">
                     {sec.title}
                   </div>
 
@@ -209,7 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }`}
                         >
                           <div className="flex items-center gap-3">
-                            <span className={`material-symbols-outlined text-lg ${isMainActive
+                            <span aria-hidden="true" className={`material-symbols-outlined text-lg ${isMainActive
                                 ? 'text-white'
                                 : item.colorClass ? '' : 'text-slate-400'
                               }`}>
@@ -218,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <div className="flex items-center gap-1.5">
                               <span>{item.label}</span>
                               {item.glassBadge && (
-                                <span className="text-[9px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
+                                <span className="text-2xs font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
                                   {item.glassBadge}
                                 </span>
                               )}
@@ -227,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                           <div className="flex items-center gap-1.5">
                             {item.badge !== null && item.badge !== undefined && (
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${isMainActive
+                              <span className={`text-xs font-black px-2 py-0.5 rounded-full ${isMainActive
                                   ? 'bg-white/20 text-white'
                                   : 'bg-[#152a48] text-blue-300'
                                 }`}>
@@ -253,12 +270,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     onTabChange(sub.id);
                                     if (onClose) onClose();
                                   }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${isSubActive
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSubActive
                                       ? 'bg-[#005daa]/40 text-blue-200 font-extrabold border border-blue-400/40'
                                       : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                                     }`}
                                 >
-                                  <span className={`material-symbols-outlined text-base ${isSubActive ? 'text-blue-300' : 'text-slate-500'}`}>
+                                  <span aria-hidden="true" className={`material-symbols-outlined text-base ${isSubActive ? 'text-blue-300' : 'text-slate-500'}`}>
                                     {sub.icon}
                                   </span>
                                   <span>{sub.label}</span>
@@ -290,7 +307,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-black text-white truncate leading-tight">{currentUser.nomComplet}</p>
-                  <p className="text-[10px] text-blue-400 font-mono font-bold leading-tight">{currentUser.role}</p>
+                  <p className="text-xs text-blue-400 font-mono font-bold leading-tight">{currentUser.role}</p>
                 </div>
               </div>
 
@@ -308,7 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-rose-400 hover:text-white hover:bg-rose-950/60 transition-all border border-rose-900/30 cursor-pointer active:scale-95"
               >
-                <span className="material-symbols-outlined text-base">logout</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base">logout</span>
                 <span className="font-bold">Se Déconnecter</span>
               </button>
             ) : (
@@ -319,7 +336,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-blue-400 hover:text-white hover:bg-blue-950/60 transition-all border border-blue-900/30 cursor-pointer active:scale-95"
               >
-                <span className="material-symbols-outlined text-base">login</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base">login</span>
                 <span className="font-bold">Se Connecter</span>
               </button>
             )}

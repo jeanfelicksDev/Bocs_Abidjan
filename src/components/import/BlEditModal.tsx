@@ -143,57 +143,57 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
   };
 
   const tabButtonClass = (tab: typeof activeTab) => `
-    flex items-center gap-2.5 px-6 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer border
+    flex items-center gap-2.5 px-6 py-3 rounded-md font-black text-sm sm:text-base transition-all cursor-pointer border
     ${activeTab === tab 
-      ? 'bg-[#005DAA] text-white border-[#005DAA] shadow-sm shadow-[#005DAA]/20 scale-[1.02]' 
-      : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-600 border-zinc-200 hover:text-zinc-950'}
+      ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white border-[#005DAA] dark:border-night-line shadow-sm dark:shadow-black/30 shadow-[#005DAA]/20 scale-[1.02]' 
+      : 'bg-surface-base dark:bg-night-sunken hover:bg-surface-sunken text-text-secondary dark:text-night-ink border-border-default dark:border-night-line hover:text-zinc-950'}
   `;
 
-  const inputClass = "w-full h-11 px-3.5 text-xs sm:text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA] focus:ring-1 focus:ring-[#005DAA] transition-all";
-  const labelClass = "block text-xs font-black text-zinc-700 uppercase tracking-wider mb-1.5";
+  const inputClass = "w-full h-11 px-3.5 text-sm sm:text-base font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md focus:outline-none focus:border-[#005DAA] focus:ring-1 focus:ring-[#005DAA] transition-all";
+  const labelClass = "block text-sm font-black text-text-secondary dark:text-night-ink uppercase tracking-wider mb-1.5";
 
   const modalContent = (
-    <div 
+    <div role="dialog" aria-modal="true" 
       className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 md:p-8 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
       style={{ zIndex: 99999 }}
       onClick={overlayClickClose(onClose)}
     >
       <div 
-        className="bg-white rounded-3xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden relative"
+        className="bg-surface-canvas dark:bg-night-surface rounded-lg w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden relative"
         style={{ zIndex: 100000 }}
       >
         
         {/* ── EN-TÊTE MODALE ── */}
-        <div className="px-7 sm:px-9 py-5 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
+        <div className="px-7 sm:px-9 py-5 border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#F0F7FF] border border-[#005DAA]/25 flex items-center justify-center text-[#005DAA] shadow-xs shrink-0">
+            <div className="w-12 h-12 rounded-md bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-ink shadow-1 shrink-0">
               <FileText className="w-6 h-6" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h3 className="text-xl sm:text-2xl font-black text-zinc-950 font-mono tracking-tight">
-                  Correction BL : <span className="text-[#005DAA]">{form.numeroBL || 'SANS NUMÉRO'}</span>
+                  Correction BL : <span className="text-[#005DAA] dark:text-night-link">{form.numeroBL || 'SANS NUMÉRO'}</span>
                 </h3>
                 {form.conteneurs && form.conteneurs.length > 0 ? (
-                  <span className="px-3 py-1 rounded-xl text-xs font-black bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30">
+                  <span className="px-3 py-1 rounded-md text-sm font-black bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30">
                     {form.conteneurs.length} CONTENEUR(S)
                   </span>
                 ) : (
-                  <span className="px-3 py-1 rounded-xl text-xs font-black bg-blue-50 text-blue-800 border border-blue-200">
+                  <span className="px-3 py-1 rounded-md text-sm font-black bg-blue-50 dark:bg-night-accent-soft text-blue-800 border border-blue-200 dark:border-night-accent-line">
                     VRAC / CONVENTIONNEL
                   </span>
                 )}
                 {form.statutImport && (
-                  <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                  <span className="px-2.5 py-0.5 rounded-lg text-sm font-bold bg-surface-sunken dark:bg-night-sunken text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line">
                     {form.statutImport}
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-zinc-500 font-medium mt-0.5">
+              <p className="text-sm sm:text-base text-text-muted dark:text-night-ink-2 font-medium mt-0.5">
                 {escaleInfo ? (
-                  <span>Navire : <strong className="text-zinc-800">{escaleInfo.nomNavire}</strong> (Voyage {escaleInfo.numeroVoyage}) • </span>
+                  <span>Navire : <strong className="text-text-primary dark:text-night-ink">{escaleInfo.nomNavire}</strong> (Voyage {escaleInfo.numeroVoyage}) • </span>
                 ) : null}
-                Client : <strong className="text-zinc-800">{form.consigneeNom || 'Non renseigné'}</strong>
+                Client : <strong className="text-text-primary dark:text-night-ink">{form.consigneeNom || 'Non renseigné'}</strong>
               </p>
             </div>
           </div>
@@ -206,18 +206,18 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                   onClose();
                   onOpenBilling(form);
                 }}
-                className="px-4 py-2 rounded-xl bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-black flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                className="px-4 py-2 rounded-md bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white text-sm font-black flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
                 title="Ouvrir la Facturation Maritime & Règlements pour ce BL"
               >
-                <CreditCard className="w-4 h-4 text-white" />
-                <span className="text-white">Facturation &amp; Règlements &rarr;</span>
+                <CreditCard className="w-4 h-4 text-white dark:text-night-ink" />
+                <span className="text-white dark:text-night-ink">Facturation &amp; Règlements &rarr;</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={onClose}
-              className="w-11 h-11 rounded-2xl hover:bg-zinc-200 text-zinc-400 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              className="w-11 h-11 rounded-md hover:bg-zinc-200 text-text-muted dark:text-night-ink-3 hover:text-text-primary flex items-center justify-center transition-colors cursor-pointer shrink-0"
               title="Fermer (Échap)"
             >
               <X className="w-5 h-5" />
@@ -226,7 +226,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
         </div>
 
         {/* ── ONGLETS DE NAVIGATION ── */}
-        <div className="flex items-center gap-2 px-7 sm:px-9 pt-4 pb-3 border-b border-zinc-200 bg-white overflow-x-auto shrink-0">
+        <div className="flex items-center gap-2 px-7 sm:px-9 pt-4 pb-3 border-b border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-surface overflow-x-auto shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
@@ -273,9 +273,9 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
           {activeTab === 'general' && (
             <div className="space-y-6">
               
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-5">
-                <h4 className="text-sm font-black text-zinc-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-[#005DAA]" />
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-5">
+                <h4 className="text-base font-black text-text-primary dark:text-night-ink flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
                   <span>Identifiants Officiels du Connaissement</span>
                 </h4>
 
@@ -287,7 +287,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                       required
                       value={form.numeroBL || ''}
                       onChange={e => handleUpdateField('numeroBL', e.target.value.toUpperCase())}
-                      className={`${inputClass} font-mono font-black text-[#005DAA] text-base`}
+                      className={`${inputClass} font-mono font-black text-[#005DAA] dark:text-night-link text-lg`}
                       placeholder="ex: AN2ABJ26614201"
                     />
                   </div>
@@ -318,9 +318,9 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-5">
-                <h4 className="text-sm font-black text-zinc-900 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#005DAA]" />
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-5">
+                <h4 className="text-base font-black text-text-primary dark:text-night-ink flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
                   <span>Route Maritime & Acheminement</span>
                 </h4>
 
@@ -370,10 +370,10 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Chargeur (Shipper) */}
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-zinc-200">
-                  <Building2 className="w-4 h-4 text-[#005DAA]" />
-                  <h4 className="text-sm font-black text-zinc-950">Chargeur / Expéditeur (Shipper)</h4>
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border-default dark:border-night-line">
+                  <Building2 className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
+                  <h4 className="text-base font-black text-zinc-950">Chargeur / Expéditeur (Shipper)</h4>
                 </div>
 
                 <div>
@@ -394,17 +394,17 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                     rows={3}
                     value={form.shipperAdresse || ''}
                     onChange={e => handleUpdateField('shipperAdresse', e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA] resize-none"
+                    className="w-full px-3.5 py-2.5 text-sm sm:text-base font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md focus:outline-none focus:border-[#005DAA] resize-none"
                     placeholder="Adresse, Ville, Pays, Contact..."
                   />
                 </div>
               </div>
 
               {/* Destinataire (Consignee) */}
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-zinc-200">
-                  <Building2 className="w-4 h-4 text-[#005DAA]" />
-                  <h4 className="text-sm font-black text-zinc-950">Destinataire / Consignataire (Consignee)</h4>
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border-default dark:border-night-line">
+                  <Building2 className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
+                  <h4 className="text-base font-black text-zinc-950">Destinataire / Consignataire (Consignee)</h4>
                 </div>
 
                 <div>
@@ -425,17 +425,17 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                     rows={3}
                     value={form.consigneeAdresse || ''}
                     onChange={e => handleUpdateField('consigneeAdresse', e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA] resize-none"
+                    className="w-full px-3.5 py-2.5 text-sm sm:text-base font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md focus:outline-none focus:border-[#005DAA] resize-none"
                     placeholder="Adresse de livraison, Téléphone, Email..."
                   />
                 </div>
               </div>
 
               {/* Notify Party */}
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-4 md:col-span-2">
-                <div className="flex items-center gap-2 pb-2 border-b border-zinc-200">
-                  <Building2 className="w-4 h-4 text-[#005DAA]" />
-                  <h4 className="text-sm font-black text-zinc-950">Partie à Notifier (Notify Party)</h4>
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-4 md:col-span-2">
+                <div className="flex items-center gap-2 pb-2 border-b border-border-default dark:border-night-line">
+                  <Building2 className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
+                  <h4 className="text-base font-black text-zinc-950">Partie à Notifier (Notify Party)</h4>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -472,9 +472,9 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
           {activeTab === 'goods' && (
             <div className="space-y-6">
               
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-5">
-                <h4 className="text-sm font-black text-zinc-950 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-[#005DAA]" />
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-5">
+                <h4 className="text-base font-black text-zinc-950 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
                   <span>Description & Nature de la Marchandise</span>
                 </h4>
 
@@ -485,7 +485,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                     required
                     value={form.descriptionGoods || ''}
                     onChange={e => handleUpdateField('descriptionGoods', e.target.value)}
-                    className="w-full px-4 py-3 text-xs sm:text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA] resize-none"
+                    className="w-full px-4 py-3 text-sm sm:text-base font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md focus:outline-none focus:border-[#005DAA] resize-none"
                     placeholder="Description précise des marchandises déclarées..."
                   />
                 </div>
@@ -502,17 +502,17 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-5">
+              <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-5 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-black text-zinc-950 flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-[#005DAA]" />
+                  <h4 className="text-base font-black text-zinc-950 flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-[#005DAA] dark:text-night-link" />
                     <span>Quantités, Colisage & Poids Brut</span>
                   </h4>
                   {form.conteneurs && form.conteneurs.length > 0 && (
                     <button
                       type="button"
                       onClick={handleSyncPoidsFromContainers}
-                      className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#005DAA] border border-blue-200 text-xs font-bold transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-md bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line text-[#005DAA] dark:text-night-link border border-blue-200 dark:border-night-accent-line text-sm font-bold transition-colors cursor-pointer"
                     >
                       ⚡ Recalculer via Conteneurs
                     </button>
@@ -550,7 +550,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                       required
                       value={form.poidsBrutKg || 0}
                       onChange={e => handleUpdateField('poidsBrutKg', parseFloat(e.target.value) || 0)}
-                      className={`${inputClass} font-mono font-black text-[#005DAA]`}
+                      className={`${inputClass} font-mono font-black text-[#005DAA] dark:text-night-link`}
                     />
                   </div>
 
@@ -577,13 +577,13 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
           {activeTab === 'containers' && (
             <div className="space-y-5">
               
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-200">
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-border-default dark:border-night-line">
                 <div>
-                  <h4 className="text-base font-black text-zinc-950 flex items-center gap-2">
-                    <Box className="w-5 h-5 text-[#005DAA]" />
+                  <h4 className="text-lg font-black text-zinc-950 flex items-center gap-2">
+                    <Box className="w-5 h-5 text-[#005DAA] dark:text-night-link" />
                     <span>Conteneurs Rattachés ({form.conteneurs?.length || 0})</span>
                   </h4>
-                  <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                  <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium mt-0.5">
                     Gérez les numéros de conteneurs, types ISO, plombs/scellés et poids individuels.
                   </p>
                 </div>
@@ -591,7 +591,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddContainer}
-                  className="px-4 py-2 bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-black rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                  className="px-4 py-2 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white text-sm font-black rounded-md flex items-center gap-2 shadow-sm dark:shadow-black/30 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Ajouter un Conteneur</span>
@@ -599,13 +599,13 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
               </div>
 
               {!form.conteneurs || form.conteneurs.length === 0 ? (
-                <div className="text-center py-12 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-2xl">
-                  <Box className="w-10 h-10 text-zinc-300 mx-auto mb-2" />
-                  <p className="text-sm font-bold text-zinc-600">Aucun conteneur rattaché (Marchandise en VRAC / Conventionnel).</p>
+                <div className="text-center py-12 bg-surface-base dark:bg-night-sunken border-2 border-dashed border-border-default dark:border-night-line rounded-md">
+                  <Box className="w-10 h-10 text-text-muted mx-auto mb-2" />
+                  <p className="text-base font-bold text-text-secondary dark:text-night-ink">Aucun conteneur rattaché (Marchandise en VRAC / Conventionnel).</p>
                   <button
                     type="button"
                     onClick={handleAddContainer}
-                    className="mt-3 text-xs font-black text-[#005DAA] hover:underline cursor-pointer"
+                    className="mt-3 text-sm font-black text-[#005DAA] dark:text-night-link hover:underline cursor-pointer"
                   >
                     + Ajouter un conteneur à ce connaissement
                   </button>
@@ -615,31 +615,31 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                   {form.conteneurs.map((ctr, idx) => (
                     <div 
                       key={ctr.id || idx} 
-                      className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-zinc-300 hover:shadow-xs"
+                      className="p-4 bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-zinc-300 hover:shadow-1"
                     >
-                      <div className="flex items-center gap-2 shrink-0 font-mono text-xs font-black text-zinc-500 w-8">
+                      <div className="flex items-center gap-2 shrink-0 font-mono text-sm font-black text-text-muted dark:text-night-ink-2 w-8">
                         #{idx + 1}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 flex-1">
                         <div>
-                          <label className="block text-[10px] font-black text-zinc-500 uppercase mb-1">N° Conteneur</label>
+                          <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase mb-1">N° Conteneur</label>
                           <input
                             type="text"
                             required
                             placeholder="ex: MSCU1234567"
                             value={ctr.numeroConteneur || ''}
                             onChange={e => handleUpdateContainer(idx, 'numeroConteneur', e.target.value.toUpperCase())}
-                            className="w-full h-9 px-3 text-xs font-mono font-black text-zinc-950 bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-[#005DAA]"
+                            className="w-full h-9 px-3 text-sm font-mono font-black text-zinc-950 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-lg focus:outline-none focus:border-[#005DAA] "
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-black text-zinc-500 uppercase mb-1">Type ISO</label>
+                          <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase mb-1">Type ISO</label>
                           <select
                             value={ctr.typeConteneur || '40_HC'}
                             onChange={e => handleUpdateContainer(idx, 'typeConteneur', e.target.value as ContainerType)}
-                            className="w-full h-9 px-2 text-xs font-bold text-zinc-900 bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-[#005DAA]"
+                            className="w-full h-9 px-2 text-sm font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-lg focus:outline-none focus:border-[#005DAA] "
                           >
                             {CONTAINER_TYPES.map(t => (
                               <option key={t.value} value={t.value}>{t.label}</option>
@@ -648,35 +648,35 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-black text-zinc-500 uppercase mb-1">N° Scellé / Plomb</label>
+                          <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase mb-1">N° Scellé / Plomb</label>
                           <input
                             type="text"
                             placeholder="ex: ML-CI89472"
                             value={ctr.numeroScelle || ''}
                             onChange={e => handleUpdateContainer(idx, 'numeroScelle', e.target.value)}
-                            className="w-full h-9 px-3 text-xs font-mono font-bold text-zinc-700 bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-[#005DAA]"
+                            className="w-full h-9 px-3 text-sm font-mono font-bold text-text-secondary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-lg focus:outline-none focus:border-[#005DAA] "
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-black text-zinc-500 uppercase mb-1">Poids Brut (Kg)</label>
+                          <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase mb-1">Poids Brut (Kg)</label>
                           <input
                             type="number"
                             min={0}
                             value={ctr.poidsKg || 0}
                             onChange={e => handleUpdateContainer(idx, 'poidsKg', parseFloat(e.target.value) || 0)}
-                            className="w-full h-9 px-3 text-xs font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-[#005DAA]"
+                            className="w-full h-9 px-3 text-sm font-mono font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-lg focus:outline-none focus:border-[#005DAA] "
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-black text-zinc-500 uppercase mb-1">Caution (FCFA)</label>
+                          <label className="block text-2xs font-black text-text-muted dark:text-night-ink-2 uppercase mb-1">Caution (FCFA)</label>
                           <input
                             type="number"
                             min={0}
                             value={ctr.montantCautionFcfa || 0}
                             onChange={e => handleUpdateContainer(idx, 'montantCautionFcfa', parseFloat(e.target.value) || 0)}
-                            className="w-full h-9 px-3 text-xs font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-[#005DAA]"
+                            className="w-full h-9 px-3 text-sm font-mono font-bold text-text-primary dark:text-night-ink bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-lg focus:outline-none focus:border-[#005DAA] "
                           />
                         </div>
                       </div>
@@ -684,7 +684,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleRemoveContainer(idx)}
-                        className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0 self-end md:self-center"
+                        className="p-2 rounded-md text-text-muted dark:text-night-ink-3 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0 self-end md:self-center"
                         title="Supprimer ce conteneur"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -693,14 +693,14 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
                   ))}
 
                   {/* Résumé des totaux conteneurs */}
-                  <div className="p-4 rounded-2xl bg-zinc-100 border border-zinc-200 flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
-                    <span className="font-bold text-zinc-700">
+                  <div className="p-4 rounded-md bg-surface-sunken dark:bg-night-sunken border border-border-default dark:border-night-line flex flex-wrap items-center justify-between gap-4 text-sm font-mono">
+                    <span className="font-bold text-text-secondary dark:text-night-ink">
                       Total Conteneurs : <strong className="text-zinc-950">{form.conteneurs.length}</strong>
                     </span>
-                    <span className="font-bold text-zinc-700">
-                      Poids Cumulé : <strong className="text-[#005DAA]">{form.conteneurs.reduce((acc, c) => acc + (Number(c.poidsKg) || 0), 0).toLocaleString('fr-FR')} Kg</strong>
+                    <span className="font-bold text-text-secondary dark:text-night-ink">
+                      Poids Cumulé : <strong className="text-[#005DAA] dark:text-night-link">{form.conteneurs.reduce((acc, c) => acc + (Number(c.poidsKg) || 0), 0).toLocaleString('fr-FR')} Kg</strong>
                     </span>
-                    <span className="font-bold text-zinc-700">
+                    <span className="font-bold text-text-secondary dark:text-night-ink">
                       Caution Totale : <strong className="text-zinc-950">{form.conteneurs.reduce((acc, c) => acc + (Number(c.montantCautionFcfa) || 0), 0).toLocaleString('fr-FR')} FCFA</strong>
                     </span>
                   </div>
@@ -713,11 +713,11 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
         </form>
 
         {/* ── PIED DE PAGE ACTIONS ── */}
-        <div className="px-7 sm:px-9 py-4 border-t border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
+        <div className="px-7 sm:px-9 py-4 border-t border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-zinc-300 text-zinc-700 hover:bg-zinc-100 font-bold text-xs sm:text-sm transition-all cursor-pointer"
+            className="px-5 py-2.5 rounded-md border border-zinc-300 dark:border-night-line-strong text-text-secondary dark:text-night-ink hover:bg-surface-sunken dark:bg-night-sunken font-bold text-sm sm:text-base transition-all cursor-pointer"
           >
             Annuler
           </button>
@@ -725,7 +725,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
           <button
             type="submit"
             form="edit-bl-main-form"
-            className="px-6 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className="px-6 py-2.5 bg-[#005DAA] dark:bg-night-accent hover:bg-[#004580] dark:hover:bg-night-accent-strong text-white dark:text-white font-black text-sm sm:text-base rounded-md shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
           >
             <Check className="w-4 h-4" />
             <span>Enregistrer les modifications</span>

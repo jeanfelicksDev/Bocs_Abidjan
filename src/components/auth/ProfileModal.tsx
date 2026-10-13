@@ -68,10 +68,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'ADMIN': return 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'AGENT_IMPORT': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'AGENT_IMPORT': return 'bg-blue-50 dark:bg-night-accent-soft text-blue-700 dark:text-night-link border-blue-200 dark:border-night-accent-line';
       case 'AGENT_EXPORT': return 'bg-amber-50 text-amber-800 border-amber-200';
-      case 'COMPTABILITE': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'CLIENT_EXPORT': return 'bg-slate-100 text-slate-800 border-slate-300';
+      case 'COMPTABILITE': return 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 border-emerald-200 dark:border-night-positive-line';
+      case 'CLIENT_EXPORT': return 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-800 dark:text-night-ink border-slate-300 dark:border-night-line-strong';
     }
   };
 
@@ -135,33 +135,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     .toUpperCase();
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       onClick={overlayClickClose(onClose)}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in select-none">
-      <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg shadow-2xl dark:shadow-black/70 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header with User Banner */}
-        <div className="bg-gradient-to-r from-[#00182f] via-[#0b2447] to-[#005daa] p-6 text-white relative">
+        <div className="bg-gradient-to-r from-[#00182f] via-[#0b2447] to-[#005daa] p-6 text-white dark:text-night-ink relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-canvas dark:bg-night-surface/10 hover:bg-surface-canvas flex items-center justify-center text-white dark:text-night-ink transition-all cursor-pointer"
             aria-label="Fermer"
           >
             <X className="w-4 h-4" />
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-[#209641] text-white flex items-center justify-center font-black text-xl shadow-lg border-2 border-white/20">
+            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-emerald-400 to-[#209641] text-white dark:text-night-ink flex items-center justify-center font-black text-xl shadow-lg dark:shadow-black/50 border-2 border-white/20">
               {initials}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold font-heading">{currentUser.nomComplet}</h2>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${getRoleColor(currentUser.role)}`}>
+                <span className={`px-2 py-0.5 rounded-full text-2xs font-black uppercase border ${getRoleColor(currentUser.role)}`}>
                   {getRoleLabel(currentUser.role)}
                 </span>
               </div>
-              <p className="text-xs text-blue-200 mt-0.5 flex items-center gap-2">
+              <p className="text-sm text-blue-200 mt-0.5 flex items-center gap-2">
                 <span>{currentUser.email}</span>
                 <span>•</span>
                 <span>{currentUser.nomSociete || 'BOCS Maritime'}</span>
@@ -170,14 +170,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 mt-6 pt-3 border-t border-white/10 text-xs">
+          <div className="flex items-center gap-2 mt-6 pt-3 border-t border-white/10 text-sm">
             <button
               type="button"
               onClick={() => setActiveTab('profile')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'profile'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  ? 'bg-surface-canvas dark:bg-night-surface text-slate-900 dark:text-night-ink shadow-sm dark:shadow-black/30'
+                  : 'text-white dark:text-night-ink/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
               }`}
             >
               <UserIcon className="w-3.5 h-3.5" />
@@ -186,10 +186,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('password')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'password'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  ? 'bg-surface-canvas dark:bg-night-surface text-slate-900 dark:text-night-ink shadow-sm dark:shadow-black/30'
+                  : 'text-white dark:text-night-ink/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
               }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
@@ -198,10 +198,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('security')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'security'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  ? 'bg-surface-canvas dark:bg-night-surface text-slate-900 dark:text-night-ink shadow-sm dark:shadow-black/30'
+                  : 'text-white dark:text-night-ink/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -218,32 +218,32 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                     Nom Complet *
                   </label>
                   <div className="relative">
-                    <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <UserIcon className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       required
                       value={nomComplet}
                       onChange={e => setNomComplet(e.target.value)}
-                      className="w-full h-10 pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                      className="w-full h-10 pl-9 pr-3 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                     Adresse Email (Identifiant)
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Mail className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="email"
                       disabled
                       value={currentUser.email}
-                      className="w-full h-10 pl-9 pr-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 cursor-not-allowed"
+                      className="w-full h-10 pl-9 pr-3 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-md text-sm text-slate-500 dark:text-night-ink-2 cursor-not-allowed"
                       title="L'adresse email est gérée par l'administrateur"
                     />
                   </div>
@@ -252,66 +252,66 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                     Téléphone Professionnel
                   </label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Phone className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="tel"
                       value={telephone}
                       onChange={e => setTelephone(e.target.value)}
                       placeholder="+225 07 00 00 00 00"
-                      className="w-full h-10 pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                      className="w-full h-10 pl-9 pr-3 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                     Entreprise / Agence
                   </label>
                   <div className="relative">
-                    <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Building className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={nomSociete}
                       onChange={e => setNomSociete(e.target.value)}
                       placeholder="BOCS CI Agency"
-                      className="w-full h-10 pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                      className="w-full h-10 pl-9 pr-3 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                   Pays de Résidence
                 </label>
                 <div className="relative">
-                  <Globe className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Globe className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={pays}
                     onChange={e => setPays(e.target.value)}
                     placeholder="Côte d'Ivoire"
-                    className="w-full h-10 pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                    className="w-full h-10 pl-9 pr-3 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 dark:border-night-line flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingProfile}
-                  className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                  className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-night-ink font-bold text-sm rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{isSavingProfile ? 'Enregistrement...' : 'Enregistrer les Modifications'}</span>
@@ -323,28 +323,28 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* TAB 2: CHANGE PASSWORD */}
           {activeTab === 'password' && (
             <form onSubmit={handleChangePassword} className="space-y-4">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-start gap-2">
+              <div className="p-3 bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line rounded-md text-sm text-blue-800 flex items-start gap-2">
                 <Lock className="w-4 h-4 text-[#005daa] shrink-0 mt-0.5" />
                 <span>Pour des raisons de sécurité, choisissez un mot de passe d'au moins 6 caractères comprenant lettres et chiffres.</span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                   Mot de Passe Actuel
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type={showCurrentPass ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={e => setCurrentPassword(e.target.value)}
                     placeholder="Saisissez votre mot de passe actuel"
-                    className="w-full h-10 pl-9 pr-10 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                    className="w-full h-10 pl-9 pr-10 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPass(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-night-ink-3 hover:text-slate-600 "
                   >
                     {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -353,23 +353,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                     Nouveau Mot de Passe *
                   </label>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type={showNewPass ? 'text' : 'password'}
                       required
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder="Au moins 6 caractères"
-                      className="w-full h-10 pl-9 pr-10 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                      className="w-full h-10 pl-9 pr-10 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPass(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-night-ink-3 hover:text-slate-600 "
                     >
                       {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -377,35 +377,35 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-night-ink uppercase mb-1">
                     Confirmer Nouveau Mot de Passe *
                   </label>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="w-4 h-4 text-slate-400 dark:text-night-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type={showNewPass ? 'text' : 'password'}
                       required
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full h-10 pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#005daa]"
+                      className="w-full h-10 pl-9 pr-3 bg-surface-canvas dark:bg-night-surface border border-slate-300 dark:border-night-line-strong rounded-md text-sm text-slate-900 dark:text-night-ink focus:outline-none focus:border-[#005daa]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 dark:border-night-line flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('profile')}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  className="px-4 py-2 bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingPass}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   <Check className="w-4 h-4" />
                   <span>{isSavingPass ? 'Modification...' : 'Confirmer le Changement'}</span>
@@ -416,37 +416,37 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           {/* TAB 3: SECURITY & ROLE INFO */}
           {activeTab === 'security' && (
-            <div className="space-y-4 text-xs text-slate-700">
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="font-bold text-slate-900">Rôle Opérationnel</span>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase border ${getRoleColor(currentUser.role)}`}>
+            <div className="space-y-4 text-sm text-slate-700 dark:text-night-ink">
+              <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-2">
+                  <span className="font-bold text-slate-900 dark:text-night-ink">Rôle Opérationnel</span>
+                  <span className={`px-2.5 py-1 rounded-full text-sm font-black uppercase border ${getRoleColor(currentUser.role)}`}>
                     {currentUser.role}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="font-bold text-slate-900">Statut du Compte</span>
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-2">
+                  <span className="font-bold text-slate-900 dark:text-night-ink">Statut du Compte</span>
                   <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                     <span>Actif &amp; Valide</span>
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="font-bold text-slate-900">Date de Création du Compte</span>
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-2">
+                  <span className="font-bold text-slate-900 dark:text-night-ink">Date de Création du Compte</span>
                   <span className="font-mono">{currentUser.dateCreation || '01/01/2026'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900">Dernière Connexion Enregistrée</span>
-                  <span className="font-mono text-slate-600">{currentUser.dernierAcces || 'Session courante active'}</span>
+                  <span className="font-bold text-slate-900 dark:text-night-ink">Dernière Connexion Enregistrée</span>
+                  <span className="font-mono text-slate-600 dark:text-night-ink">{currentUser.dernierAcces || 'Session courante active'}</span>
                 </div>
               </div>
 
-              <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-xl space-y-1.5">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+              <div className="p-3.5 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-md space-y-1.5">
+                <span className="font-bold text-slate-800 dark:text-night-ink flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-purple-600" />
                   <span>Permissions Applicatives Attribuées</span>
                 </span>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-night-ink leading-relaxed">
                   Votre profil bénéficie des droits d'accès définis par la politique de sécurité BOCS Maritime. Les actions critiques telles que les suppressions ou les validations de factures sont tracées dans le registre d'audit central.
                 </p>
               </div>
