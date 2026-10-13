@@ -1624,7 +1624,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           {/* Header Banner Saisie */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-canvas dark:bg-night-surface p-6 rounded-md border border-border-default dark:border-night-line shadow-1">
             <div>
-              <h1 className="text-2xl font-black text-[#002B49] dark:text-night-ink mb-1 tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-black text-primaryDark mb-1 tracking-tight flex items-center gap-2">
                 <span>{editingDraftId ? 'Édition & Correction du Draft BL' : 'Saisie du Draft de BL Export'}</span>
                 {editingDraftId && (
                   <span className="text-sm bg-teal-100 text-teal-800 font-extrabold px-2.5 py-0.5 rounded-full border border-teal-300">
@@ -2317,7 +2317,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           {/* Header Consolidation */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-surface-canvas dark:bg-night-surface p-6 rounded-md border border-border-default dark:border-night-line shadow-1">
             <div>
-              <h1 className="text-2xl font-black text-[#002B49] dark:text-night-ink tracking-tight mb-1">
+              <h1 className="text-2xl font-black text-primaryDark tracking-tight mb-1">
                 Manifeste Export — Consolidation de l'Escale
               </h1>
               <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium">

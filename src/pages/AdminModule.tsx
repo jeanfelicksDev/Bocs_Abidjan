@@ -388,7 +388,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         <div>
           <div className="flex items-center gap-2.5 mb-1">
             <span aria-hidden="true" className="material-symbols-outlined text-rose-400 text-2xl font-black">admin_panel_settings</span>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-night-ink font-heading tracking-tight">Console d'Administration &amp; Sécurité</h1>
+            <h1 className="text-2xl font-black text-primaryDark font-heading tracking-tight">Console d'Administration &amp; Sécurité</h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-night-ink-2 font-medium max-w-xl leading-relaxed">
             Gestion complète des comptes utilisateurs, matrice d'habilitations et contrôle des paramètres système BOCS Maritime.

@@ -269,7 +269,7 @@ escales,
   const totalFactureTtc = activeInvoices.reduce((acc, inv) => acc + (inv.montantTtcFcfa || 0), 0);
   const recoveryRate = totalFactureTtc > 0
     ? Math.min(100, Math.max(0, ((totalFactureTtc - totalSoldeDuFcfa) / totalFactureTtc) * 100))
-    : 100;
+    : null; // rien de facturé : pas de taux à afficher
 
   // Nombre de BLs import déjà facturés (indicateur « traités » de la KPI 2)
   const facturedBlsCount = bls.filter(b => b.statutImport === 'FACTURE').length;
@@ -1087,7 +1087,7 @@ escales,
                   </div>
                   <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-zinc-500">Taux de recouvrement</span>
-                    <span className="text-xs font-black text-success">{recoveryRate.toFixed(1).replace('.', ',')}%</span>
+                    <span className={`text-xs font-black ${recoveryRate === null ? 'text-text-muted' : 'text-success'}`}>{recoveryRate === null ? '—' : `${recoveryRate.toFixed(1).replace('.', ',')} %`}</span>
                   </div>
                 </div>
               )}

@@ -1011,7 +1011,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         <div>
           <div className="flex items-center gap-2.5 mb-1">
             <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-ink text-2xl font-black">arrow_right_alt</span>
-            <h1 className="text-2xl font-black text-[#005DAA] dark:text-night-link font-display tracking-tight">Gestion des Manifestes Import &amp; BLs</h1>
+            <h1 className="text-2xl font-black text-primaryDark font-display tracking-tight">Gestion des Manifestes Import &amp; BLs</h1>
           </div>
           <p className="text-sm text-text-secondary dark:text-night-ink font-medium">
             Intégration des fichiers XML GUCE/ALIS, gestion des connaissements et émission des factures par connaissement.
@@ -1030,10 +1030,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           {/* Étape 1 : L'utilisateur crée l'escale */}
           <button
             onClick={() => setShowAddEscaleModal(true)}
-            className="px-3.5 py-2 bg-zinc-900 hover:bg-black text-white dark:text-night-ink font-bold text-sm rounded-md border border-zinc-900 shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-[#002B49] hover:bg-[#04182c] dark:bg-night-raised dark:hover:bg-night-line-strong text-white dark:text-night-ink font-bold text-sm rounded-md border border-[#002B49] dark:border-night-line-strong shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             title="Créer une nouvelle escale maritime"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005DAA] dark:text-night-link">add_circle</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg">add_circle</span>
             <span>1. Créer une Escale</span>
           </button>
 

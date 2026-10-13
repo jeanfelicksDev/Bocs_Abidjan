@@ -81,9 +81,8 @@
 }
 
 .bocs-btn:focus-visible {
-  outline: 2px solid var(--c-blue-500);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px var(--c-blue-500-alpha-20);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .bocs-btn:disabled,

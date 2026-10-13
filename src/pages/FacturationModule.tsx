@@ -943,6 +943,43 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   const totalSoldeDu = (invoices || []).reduce((acc, i) => acc + (i.soldeDuFcfa || 0), 0);
   const totalPaye = (invoices || []).reduce((acc, i) => acc + ((i.montantTtcFcfa || 0) - (i.soldeDuFcfa || 0)), 0);
 
+  // Recouvrement du mois civil en cours : part réglée des factures émises ce mois-ci.
+  const recouvrementMois = React.useMemo(() => {
+    const mois = new Date().toISOString().slice(0, 7); // AAAA-MM
+    const duMois = (invoices || []).filter(i => (i.dateFacture || '').startsWith(mois));
+    const emis = duMois.reduce((acc, i) => acc + (i.montantTtcFcfa || 0), 0);
+    const regle = duMois.reduce((acc, i) => acc + ((i.montantTtcFcfa || 0) - (i.soldeDuFcfa || 0)), 0);
+    return { nbFactures: duMois.length, ratio: emis > 0 ? (regle / emis) * 100 : null };
+  }, [invoices]);
+
+  // Audit réel des avoirs : format AV-BOCS<aa><nnnn>, numérotation continue
+  // par année, pas de doublon, facture d'origine retrouvée.
+  const auditAvoirs = React.useMemo(() => {
+    const notes = creditNotes || [];
+    const FORMAT = /^AV-BOCS(\d{2})(\d{4})$/;
+    const parAnnee = new Map<string, number[]>();
+    const vus = new Map<string, number>();
+    let malformes = 0;
+    let orphelins = 0;
+    for (const cn of notes) {
+      vus.set(cn.numeroAvoir, (vus.get(cn.numeroAvoir) || 0) + 1);
+      const m = FORMAT.exec(cn.numeroAvoir || '');
+      if (!m) malformes++;
+      else parAnnee.set(m[1], [...(parAnnee.get(m[1]) || []), parseInt(m[2], 10)]);
+      const origine = (invoices || []).some(i => i.id === cn.factureId || i.numeroFacture === cn.numeroFactureOrigine);
+      if (!origine) orphelins++;
+    }
+    let ruptures = 0;
+    for (const compteurs of parAnnee.values()) {
+      const uniques = new Set(compteurs);
+      const max = Math.max(...uniques);
+      for (let n = 1; n <= max; n++) if (!uniques.has(n)) ruptures++;
+    }
+    const doublons = [...vus.values()].reduce((acc, n) => acc + (n > 1 ? n - 1 : 0), 0);
+    const anomalies = ruptures + doublons + malformes + orphelins;
+    return { total: notes.length, ruptures, doublons, malformes, orphelins, anomalies };
+  }, [creditNotes, invoices]);
+
   // Balance âgée réelle : classement par ancienneté selon la date d'échéance
   const agedBalance = React.useMemo(() => {
     const today = new Date();
@@ -1693,10 +1730,30 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
             <div className="bocs-card p-5 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
               <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">Inaltérabilité & Conformité</span>
-              <span className="text-2xl font-extrabold text-emerald-600 dark:text-night-positive font-sans">
-                100% Conforme
-              </span>
-              <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">Numérotation continue et auditée AV-BOCS</p>
+              {auditAvoirs.total === 0 ? (
+                <>
+                  <span className="text-2xl font-extrabold text-text-muted font-sans">—</span>
+                  <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">Aucun avoir émis : rien à contrôler</p>
+                </>
+              ) : (
+                <>
+                  <span className={`text-2xl font-extrabold font-sans ${auditAvoirs.anomalies === 0 ? 'text-emerald-600 dark:text-night-positive' : 'text-amber-700 dark:text-night-caution'}`}>
+                    {auditAvoirs.anomalies === 0
+                      ? 'Conforme'
+                      : `${auditAvoirs.anomalies} anomalie${auditAvoirs.anomalies > 1 ? 's' : ''}`}
+                  </span>
+                  <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">
+                    {auditAvoirs.anomalies === 0
+                      ? `${auditAvoirs.total} avoir(s) contrôlé(s) : numérotation AV-BOCS continue, factures d'origine retrouvées`
+                      : [
+                          auditAvoirs.ruptures && `${auditAvoirs.ruptures} numéro(s) manquant(s)`,
+                          auditAvoirs.doublons && `${auditAvoirs.doublons} doublon(s)`,
+                          auditAvoirs.malformes && `${auditAvoirs.malformes} numéro(s) hors format`,
+                          auditAvoirs.orphelins && `${auditAvoirs.orphelins} sans facture d'origine`,
+                        ].filter(Boolean).join(' · ')}
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -1827,9 +1884,13 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             <div className="bocs-card p-5">
               <span className="text-sm font-bold uppercase text-outline block">Ratio de Recouvrement</span>
               <span className="text-2xl font-extrabold text-secondary font-mono">
-                {((totalPaye / (totalPaye + totalSoldeDu || 1)) * 100).toFixed(1)}%
+                {totalPaye + totalSoldeDu > 0 ? `${((totalPaye / (totalPaye + totalSoldeDu)) * 100).toFixed(1)} %` : '—'}
               </span>
-              <p className="text-xs text-outline mt-1">Objectif mensuel: 95%</p>
+              <p className="text-xs text-outline mt-1">
+                {recouvrementMois.ratio === null
+                  ? 'Aucune facture émise ce mois-ci'
+                  : `Ce mois-ci : ${recouvrementMois.ratio.toFixed(1)} % sur ${recouvrementMois.nbFactures} facture(s)`}
+              </p>
             </div>
           </div>
 

@@ -343,7 +343,8 @@ tbody tr {
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-tbody tr:hover {
+/* Une ligne d'état vide (une seule cellule fusionnée) ne réagit pas au survol. */
+tbody tr:hover:not(:has(> td[colspan])) {
   background-color: var(--surface-accent-soft);
 }
 

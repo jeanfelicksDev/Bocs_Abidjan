@@ -400,7 +400,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
             <span aria-hidden="true" className="material-symbols-outlined text-2xl text-[#00875A]">timer</span>
           </div>
           <div>
-            <h1 className="text-2xl font-black text-[#005DAA] dark:text-night-ink font-display tracking-tight">Surestaries &amp; Détentions</h1>
+            <h1 className="text-2xl font-black text-primaryDark font-display tracking-tight">Surestaries &amp; Détentions</h1>
             <p className="text-sm text-text-muted dark:text-night-ink-2 font-medium mt-0.5">Calcul dégressif DMDT · Émission des factures · Suivi par conteneur</p>
           </div>
         </div>
