@@ -379,11 +379,11 @@ tbody tr:last-child th {
 }
 
 .animate-fade-in {
-  animation: bocs-enter var(--duration-slow) var(--ease-out) both;
+  animation: bocs-enter var(--duration-slow) var(--ease-out) backwards; /* backwards : aucune transform ne subsiste après l'entrée, sinon les modales « fixed » se cadrent sur le module */
 }
 
 .animate-slide-in-right {
-  animation: bocs-slide-in var(--duration-slow) var(--ease-out) both;
+  animation: bocs-slide-in var(--duration-slow) var(--ease-out) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

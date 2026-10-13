@@ -108,7 +108,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div role="dialog" aria-modal="true"
       onClick={overlayClickClose(onClose)}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in">
       <div className="bg-surface-container-lowest border border-outline-variant rounded-md shadow-2xl dark:shadow-black/70 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row relative">
         
         {/* Close Button */}
@@ -141,7 +141,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="relative z-10 text-xs text-outline font-mono flex items-center justify-between border-t border-white/10 pt-3">
             <span>BOCS Fleet System v2.4</span>
             <span className="flex items-center gap-1 text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               Secured
             </span>
           </div>

@@ -72,7 +72,7 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
 
   const modalContent = (
     <div role="dialog" aria-modal="true" 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-zinc-950/70 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-zinc-950/70 animate-fade-in"
       style={{ zIndex: 99999 }}
       onClick={overlayClickClose(onClose)}
     >

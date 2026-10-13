@@ -1222,7 +1222,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         {/* Table avec Ascenseur Vertical & Horizontal (Scrollbar) */}
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-310px)] min-h-[500px] bocs-scrollbar relative">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 backdrop-blur-md shadow-1">
+            <thead className="sticky top-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 shadow-1">
               <tr className="text-xs font-black text-text-primary dark:text-night-ink uppercase tracking-wider border-b border-border-default dark:border-night-line select-none">
                 <th className="p-3.5 cursor-pointer hover:bg-zinc-200/60 dark:hover:bg-night-raised/60 transition-colors" onClick={() => toggleSort('numeroBL')}>
                   <div className="flex items-center gap-1">
@@ -1407,7 +1407,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                           </span>
                                         )}
                                         {dang.length > 0 && (
-                                          <span className="px-1.5 py-0.2 rounded bg-rose-50 border border-rose-300 text-rose-700 text-2xs font-black flex items-center gap-0.5 animate-pulse" title={`${dang.length} conteneur(s) avec marchandises dangereuses (IMDG)`}>
+                                          <span className="px-1.5 py-0.2 rounded bg-rose-50 border border-rose-300 text-rose-700 text-2xs font-black flex items-center gap-0.5" title={`${dang.length} conteneur(s) avec marchandises dangereuses (IMDG)`}>
                                             <span aria-hidden="true" className="material-symbols-outlined text-2xs text-rose-600 font-bold">warning</span>
                                             <span>{dang.length < g.ctns.length ? `${dang.length} DANG.` : 'DANG.'}</span>
                                           </span>
@@ -1697,7 +1697,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
         return (
           <div role="dialog" aria-modal="true"
-            className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-md animate-fade-in text-text-primary dark:text-night-ink"
+            className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 dark:bg-black/70 animate-fade-in text-text-primary dark:text-night-ink"
             onClick={overlayClickClose(() => setSelectedBlDetails(null))}
           >
             <div className="bg-surface-canvas dark:bg-night-surface shadow-2xl dark:shadow-black/70 max-w-5xl w-full overflow-hidden flex flex-col h-full animate-slide-in-right rounded-l-3xl border-l border-border-default dark:border-night-line">
@@ -1748,7 +1748,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                   )}
 
                   {hasDangerous && (
-                    <span className="px-3 py-1 rounded-md bg-rose-50 border border-rose-300 text-rose-700 font-black text-sm flex items-center gap-1.5 animate-pulse">
+                    <span className="px-3 py-1 rounded-md bg-rose-50 border border-rose-300 text-rose-700 font-black text-sm flex items-center gap-1.5">
                       <span aria-hidden="true" className="material-symbols-outlined text-base text-rose-600">warning</span>
                       <span>IMDG / DANGEREUX</span>
                     </span>
@@ -1957,7 +1957,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                 <div className="flex items-center gap-1.5">
                                   <span>{ctn.numeroConteneur}</span>
                                   {ctn.isDangerous && (
-                                    <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-2xs font-black uppercase flex items-center gap-0.5 animate-pulse" title="Marchandises Dangereuses IMDG">
+                                    <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-2xs font-black uppercase flex items-center gap-0.5" title="Marchandises Dangereuses IMDG">
                                       <span aria-hidden="true" className="material-symbols-outlined text-2xs">warning</span>
                                       <span>DANG.</span>
                                     </span>
@@ -2169,7 +2169,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       {/* Modal Create Escale */}
       {showAddEscaleModal && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 animate-fade-in"
           onClick={overlayClickClose(() => setShowAddEscaleModal(false))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
@@ -2240,7 +2240,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       {/* Modal: Coller du texte XML GUCE */}
       {showPasteXmlModal && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-slate-900/40 dark:bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={overlayClickClose(() => setShowPasteXmlModal(false))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-3xl w-full p-6 shadow-2xl dark:shadow-black/70 space-y-4 border border-border-default dark:border-night-line animate-in fade-in zoom-in duration-200">
@@ -2301,7 +2301,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
         return (
           <div role="dialog" aria-modal="true"
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4"
             onClick={overlayClickClose(() => setEscaleToDelete(null))}
           >
             <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full p-6 shadow-2xl dark:shadow-black/70 space-y-4 border border-rose-200 animate-in fade-in zoom-in duration-150">
@@ -2387,14 +2387,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         const blCat = getBlCategory(blForInvoiceSelection);
         return (
           <div role="dialog" aria-modal="true"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-xs animate-fade-in"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 animate-fade-in"
             onClick={overlayClickClose(() => setBlForInvoiceSelection(null))}
           >
             <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-xl w-full p-6 space-y-4">
               
               <div className="flex items-center justify-between border-b border-border-default pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-border-default dark:border-night-line/20 flex items-center justify-center font-bold">
                     <span aria-hidden="true" className="material-symbols-outlined text-xl">fact_check</span>
                   </div>
                   <div>
@@ -2800,7 +2800,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         <span className="text-2xs text-text-muted dark:text-night-ink-2 block">TVA (18%) :</span>
                         <span className="font-bold text-zinc-950">{totalTva.toLocaleString('fr-FR')} FCFA</span>
                       </div>
-                      <div className="pl-3 border-l border-[#005DAA] dark:border-night-line/20">
+                      <div className="pl-3 border-l border-border-default dark:border-night-line/20">
                         <span className="text-2xs text-[#005DAA] dark:text-night-link font-black block">TOTAL TTC :</span>
                         <span className="font-black text-base text-[#005DAA] dark:text-night-link">{totalTtc.toLocaleString('fr-FR')} FCFA</span>
                       </div>
@@ -2840,14 +2840,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       {/* Modal: Ajouter un Connaissement (BL) Manuel */}
       {showAddBlModal && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/70 animate-fade-in"
           onClick={overlayClickClose(() => setShowAddBlModal(false))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto bocs-scrollbar">
             
             <div className="flex items-center justify-between border-b border-border-default pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-border-default dark:border-night-line/20 flex items-center justify-center font-bold">
                   <span aria-hidden="true" className="material-symbols-outlined text-2xl">post_add</span>
                 </div>
                 <div>
@@ -2986,7 +2986,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               </div>
 
               {/* Conteneurs associés */}
-              <div className="p-3.5 bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/20 rounded-md space-y-2">
+              <div className="p-3.5 bg-[#F0F7FF] border border-border-default dark:border-night-line/20 rounded-md space-y-2">
                 <div className="text-xs font-black uppercase text-zinc-950 tracking-wider flex items-center gap-1.5 font-display">
                   <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-link">inventory_2</span>
                   <span>Génération Automatique de Conteneurs Rattachés :</span>
@@ -3042,7 +3042,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       {/* Calculateur Modal */}
       {calculationModalData && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 flex items-center justify-center p-4"
           onClick={overlayClickClose(() => setCalculationModalData(null))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
@@ -3050,7 +3050,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             {/* Header */}
             <div className="p-4 bg-surface-canvas dark:bg-night-surface border-b border-border-default dark:border-night-line flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-md bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-border-default dark:border-night-line/20 flex items-center justify-center font-bold">
                   <span aria-hidden="true" className="material-symbols-outlined text-xl">calculate</span>
                 </div>
                 <div>
@@ -3317,7 +3317,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
         return (
           <div role="dialog" aria-modal="true"
-            className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/60"
             style={{ zIndex: 99999 }}
             onClick={overlayClickClose(() => { setEditingBl(null); setEditBlForm(null); })}
           >
@@ -3328,7 +3328,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               {/* Header */}
               <div className="px-7 py-5 border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-md bg-[#005DAA] dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-link">
+                  <div className="w-12 h-12 rounded-md bg-surface-sunken dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-link">
                     <span aria-hidden="true" className="material-symbols-outlined text-2xl">edit_document</span>
                   </div>
                   <div>

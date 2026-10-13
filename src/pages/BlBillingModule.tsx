@@ -1277,7 +1277,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               {/* Ligne Navire & Voyage Épurée */}
               <div className="flex flex-col gap-3 py-4 border-y border-border-default dark:border-night-line mb-6 bg-surface-base dark:bg-night-sunken/50 -mx-6 px-6">
                 <div className="flex items-center gap-3 font-bold text-base text-zinc-950 dark:text-night-ink">
-                  <div className="w-8 h-8 rounded-md bg-[#F0F7FF] flex items-center justify-center text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20 shadow-1">
+                  <div className="w-8 h-8 rounded-md bg-[#F0F7FF] flex items-center justify-center text-[#005DAA] dark:text-night-ink border border-border-default dark:border-night-line/20 shadow-1">
                     <span aria-hidden="true" className="material-symbols-outlined text-xl">directions_boat</span>
                   </div>
                   <span className="font-black text-zinc-950 dark:text-night-ink">{activeEscale?.nomNavire || '—'}</span>
@@ -1452,7 +1452,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                 <span aria-hidden="true" className="material-symbols-outlined text-base text-[#005DAA] dark:text-night-ink">category</span>
                 <span>Type de fret : <strong className="text-zinc-950 dark:text-night-ink font-black">{getBlCategory(activeBl)}</strong></span>
               </span>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-border-default dark:border-night-line/20">
                 {isExportBl(activeBl) 
                   ? 'Facturation par défaut : Échange' 
                   : getBlCategory(activeBl) === 'CONTENEUR' 
@@ -1508,7 +1508,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   // Color accent and icon per category
                   let categoryIcon = 'receipt';
                   let accentColor = 'bg-[#005DAA] dark:bg-night-accent';
-                  let iconBadgeClass = 'bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/20';
+                  let iconBadgeClass = 'bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border border-border-default dark:border-night-line/20';
                   if (isCaution) {
                     categoryIcon = 'shield';
                     accentColor = 'bg-emerald-600';
@@ -1773,7 +1773,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   <div className={`w-12 h-12 rounded-md flex items-center justify-center border shadow-1 ${
                     hasTelexPrestation
                       ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border-[#005DAA] dark:border-night-line/20'
+                      : 'bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink border-border-default dark:border-night-line/20'
                   }`}>
                     <span aria-hidden="true" className="material-symbols-outlined text-2xl">{hasTelexPrestation ? 'verified' : 'description'}</span>
                   </div>
@@ -1860,7 +1860,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       {showInvoiceSelectionModal && activeBl && (
         <div role="dialog" aria-modal="true"
           onClick={overlayClickClose(() => setShowInvoiceSelectionModal(false))}
-          className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm"
+          className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-black/55"
         >
           <div
             className="bg-surface-canvas dark:bg-night-surface rounded-lg w-full max-w-lg shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden flex flex-col"
@@ -1869,7 +1869,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
             {/* Header */}
             <div className="px-6 py-5 border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-md bg-[#005DAA] dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-ink">
+                <div className="w-11 h-11 rounded-md bg-surface-sunken dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-ink">
                   <span aria-hidden="true" className="material-symbols-outlined text-xl">playlist_add_check</span>
                 </div>
                 <div>
@@ -1994,7 +1994,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       )}
 
       {showPaymentModal && paymentFacture && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowPaymentModal(false))} className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowPaymentModal(false))} className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md border border-slate-200 dark:border-night-line shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-night-line">
               <div className="flex items-center gap-2">
@@ -2087,7 +2087,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
       {/* 4. MODAL: DMDT SURESTARIE DEGRESSIVE CALCULATION */}
       {calculationModalData && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setCalculationModalData(null))} className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setCalculationModalData(null))} className="fixed inset-0 z-[100005] flex items-center justify-center p-4 bg-slate-900/60 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md border border-slate-200 dark:border-night-line shadow-2xl dark:shadow-black/70 max-w-3xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-night-line">
@@ -2270,7 +2270,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
       {/* CUSTOM PRINT PREVIEW DIALOG MODAL (CHROME DESIGN SIMULATION) */}
       {printPreviewData && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setPrintPreviewData(null))} className="fixed inset-0 z-[100005] flex items-center justify-center p-0 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setPrintPreviewData(null))} className="fixed inset-0 z-[100005] flex items-center justify-center p-0 bg-slate-950/80 animate-fade-in select-none">
           <div className="w-full h-full flex flex-row overflow-hidden bg-slate-900">
             
             {/* Left Column: Live PDF Document Preview */}

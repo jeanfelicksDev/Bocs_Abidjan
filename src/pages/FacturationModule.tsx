@@ -1675,7 +1675,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
         <div className="space-y-6">
           {/* Summary Metric Cards for Credit Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bocs-card p-5 border-l-4 border-rose-500 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
+            <div className="bocs-card p-5 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
               <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">Total Avoirs Émis</span>
               <span className="text-2xl font-extrabold text-rose-600 dark:text-night-critical font-mono">
                 {(creditNotes || []).reduce((sum, cn) => sum + cn.montantTtcFcfa, 0).toLocaleString('fr-FR')} FCFA
@@ -1683,7 +1683,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">{(creditNotes || []).length} note(s) d'avoir enregistrée(s)</p>
             </div>
 
-            <div className="bocs-card p-5 border-l-4 border-blue-500 dark:border-night-link bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
+            <div className="bocs-card p-5 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
               <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">TVA Régularisée</span>
               <span className="text-2xl font-extrabold text-blue-600 dark:text-night-link font-mono">
                 {(creditNotes || []).reduce((sum, cn) => sum + cn.tvaFcfa, 0).toLocaleString('fr-FR')} FCFA
@@ -1691,7 +1691,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <p className="text-xs text-slate-400 dark:text-night-ink-3 mt-1">Crédit de TVA fiscale régularisé</p>
             </div>
 
-            <div className="bocs-card p-5 border-l-4 border-emerald-500 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
+            <div className="bocs-card p-5 bg-surface-canvas dark:bg-night-surface shadow-sm dark:shadow-black/30 rounded-md">
               <span className="text-sm font-bold uppercase text-slate-500 dark:text-night-ink-2 block">Inaltérabilité & Conformité</span>
               <span className="text-2xl font-extrabold text-emerald-600 dark:text-night-positive font-sans">
                 100% Conforme
@@ -1812,19 +1812,19 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
           
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bocs-card p-5 border-l-4 border-error">
+            <div className="bocs-card p-5">
               <span className="text-sm font-bold uppercase text-outline block">Total Encours & Solde Dû</span>
               <span className="text-2xl font-extrabold text-error font-mono">{totalSoldeDu.toLocaleString('fr-FR')} FCFA</span>
               <p className="text-xs text-outline mt-1">Créances clients à recouvrer</p>
             </div>
 
-            <div className="bocs-card p-5 border-l-4 border-emerald-500">
+            <div className="bocs-card p-5">
               <span className="text-sm font-bold uppercase text-outline block">Total Règlements Encaissés</span>
               <span className="text-2xl font-extrabold text-emerald-600 dark:text-night-positive font-mono">{totalPaye.toLocaleString('fr-FR')} FCFA</span>
               <p className="text-xs text-outline mt-1">Paiements validés</p>
             </div>
 
-            <div className="bocs-card p-5 border-l-4 border-secondary">
+            <div className="bocs-card p-5">
               <span className="text-sm font-bold uppercase text-outline block">Ratio de Recouvrement</span>
               <span className="text-2xl font-extrabold text-secondary font-mono">
                 {((totalPaye / (totalPaye + totalSoldeDu || 1)) * 100).toFixed(1)}%
@@ -1907,8 +1907,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* TAB 3: TARIFS SURESTARIES */}
       {activeTab === 'TARIFS' && (
-        <div className="bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md p-6 space-y-6 shadow-sm dark:shadow-black/30">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#005DAA] dark:border-night-line/15 pb-4 gap-4">
+        <div className="bg-surface-base dark:bg-night-ink/5 border border-border-default dark:border-night-line/20 rounded-md p-6 space-y-6 shadow-sm dark:shadow-black/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border-default dark:border-night-line/15 pb-4 gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-night-ink flex items-center gap-2">
                 <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link">tune</span>
@@ -1935,7 +1935,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
           </div>
 
           {/* Filters controls */}
-          <div className="flex flex-wrap items-center gap-4 bg-surface-canvas dark:bg-night-surface/80 p-4 rounded-md border border-[#005DAA] dark:border-night-line/20 text-sm shadow-1">
+          <div className="flex flex-wrap items-center gap-4 bg-surface-canvas dark:bg-night-surface/80 p-4 rounded-md border border-border-default dark:border-night-line/20 text-sm shadow-1">
             <div className="space-y-1">
               <span className="text-2xs text-slate-400 dark:text-night-ink-3 font-bold uppercase tracking-wider block">Flux d'opération</span>
               <div className="flex bg-surface-canvas dark:bg-night-surface rounded-lg border border-slate-200 dark:border-night-line p-0.5 shadow-1">
@@ -2006,7 +2006,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
           <div className="overflow-x-auto overflow-y-auto max-h-[480px] bocs-scrollbar relative border border-slate-100 dark:border-night-line rounded-md shadow-1">
             <table className="w-full text-left text-sm border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-600/95 dark:bg-night-sunken backdrop-blur-md shadow-1">
+              <thead className="sticky top-0 z-10 bg-slate-600/95 dark:bg-night-sunken shadow-1">
                 <tr className="text-xs font-extrabold text-white dark:text-night-ink-2 uppercase border-b border-slate-500/30 dark:border-night-line">
                   <th className="p-3">Type Conteneur</th>
                   <th className="p-3">Régime</th>
@@ -2106,7 +2106,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Payment Form */}
       {showPaymentModal && paymentFacture && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowPaymentModal(false); setPaymentFacture(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowPaymentModal(false); setPaymentFacture(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in">
           <div className="bg-surface-container-low dark:bg-night-sunkenest border border-outline-variant rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-outline-variant pb-3">
               <h3 className="font-bold text-xl text-primary flex items-center gap-2">
@@ -2196,7 +2196,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Tarif */}
       {editingTarif && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setEditingTarif(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setEditingTarif(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fade-in text-slate-800 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-100 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-lg text-slate-900 dark:text-night-ink flex items-center gap-1.5">
@@ -2310,7 +2310,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Add Tarif */}
       {showAddTarifModal && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddTarifModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddTarifModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fade-in text-slate-800 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-100 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-lg text-slate-900 dark:text-night-ink flex items-center gap-1.5">
@@ -2441,7 +2441,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
         <div className="space-y-6 pb-24">
           
           {/* Title & Subtitle Banner with '+ Nouveau Type' button */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs p-6 rounded-md shadow-sm dark:shadow-black/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-base dark:bg-night-ink/5 border border-border-default dark:border-night-line/20 p-6 rounded-md shadow-sm dark:shadow-black/30">
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-[#00182f] dark:text-night-ink font-heading flex items-center gap-2">
                 <span aria-hidden="true" className="material-symbols-outlined text-[#005daa] text-2xl">
@@ -2531,11 +2531,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               id="config-panel-TAXE"
               role="tabpanel"
               aria-labelledby="config-tab-TAXE"
-              className="bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden"
+              className="bg-surface-base dark:bg-night-ink/5 border border-border-default dark:border-night-line/20 rounded-md shadow-sm dark:shadow-black/30 overflow-hidden"
             >
-              <div className="p-5 border-b border-[#005DAA] dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/10">
+              <div className="p-5 border-b border-border-default dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-sunken dark:bg-night-ink/10">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/80 border border-[#005DAA] dark:border-night-line/20 text-[#005DAA] dark:text-night-link flex items-center justify-center shrink-0 shadow-1">
+                  <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/80 border border-border-default dark:border-night-line/20 text-[#005DAA] dark:text-night-link flex items-center justify-center shrink-0 shadow-1">
                     <span aria-hidden="true" className="material-symbols-outlined text-xl">receipt_long</span>
                   </div>
                   <div className="space-y-0.5">
@@ -2697,7 +2697,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
 
                 {/* Simulation */}
-                <div className="lg:col-span-8 bg-surface-canvas dark:bg-night-surface/90 border border-[#005DAA] dark:border-night-line/20 rounded-md p-4 space-y-3 shadow-1">
+                <div className="lg:col-span-8 bg-surface-canvas dark:bg-night-surface/90 border border-border-default dark:border-night-line/20 rounded-md p-4 space-y-3 shadow-1">
                   <div className="flex items-center justify-between">
                     <div className="text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-night-ink-2">
                       Simulation en direct (assiette TTC)
@@ -2749,7 +2749,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   </p>
                 </div>
 
-                <div className="lg:col-span-12 text-xs text-slate-600 dark:text-night-ink bg-surface-canvas dark:bg-night-surface/75 border border-[#005DAA] dark:border-night-line/15 rounded-lg px-3 py-2">
+                <div className="lg:col-span-12 text-xs text-slate-600 dark:text-night-ink bg-surface-canvas dark:bg-night-surface/75 border border-border-default dark:border-night-line/15 rounded-lg px-3 py-2">
                   <strong className="text-slate-800 dark:text-night-ink">Traçabilité :</strong> le libellé, le mode et la valeur appliqués sont figés sur chaque facture émise
                   (champs <span className="font-mono">taxeAdditionnelle*</span>) ; une modification de la valeur ci-dessus ne s'applique qu'aux
                   factures émises ensuite. La proforma en cours peut être régénérée pour adopter la nouvelle valeur.
@@ -2764,11 +2764,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               id="config-panel-TIMBRE"
               role="tabpanel"
               aria-labelledby="config-tab-TIMBRE"
-              className="bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden"
+              className="bg-surface-base dark:bg-night-ink/5 border border-border-default dark:border-night-line/20 rounded-md shadow-sm dark:shadow-black/30 overflow-hidden"
             >
-              <div className="p-5 border-b border-[#005DAA] dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/10">
+              <div className="p-5 border-b border-border-default dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-sunken dark:bg-night-ink/10">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/80 border border-[#005DAA] dark:border-night-line/20 text-[#005DAA] dark:text-night-link flex items-center justify-center shrink-0 shadow-1">
+                  <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/80 border border-border-default dark:border-night-line/20 text-[#005DAA] dark:text-night-link flex items-center justify-center shrink-0 shadow-1">
                     <span aria-hidden="true" className="material-symbols-outlined text-xl">approval</span>
                   </div>
                   <div className="space-y-0.5">
@@ -2816,7 +2816,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
 
                 {timbreDraft.map((bracket, index) => (
-                  <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-surface-canvas dark:bg-night-surface/90 border border-[#005DAA] dark:border-night-line/15 rounded-md p-3 shadow-1 hover:border-[#005DAA] transition-all">
+                  <div key={bracket.id || index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center bg-surface-canvas dark:bg-night-surface/90 border border-border-default dark:border-night-line/15 rounded-md p-3 shadow-1 hover:border-[#005DAA] transition-all">
                     <div className="lg:col-span-4">
                       <input
                         type="text"
@@ -2889,7 +2889,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   </button>
                 </div>
 
-                <div className="lg:col-span-12 text-xs text-slate-600 dark:text-night-ink bg-surface-canvas dark:bg-night-surface/75 border border-[#005DAA] dark:border-night-line/15 rounded-lg px-3 py-2">
+                <div className="lg:col-span-12 text-xs text-slate-600 dark:text-night-ink bg-surface-canvas dark:bg-night-surface/75 border border-border-default dark:border-night-line/15 rounded-lg px-3 py-2">
                   <strong className="text-slate-800 dark:text-night-ink">Traçabilité :</strong> le montant du timbre appliqué est figé sur chaque facture émise
                   (champ <span className="font-mono">timbreFiscalFcfa</span>) ; une modification des tranches ci-dessus ne s'applique qu'aux
                   factures émises ensuite. Le timbre est inclus dans le « Net à payer » de l'aperçu et de la facture imprimée.
@@ -2907,8 +2907,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             >
             
               {/* Left Panel: Types de Factures (4 columns) */}
-              <div className="lg:col-span-4 bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden">
-                <div className="p-4 border-b border-[#005DAA] dark:border-night-line/15 flex items-center justify-between bg-[#005DAA] dark:bg-night-ink/10">
+              <div className="lg:col-span-4 bg-surface-base dark:bg-night-ink/5 border border-border-default dark:border-night-line/20 rounded-md shadow-sm dark:shadow-black/30 overflow-hidden">
+                <div className="p-4 border-b border-border-default dark:border-night-line/15 flex items-center justify-between bg-surface-sunken dark:bg-night-ink/10">
                   <h3 className="font-bold text-slate-900 dark:text-night-ink text-sm uppercase tracking-wider flex items-center gap-2">
                     <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link text-base">list</span>
                     <span>Types de Factures</span>
@@ -2927,7 +2927,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
 
                 {/* Search input for types */}
-                <div className="p-3 border-b border-[#005DAA] dark:border-night-line/15 bg-surface-canvas dark:bg-night-surface/70">
+                <div className="p-3 border-b border-border-default dark:border-night-line/15 bg-surface-canvas dark:bg-night-surface/70">
                   <div className="relative">
                     <span aria-hidden="true" className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-night-ink-3 text-base">search</span>
                     <input
@@ -3018,7 +3018,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </div>
 
                 {/* Bottom Quick Action Button */}
-                <div className="p-3 border-t border-[#005DAA] dark:border-night-line/15 bg-[#005DAA] dark:bg-night-ink/5">
+                <div className="p-3 border-t border-border-default dark:border-night-line/15 bg-surface-base dark:bg-night-ink/5">
                   <button
                     type="button"
                     onClick={() => setShowAddTypeModal(true)}
@@ -3031,12 +3031,12 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               </div>
 
               {/* Right Panel: Configuration details (8 columns) */}
-              <div className="lg:col-span-8 bg-[#005DAA] dark:bg-night-ink/5 border border-[#005DAA] dark:border-night-line/20 backdrop-blur-xs rounded-md shadow-sm dark:shadow-black/30 overflow-hidden">
+              <div className="lg:col-span-8 bg-surface-base dark:bg-night-ink/5 border border-border-default dark:border-night-line/20 rounded-md shadow-sm dark:shadow-black/30 overflow-hidden">
                 {activeInvoiceType ? (
                   <div>
                   
                     {/* Panel Header */}
-                    <div className="p-6 border-b border-[#005DAA] dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#005DAA] dark:bg-night-ink/10">
+                    <div className="p-6 border-b border-border-default dark:border-night-line/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-sunken dark:bg-night-ink/10">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-bold text-[#00182f] dark:text-night-ink font-heading">
@@ -3098,8 +3098,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         : ['CONTENEUR', 'VRAC', 'RORO', 'CONVENTIONNEL'];
 
                       return (
-                        <div className="border-b border-[#005DAA] dark:border-night-line/15 bg-surface-canvas dark:bg-night-surface/70">
-                          <div className="flex border-b border-[#005DAA] dark:border-night-line/15 px-4 gap-4 overflow-x-auto bocs-scrollbar">
+                        <div className="border-b border-border-default dark:border-night-line/15 bg-surface-canvas dark:bg-night-surface/70">
+                          <div className="flex border-b border-border-default dark:border-night-line/15 px-4 gap-4 overflow-x-auto bocs-scrollbar">
                             {allowedCategories.map(cat => {
                               const label = 
                                 cat === 'CONTENEUR_COC' ? 'Conteneur COC' :
@@ -3129,7 +3129,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     })()}
 
                     {/* Grid of Rubrique Cards */}
-                    <div className="p-6 bg-[#005DAA] dark:bg-night-ink/5">
+                    <div className="p-6 bg-surface-base dark:bg-night-ink/5">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {localRubriques
                           .filter(r => r.invoiceTypeId === selectedInvoiceTypeId && (r.category === activeCategory || (activeCategory === 'CONTENEUR_COC' && r.category === 'CONTENEUR')))
@@ -3138,7 +3138,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                               key={rub.id} 
                               className={`p-4 rounded-md border transition-all bg-surface-canvas dark:bg-night-surface/95 relative group ${
                                 rub.isActive 
-                                  ? 'border-[#005DAA] dark:border-night-line/15 hover:border-[#005DAA] shadow-1 hover:shadow-sm dark:shadow-black/30' 
+                                  ? 'border-border-default dark:border-night-line/15 hover:border-[#005DAA] shadow-1 hover:shadow-sm dark:shadow-black/30' 
                                   : 'border-slate-200 dark:border-night-line opacity-60 bg-surface-canvas dark:bg-night-surface/60'
                               }`}
                             >
@@ -3312,7 +3312,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       {/* Modals for Invoice Config */}
       {/* Modal Add Invoice Type */}
       {showAddTypeModal && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddTypeModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddTypeModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
@@ -3373,7 +3373,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Invoice Type */}
       {showEditTypeModal && editingInvoiceType && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowEditTypeModal(false); setEditingInvoiceType(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowEditTypeModal(false); setEditingInvoiceType(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
@@ -3432,7 +3432,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Delete Invoice Type Confirmation */}
       {showDeleteTypeModal && typeToDelete && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteTypeModal(false); setTypeToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteTypeModal(false); setTypeToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-xl text-rose-600 dark:text-night-critical flex items-center gap-2">
@@ -3477,7 +3477,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Edit Rubrique */}
       {showEditRubriqueModal && editingRubrique && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowEditRubriqueModal(false); setEditingRubrique(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowEditRubriqueModal(false); setEditingRubrique(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
@@ -3592,7 +3592,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Delete Rubrique Confirmation */}
       {showDeleteConfirmModal && rubriqueToDelete && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteConfirmModal(false); setRubriqueToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-xl text-rose-600 dark:text-night-critical flex items-center gap-2">
@@ -3637,7 +3637,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       
       {/* Modal Add Rubrique */}
       {showAddRubriqueModal && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddRubriqueModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddRubriqueModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-bold text-xl text-[#00182f] dark:text-night-ink flex items-center gap-2">
@@ -3790,7 +3790,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Mise à jour du Prix Unitaire & Historique */}
       {showPriceModal && selectedRubriqueForPrice && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowPriceModal(false); setSelectedRubriqueForPrice(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3 shrink-0">
@@ -3814,7 +3814,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             {/* Form: 2 champs de mise à jour ("A partir de", "Prix Unitaire") */}
             <div className="shrink-0">
               <form onSubmit={handleSavePriceUpdate} className="space-y-3">
-                <div className="bg-[#F0F7FF] /40 border border-[#005DAA] dark:border-night-line/20 p-4 rounded-md space-y-3">
+                <div className="bg-[#F0F7FF] /40 border border-border-default dark:border-night-line/20 p-4 rounded-md space-y-3">
                   <p className="text-sm font-bold text-[#005DAA] dark:text-night-link uppercase tracking-wide flex items-center gap-1.5">
                     <span aria-hidden="true" className="material-symbols-outlined text-base">edit_calendar</span>
                     Nouveau Tarif Applicable
@@ -3959,7 +3959,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Émission Note d'Avoir */}
       {showCreditNoteModal && targetInvoiceForCreditNote && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowCreditNoteModal(false); setTargetInvoiceForCreditNote(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowCreditNoteModal(false); setTargetInvoiceForCreditNote(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-extrabold text-lg text-slate-900 dark:text-night-ink flex items-center gap-2">
@@ -4121,7 +4121,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Validation Définitive de Facture */}
       {showValidateModal && invoiceToValidate && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowValidateModal(false); setInvoiceToValidate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowValidateModal(false); setInvoiceToValidate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-extrabold text-lg text-slate-900 dark:text-night-ink flex items-center gap-2">
@@ -4174,7 +4174,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Duplication / Reprise de Facture */}
       {showDuplicateModal && invoiceToDuplicate && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDuplicateModal(false); setInvoiceToDuplicate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDuplicateModal(false); setInvoiceToDuplicate(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-extrabold text-lg text-slate-900 dark:text-night-ink flex items-center gap-2">
@@ -4224,7 +4224,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
       {/* Modal Confirmation Suppression Brouillon */}
       {showDeleteInvoiceModal && invoiceToDelete && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteInvoiceModal(false); setInvoiceToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in text-slate-900 dark:text-night-ink">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowDeleteInvoiceModal(false); setInvoiceToDelete(null); })} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-fade-in text-slate-900 dark:text-night-ink">
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-night-line pb-3">
               <h3 className="font-extrabold text-lg text-rose-600 dark:text-night-critical flex items-center gap-2">

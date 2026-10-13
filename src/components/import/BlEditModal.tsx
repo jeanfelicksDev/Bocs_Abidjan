@@ -154,7 +154,7 @@ export const BlEditModal: React.FC<BlEditModalProps> = ({
 
   const modalContent = (
     <div role="dialog" aria-modal="true" 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 md:p-8 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 md:p-8 bg-zinc-950/60 animate-fade-in"
       style={{ zIndex: 99999 }}
       onClick={overlayClickClose(onClose)}
     >

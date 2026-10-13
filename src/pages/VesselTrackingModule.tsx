@@ -228,7 +228,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
           <button
             onClick={openCreateVessel}
-            className="px-3.5 py-2.5 bg-[#005DAA] dark:bg-night-ink/10 hover:bg-[#005DAA] text-[#005DAA] dark:text-night-link font-extrabold text-sm rounded-md transition-all flex items-center gap-1.5 cursor-pointer border border-[#005DAA] dark:border-night-line/30"
+            className="px-3.5 py-2.5 bg-surface-sunken dark:bg-night-ink/10 hover:bg-[#005DAA] text-[#005DAA] dark:text-night-link font-extrabold text-sm rounded-md transition-all flex items-center gap-1.5 cursor-pointer border border-[#005DAA] dark:border-night-line/30"
           >
             <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>
             <span>Nouveau Navire</span>
@@ -261,7 +261,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
             </div>
           </div>
           <p className="text-xs text-[#00875A] font-bold flex items-center gap-1.5 mt-2 pt-2 border-t border-border-default">
-            <span className="w-2 h-2 rounded-full bg-[#00875A] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#00875A]" />
             <span>Postes 11 à 14 Vridi PAA</span>
           </p>
         </div>
@@ -420,7 +420,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                     <td className="p-3.5">
                       {escale.statut === 'EN_COURS' ? (
                         <span className="px-2.5 py-1 rounded-full text-2xs font-black bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30 inline-flex items-center gap-1.5 shadow-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] animate-pulse"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00875A]"></span>
                           À QUAI
                         </span>
                       ) : (
@@ -515,7 +515,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
       {/* Escale Detail Modal */}
       {selectedEscale && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setSelectedEscale(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setSelectedEscale(null))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-lg w-full p-6 space-y-4 relative text-text-primary dark:text-night-ink">
             <button aria-label="Fermer"
               onClick={() => setSelectedEscale(null)}
@@ -556,7 +556,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
               </div>
             </div>
 
-            <div className="p-3.5 bg-[#F0F7FF] border border-[#005DAA] dark:border-night-line/20 rounded-md text-sm space-y-1">
+            <div className="p-3.5 bg-[#F0F7FF] border border-border-default dark:border-night-line/20 rounded-md text-sm space-y-1">
               <span className="font-bold text-[#005DAA] dark:text-night-link block">Berteillage &amp; Opérations Manutention :</span>
               <p className="text-text-secondary dark:text-night-ink">Poste à quai 14 - Terminal à Conteneurs Vridi (TC1/TC2). Déchargement et chargement en cours.</p>
             </div>
@@ -619,7 +619,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
       {/* Modal Add Escale Form */}
       {showAddModal && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowAddModal(false))} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4 text-text-primary dark:text-night-ink">
             <div className="flex items-center justify-between border-b border-border-default pb-3">
               <h3 className="font-black text-xl text-text-primary dark:text-night-ink flex items-center gap-2">
@@ -748,7 +748,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
       {/* Modal Création / Édition de Navire */}
       {showAddVesselModal && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowAddVesselModal(false); setEditingVessel(null); })} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => { setShowAddVesselModal(false); setEditingVessel(null); })} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md shadow-2xl dark:shadow-black/70 max-w-md w-full p-6 space-y-4 text-text-primary dark:text-night-ink border border-border-default dark:border-night-line animate-fade-in">
             <div className="flex items-center justify-between border-b border-border-default pb-3">
               <h3 className="font-black text-xl text-[#002B49] flex items-center gap-2">
@@ -838,11 +838,11 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
       {/* Modal Registre de la Flotte */}
       {showVesselsModal && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowVesselsModal(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setShowVesselsModal(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md shadow-2xl dark:shadow-black/70 max-w-3xl w-full p-6 space-y-4 text-text-primary dark:text-night-ink border border-border-default dark:border-night-line animate-fade-in max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-border-default pb-3 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-md bg-surface-sunken dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link flex items-center justify-center font-bold">
                   <span aria-hidden="true" className="material-symbols-outlined">directions_boat</span>
                 </div>
                 <div>
@@ -945,7 +945,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
         const relatedPaymentsCount = payments.filter(p => relatedInvoiceIds.includes(p.factureId)).length;
 
         return (
-          <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setEscaleToDelete(null))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setEscaleToDelete(null))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full p-6 shadow-2xl dark:shadow-black/70 space-y-4 border border-rose-200 animate-fade-in text-text-primary dark:text-night-ink">
               <div className="flex items-center gap-3 text-rose-600 border-b border-border-default pb-3">
                 <div className="w-11 h-11 rounded-md bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shadow-1">
@@ -1020,7 +1020,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
       {vesselToDelete && (() => {
         const linkedEscales = escales.filter(e => e.nomNavire?.trim().toLowerCase() === vesselToDelete.nom?.trim().toLowerCase());
         return (
-          <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setVesselToDelete(null))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setVesselToDelete(null))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full p-6 shadow-2xl dark:shadow-black/70 space-y-4 border border-rose-200 animate-fade-in text-text-primary dark:text-night-ink">
               <div className="flex items-center gap-3 text-rose-600 border-b border-border-default pb-3">
                 <div className="w-11 h-11 rounded-md bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shadow-1">

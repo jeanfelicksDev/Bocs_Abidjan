@@ -366,7 +366,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     } else if (isCorrectionWindowActive) {
       if (isClientExport) {
         badgeText = `Correction active (${correctionTimeFormatted} restantes)`;
-        badgeColor = 'bg-teal-50 dark:bg-night-sunken text-teal-800 dark:text-[#5EEAD4] border-teal-400 dark:border-[#2DD4BF]/30 font-extrabold animate-pulse';
+        badgeColor = 'bg-teal-50 dark:bg-night-sunken text-teal-800 dark:text-[#5EEAD4] border-teal-400 dark:border-[#2DD4BF]/30 font-extrabold';
       } else {
         badgeText = `Attente Ok To Print (Reste ${correctionTimeFormatted})`;
         badgeColor = 'bg-amber-50 dark:bg-night-caution-soft text-amber-800 dark:text-night-caution border-amber-300 dark:border-night-caution-line font-bold';
@@ -1569,7 +1569,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                                   setTargetDraftForFeeAcceptance(draft);
                                   setClientFeeModalOpen(true);
                                 }}
-                                className="px-3 py-1.5 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95 animate-pulse"
+                                className="px-3 py-1.5 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
                                 title="L'agent a accordé la correction. Cliquez pour accepter les frais et débuter votre fenêtre de 2h."
                               >
                                 <DollarSign className="w-3.5 h-3.5" />
@@ -2530,7 +2530,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 1 : DEMANDE DE CORRECTION APRÈS VERROUILLAGE (CLIENT)
       ══════════════════════════════════════════════════════════════════ */}
       {correctionModalOpen && targetDraftForCorrection && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setCorrectionModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setCorrectionModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden animate-scale-in">
 
             <div className="bg-gradient-to-r from-rose-50 to-amber-50 dark:from-night-critical-soft dark:to-night-surface p-5 border-b border-rose-200 flex items-center gap-3">
@@ -2621,7 +2621,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 2 : TRAITEMENT DE LA DEMANDE DE CORRECTION (AGENT / ADMIN)
       ══════════════════════════════════════════════════════════════════ */}
       {agentApprovalModalOpen && targetDraftForApproval && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setAgentApprovalModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setAgentApprovalModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-xl w-full shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden animate-scale-in">
 
             <div className="bg-[#002B49] text-white dark:text-night-ink p-5 flex items-center gap-3">
@@ -2785,7 +2785,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 3 : REFUS DE LA DEMANDE DE CORRECTION (AGENT / ADMIN)
       ══════════════════════════════════════════════════════════════════ */}
       {refuseModalOpen && targetDraftForApproval && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setRefuseModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setRefuseModalOpen(false))} className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-md w-full shadow-2xl dark:shadow-black/70 border border-rose-300 overflow-hidden animate-scale-in">
             <div className="bg-rose-600 text-white dark:text-night-ink p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/15 flex items-center justify-center">
@@ -2839,7 +2839,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 4 : ACCEPTATION DES FRAIS PAR LE CLIENT (ACCORD_AGENT → 2h)
       ══════════════════════════════════════════════════════════════════ */}
       {clientFeeModalOpen && targetDraftForFeeAcceptance && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setClientFeeModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setClientFeeModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full shadow-2xl dark:shadow-black/70 border border-emerald-300 overflow-hidden animate-scale-in">
 
             <div className="bg-gradient-to-r from-emerald-700 to-teal-700 text-white dark:text-night-ink p-5 flex items-center gap-3">
@@ -2926,7 +2926,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           MODALE 5 : CONFIRMATION DE SUPPRESSION D'UN DRAFT (ADMIN UNIQUEMENT)
       ══════════════════════════════════════════════════════════════════ */}
       {deleteDraftModalOpen && draftToDelete && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setDeleteDraftModalOpen(false))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setDeleteDraftModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-md w-full shadow-2xl dark:shadow-black/70 border border-rose-300 overflow-hidden animate-scale-in">
             <div className="bg-gradient-to-r from-rose-600 to-rose-700 text-white dark:text-night-ink p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/15 flex items-center justify-center shrink-0">
@@ -3013,7 +3013,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
       {/* Validation Errors Modal */}
       {validationErrors.length > 0 && (
-        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setValidationErrors([]))} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setValidationErrors([]))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-md w-full shadow-2xl dark:shadow-black/70 border border-rose-300 overflow-hidden animate-scale-in">
             <div className="bg-rose-50 p-5 border-b border-rose-200 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-rose-200 text-rose-800 flex items-center justify-center font-bold">

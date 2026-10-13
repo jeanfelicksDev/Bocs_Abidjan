@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b border-zinc-200 sticky top-0 z-50 w-full px-4 md:px-6 py-2.5 transition-all select-none shadow-xs text-zinc-900">
+    <header className="bg-white border-b border-zinc-200 sticky top-0 z-50 w-full px-4 md:px-6 py-2.5 transition-all select-none shadow-xs text-zinc-900">
       <div className="w-full flex items-center justify-between gap-4">
 
         {/* Left Section: Brand Logo & Mobile Menu Toggle & Bouton Retour Plateforme */}
@@ -493,7 +493,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex xl:hidden">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/80 transition-opacity"
             onClick={() => setMobileMenuOpen(false)}
           />
 

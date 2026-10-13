@@ -745,7 +745,7 @@ escales,
         <div className="max-w-[2465px] mx-auto px-6 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-xs font-medium">
             <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
               PAA / GUCE Côte d'Ivoire : API Opérationnelle
             </span>
             <span className="hidden md:inline text-zinc-300">
@@ -769,7 +769,7 @@ escales,
       </div>
 
       {/* ─── 1. TOP EXECUTIVE CLEAN HEADER ─── */}
-      <header className="w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md z-30 relative shrink-0 shadow-xs">
+      <header className="w-full border-b border-zinc-200 bg-white z-30 relative shrink-0 shadow-xs">
         <div className="max-w-[2465px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
 
           {/* Brand Identity */}
@@ -969,7 +969,7 @@ escales,
                   <div className="flex items-center gap-2.5">
                     <span className="text-4xl font-black text-primaryDark font-sans tracking-tight">{activeEscalesCount}</span>
                     <span className="inline-flex items-center gap-1 text-xs font-black text-success bg-[#ECFDF5] px-2 py-1 rounded-md border border-success/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shrink-0"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0"></span>
                       <Anchor className="w-3 h-3" />
                       <span>En cours</span>
                     </span>
@@ -1351,7 +1351,7 @@ escales,
               <div className="relative bg-[#071D33] rounded-xl p-6 sm:p-7 text-white shadow-md overflow-hidden flex flex-col">
                 <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full border border-cyan-400/20 pointer-events-none"></div>
                 <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full border border-cyan-400/30 pointer-events-none"></div>
-                <div className="absolute top-8 right-16 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none"></div>
+                <div className="absolute top-8 right-16 w-2 h-2 rounded-full bg-emerald-400 pointer-events-none"></div>
 
                 <div className="relative z-10 flex flex-col h-full">
                   <span className="inline-flex self-start items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-400/15 border border-cyan-400/30 text-xs font-black uppercase tracking-wider text-cyan-300">
@@ -1508,7 +1508,7 @@ escales,
                           <React.Fragment key={esc.id}>
                             <tr
                               onClick={() => handleEscaleClick(esc.id)}
-                              className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${isExpanded ? 'bg-primaryLight/60 border-l-4 border-primary' : ''
+                              className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${isExpanded ? 'bg-primaryLight/60' : ''
                                 }`}
                             >
                               <td className="px-8 py-5 font-black text-zinc-950">
@@ -1553,7 +1553,7 @@ escales,
                               <td className="px-8 py-5 text-center">
                                 {esc.statut === 'EN_COURS' ? (
                                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                     <span>En Cours</span>
                                   </span>
                                 ) : (
@@ -2120,7 +2120,7 @@ escales,
                   <div className="space-y-3 pt-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                         <span className="text-xs font-black uppercase text-emerald-700 tracking-wider">
                           Connaissements Extraits ({newEscaleBls.length} BLs rattachés)
                         </span>

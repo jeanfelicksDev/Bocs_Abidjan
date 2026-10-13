@@ -290,13 +290,13 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in font-sans" onClick={overlayClickClose(onClose)}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 animate-fade-in font-sans" onClick={overlayClickClose(onClose)}>
       <div className="bg-surface-canvas dark:bg-night-surface rounded-lg w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden">
         
         {/* ── HEADER MODALE ── */}
         <div className="px-6 py-4 border-b border-border-default dark:border-night-line flex items-center justify-between bg-surface-base dark:bg-night-sunken/70">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-ink flex items-center justify-center border border-[#005DAA] dark:border-night-line/20 shadow-1">
+            <div className="w-10 h-10 rounded-md bg-surface-sunken dark:bg-night-ink/10 text-[#005DAA] dark:text-night-ink flex items-center justify-center border border-border-default dark:border-night-line/20 shadow-1">
               <Upload className="w-5 h-5" />
             </div>
             <div>
@@ -330,7 +330,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
           <div className="bg-surface-base dark:bg-night-sunken border border-border-default dark:border-night-line rounded-md p-4.5 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link flex items-center justify-center border border-[#005DAA] dark:border-night-line/20 shrink-0">
+                <div className="w-9 h-9 rounded-md bg-surface-sunken dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link flex items-center justify-center border border-border-default dark:border-night-line/20 shrink-0">
                   <Ship className="w-5 h-5" />
                 </div>
                 <div>
@@ -442,7 +442,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
             />
 
             <div className="max-w-md mx-auto space-y-2.5">
-              <div className="w-12 h-12 mx-auto rounded-md bg-[#005DAA] dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link border border-[#005DAA] dark:border-night-line/20 flex items-center justify-center shadow-1">
+              <div className="w-12 h-12 mx-auto rounded-md bg-surface-sunken dark:bg-night-ink/10 text-[#005DAA] dark:text-night-link border border-border-default dark:border-night-line/20 flex items-center justify-center shadow-1">
                 <FileText className="w-6 h-6" />
               </div>
               <div className="space-y-1">
@@ -577,7 +577,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* N° BL (Éditable en ligne) */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-28 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
+                                <div className="h-6 w-28 bg-surface-sunken dark:bg-night-sunken rounded-md" />
                               ) : (
                                 <input
                                   type="text"
@@ -592,7 +592,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Catégorie Fret & Description */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-28 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
+                                <div className="h-6 w-28 bg-surface-sunken dark:bg-night-sunken rounded-md" />
                               ) : (
                                 <div className="space-y-1 max-w-[210px]">
                                   <div className="flex items-center gap-1">
@@ -630,7 +630,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Destinataire Consignee (Éditable en ligne) */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-36 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
+                                <div className="h-6 w-36 bg-surface-sunken dark:bg-night-sunken rounded-md" />
                               ) : (
                                 <input
                                   type="text"
@@ -646,7 +646,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Poids Brut (Éditable en ligne) */}
                             <td className="p-3" onClick={e => e.stopPropagation()}>
                               {isExtracting ? (
-                                <div className="h-6 w-20 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
+                                <div className="h-6 w-20 bg-surface-sunken dark:bg-night-sunken rounded-md" />
                               ) : (
                                 <div className="flex items-center gap-1">
                                   <input
@@ -663,7 +663,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Colis / Volume */}
                             <td className="p-3">
                               {isExtracting ? (
-                                <div className="h-6 w-16 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
+                                <div className="h-6 w-16 bg-surface-sunken dark:bg-night-sunken rounded-md" />
                               ) : (
                                 <div className="space-y-0.5">
                                   <span className="font-mono font-black text-text-primary dark:text-night-ink text-sm block">
@@ -681,7 +681,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                             {/* Références Réglementaires */}
                             <td className="p-3">
                               {isExtracting ? (
-                                <div className="h-6 w-20 bg-surface-sunken dark:bg-night-sunken animate-pulse rounded-md" />
+                                <div className="h-6 w-20 bg-surface-sunken dark:bg-night-sunken rounded-md" />
                               ) : (
                                 <div className="space-y-0.5 font-mono text-2xs">
                                   {item.bscNumero ? (

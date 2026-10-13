@@ -1524,7 +1524,7 @@ export function App() {
             setShowWelcome(true);
             setActiveTab('dashboard');
           }}
-          className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/95 hover:bg-white dark:bg-night-surface dark:hover:bg-night-raised text-[#002B49] hover:text-[#005DAA] dark:text-night-link shadow-xl dark:shadow-black/60 border border-zinc-200 dark:border-night-line hover:border-[#005DAA] backdrop-blur-md transition-all cursor-pointer active:scale-95 group font-bold text-sm"
+          className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/95 hover:bg-white dark:bg-night-surface dark:hover:bg-night-raised text-[#002B49] hover:text-[#005DAA] dark:text-night-link shadow-xl dark:shadow-black/60 border border-zinc-200 dark:border-night-line hover:border-[#005DAA] transition-all cursor-pointer active:scale-95 group font-bold text-sm"
           title="Retour à la plateforme intégrée de gestion et facturation maritime"
           aria-label="Retour à la plateforme intégrée de gestion et facturation maritime"
         >

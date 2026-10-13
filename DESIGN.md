@@ -10,7 +10,7 @@ chargement, lu de nuit.
   délimitent l'information ; une seule ombre courte par niveau d'élévation.
 - **L'état est une couleur, toujours la même** : vert = certifié / encaissé, bleu = en cours /
   action, ambre = en attente, rouge = écart. Identique dans les deux thèmes.
-- **Pas de violet, pas d'or** : ces teintes n'appartiennent pas à la marque.
+- **Pas d'or, pas de violet décoratif** : le violet ne subsiste qu'en couleur de catégorie (rôle Admin, opérations Export) en thème clair ; en sombre il retombe sur le bleu.
 
 ## 2. Thèmes et préférence utilisateur
 - Trois choix : **Clair**, **Sombre**, **Système** (par défaut : suit le réglage du poste,

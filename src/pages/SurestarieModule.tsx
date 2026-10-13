@@ -605,7 +605,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                 <div className="bg-surface-canvas dark:bg-night-surface rounded-md border border-border-default dark:border-night-line shadow-1 overflow-hidden">
                   <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-310px)] min-h-[460px] bocs-scrollbar relative">
                     <table className="w-full text-sm border-collapse">
-                      <thead className="sticky top-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 backdrop-blur-md shadow-1">
+                      <thead className="sticky top-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 shadow-1">
                         <tr className="border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken/90 select-none">
                           {['Conteneur', 'BL / Navire', regimeFilter === 'DETENTION' ? 'Enlèvement' : 'Entrée Parc', regimeFilter === 'DETENTION' ? 'Retour Vide' : 'Sortie', 'Séjour', 'Factur.', 'Montant estimé', 'Actions'].map(h => (
                             <th key={h} className="text-left px-4 py-3.5 font-black text-text-secondary dark:text-night-ink uppercase tracking-wider text-2xs whitespace-nowrap">{h}</th>
@@ -678,7 +678,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                                     <button type="button" onClick={() => handleEmettreProforma(row)}
                                       disabled={!hasValidatedCalc}
                                       title={hasValidatedCalc ? `Émettre Proforma ${regimeFilter === 'DETENTION' ? 'Détention' : 'Surestarie'}` : 'Validez le calcul d\'abord dans le calculateur'}
-                                      className={`p-2 rounded-md border transition-all ${hasValidatedCalc ? 'bg-[#005DAA] dark:bg-night-ink/10 hover:bg-[#005DAA] border-[#005DAA] dark:border-night-line/30 text-[#005DAA] dark:text-night-link cursor-pointer shadow-1' : 'bg-surface-base dark:bg-night-sunken border-border-default dark:border-night-line text-text-muted cursor-not-allowed'}`}>
+                                      className={`p-2 rounded-md border transition-all ${hasValidatedCalc ? 'bg-surface-sunken dark:bg-night-ink/10 hover:bg-[#005DAA] border-[#005DAA] dark:border-night-line/30 text-[#005DAA] dark:text-night-link cursor-pointer shadow-1' : 'bg-surface-base dark:bg-night-sunken border-border-default dark:border-night-line text-text-muted cursor-not-allowed'}`}>
                                       <FileText className="w-3.5 h-3.5" />
                                     </button>
                                   )}
@@ -695,7 +695,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                           );
                         })}
                       </tbody>
-                      <tfoot className="sticky bottom-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 backdrop-blur-md border-t-2 border-border-default dark:border-night-line shadow-1">
+                      <tfoot className="sticky bottom-0 z-10 bg-surface-sunken/95 dark:bg-night-sunken/95 border-t-2 border-border-default dark:border-night-line shadow-1">
                         <tr className="bg-surface-sunken/95 dark:bg-night-sunken/95">
                           <td colSpan={6} className="px-4 py-3 text-sm font-black text-text-secondary dark:text-night-ink uppercase tracking-wider">
                             Total — {filtered.length} conteneur(s)

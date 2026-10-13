@@ -90,7 +90,7 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
   return (
     <div role="dialog" aria-modal="true"
       onClick={overlayClickClose(onClose)}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-sm animate-fade-in">
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 animate-fade-in">
       <div className="bg-surface-container-lowest border border-outline-variant rounded-md shadow-2xl dark:shadow-black/70 w-full max-w-2xl overflow-hidden flex flex-col">
         
         {/* Header */}

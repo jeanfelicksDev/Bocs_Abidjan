@@ -301,7 +301,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
                 <div className={`w-0.5 h-3 ${isSelected ? 'bg-[#1a73e8]' : isDocked ? 'bg-emerald-400' : 'bg-sky-400'}`} />
                 <div className={`w-2 h-1 rounded-full opacity-30 ${isSelected ? 'bg-[#1a73e8]' : isDocked ? 'bg-emerald-400' : 'bg-sky-400'}`} />
                 {/* Label */}
-                <div className="absolute top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-canvas dark:bg-night-surface/95 backdrop-blur-sm border border-border-default dark:border-night-line px-2 py-0.5 rounded-full shadow-md text-2xs font-bold text-text-primary dark:text-night-ink pointer-events-none">
+                <div className="absolute top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-canvas dark:bg-night-surface/95 border border-border-default dark:border-night-line px-2 py-0.5 rounded-full shadow-md text-2xs font-bold text-text-primary dark:text-night-ink pointer-events-none">
                   {escale.nomNavire}
                 </div>
               </div>
@@ -376,7 +376,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
                     ? 'bg-emerald-400/20 text-emerald-100 border border-emerald-300/40'
                     : 'bg-sky-400/20 text-sky-100 border border-sky-300/40'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${selectedEscale.statut === 'EN_COURS' ? 'bg-emerald-300 animate-pulse' : 'bg-sky-300'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${selectedEscale.statut === 'EN_COURS' ? 'bg-emerald-300' : 'bg-sky-300'}`} />
                   {selectedEscale.statut === 'EN_COURS' ? 'À QUAI' : 'EN RADE'}
                 </span>
               </div>
@@ -476,7 +476,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
       </div>
 
       {/* ── Compas (haut droite style Google Maps) ── */}
-      <div className={`absolute top-4 z-40 flex flex-col items-center bg-surface-canvas dark:bg-night-surface/95 backdrop-blur-md p-2.5 rounded-md border border-border-default dark:border-night-line text-slate-600 dark:text-night-ink font-mono text-2xs shadow-lg dark:shadow-black/50 transition-all ${selectedEscale ? 'right-84' : 'right-4'}`}>
+      <div className={`absolute top-4 z-40 flex flex-col items-center bg-surface-canvas dark:bg-night-surface/95 p-2.5 rounded-md border border-border-default dark:border-night-line text-slate-600 dark:text-night-ink font-mono text-2xs shadow-lg dark:shadow-black/50 transition-all ${selectedEscale ? 'right-84' : 'right-4'}`}>
         <div className="w-8 h-8 rounded-full border border-border-default dark:border-night-line flex items-center justify-center text-[#1a73e8] relative">
           <Compass className="w-4 h-4" />
           <span className="absolute -top-1 font-black text-2xs text-[#1a73e8]">N</span>
@@ -486,7 +486,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
       </div>
 
       {/* ── Légende bottom-bar (bas gauche style Google Maps) ── */}
-      <div className="absolute bottom-4 left-4 z-40 flex items-center gap-3 bg-surface-canvas dark:bg-night-surface/95 backdrop-blur-md px-4 py-2 rounded-full border border-border-default dark:border-night-line shadow-md text-2xs font-mono">
+      <div className="absolute bottom-4 left-4 z-40 flex items-center gap-3 bg-surface-canvas dark:bg-night-surface/95 px-4 py-2 rounded-full border border-border-default dark:border-night-line shadow-md text-2xs font-mono">
         <div className="flex items-center gap-1.5 text-emerald-600 dark:text-night-positive font-bold">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
           Navire à Quai ({dockedEscales.length})
@@ -506,7 +506,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
       {/* ── Titre flottant (style Google Maps en haut) — masqué si panneau ouvert ── */}
       {!selectedEscale && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-          <div className="bg-surface-canvas dark:bg-night-surface/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-border-default dark:border-night-line shadow-md ">
+          <div className="bg-surface-canvas dark:bg-night-surface/90 px-4 py-1.5 rounded-full border border-border-default dark:border-night-line shadow-md ">
             <span className="text-2xs font-bold text-text-secondary dark:text-night-ink tracking-wide">
               Port Autonome d'Abidjan · PAA · <span className="text-[#1a73e8]">CIABJ</span>
             </span>

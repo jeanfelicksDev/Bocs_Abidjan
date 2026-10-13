@@ -123,7 +123,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
 
   const modalContent = (
     <div role="dialog" aria-modal="true" 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/65 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/65 animate-fade-in"
       style={{ zIndex: 99999 }}
       onClick={overlayClickClose(onClose)}
     >
@@ -135,7 +135,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
         {/* ── EN-TÊTE MODALE AGRANDI ── */}
         <div className="px-7 sm:px-10 py-5 sm:py-6 border-b border-border-default dark:border-night-line bg-surface-base dark:bg-night-sunken/90 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4 sm:gap-5">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md bg-[#005DAA] dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-ink shadow-1 shrink-0">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md bg-surface-sunken dark:bg-night-ink/10 border border-[#005DAA] dark:border-night-line/25 flex items-center justify-center text-[#005DAA] dark:text-night-ink shadow-1 shrink-0">
               <Edit3 className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
             <div>

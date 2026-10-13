@@ -137,7 +137,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   return (
     <div role="dialog" aria-modal="true"
       onClick={overlayClickClose(onClose)}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in select-none">
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 animate-fade-in select-none">
       <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg shadow-2xl dark:shadow-black/70 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header with User Banner */}

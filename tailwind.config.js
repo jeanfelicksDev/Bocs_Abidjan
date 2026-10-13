@@ -1,3 +1,8 @@
+const withAlpha = (color) => ({ opacityValue }) =>
+  opacityValue === undefined
+    ? color
+    : `color-mix(in srgb, ${color} calc(${opacityValue} * 100%), transparent)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
@@ -31,10 +36,12 @@ export default {
           strong: "var(--border-strong)",
         },
         // Brand & Accents
-        primary: "var(--color-primary, #005DAA)",
-        primaryDark: "var(--color-primary-dark, #002B49)",
-        primaryLight: "var(--color-primary-light, #F0F7FF)",
-        success: "var(--color-success, #00875A)",
+        // Couleurs de marque pilotées par variable : color-mix permet les
+        // opacités Tailwind (`bg-primary/70`), sinon silencieusement ignorées.
+        primary: withAlpha("var(--color-primary, #005DAA)"),
+        primaryDark: withAlpha("var(--color-primary-dark, #002B49)"),
+        primaryLight: withAlpha("var(--color-primary-light, #F0F7FF)"),
+        success: withAlpha("var(--color-success, #00875A)"),
         // Status Surfaces
         accent: {
           soft: "var(--surface-accent-soft)",

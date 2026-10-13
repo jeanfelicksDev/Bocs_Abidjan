@@ -311,7 +311,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
 
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" title="Compte Actif / En Ligne"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0" title="Compte Actif / En Ligne"></span>
             </div>
           )}
 

@@ -446,7 +446,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
           {/* Bento Cards Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-emerald-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Total Comptes</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-emerald-600 dark:text-night-positive">group</span>
@@ -455,7 +455,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Utilisateurs inscrits</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-blue-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Comptes Actifs</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-blue-600 dark:text-night-link">check_circle</span>
@@ -466,7 +466,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Accès autorisés</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-amber-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Personnel Interne</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-amber-600">badge</span>
@@ -477,7 +477,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Agents BOCS Agency</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-[#005DAA]">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Clients Externe</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-[#005DAA] dark:text-night-link">domain</span>
@@ -488,7 +488,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Portail Exportateur</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-purple-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Admins Système</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-purple-600">shield_person</span>
@@ -716,7 +716,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           {/* Executive Overview Bento Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-purple-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Profils Types</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-purple-600">admin_panel_settings</span>
@@ -725,7 +725,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Admin, Import, Export, Compta, Client</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-blue-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Permissions Granulaires</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-blue-600 dark:text-night-link">shield_lock</span>
@@ -734,7 +734,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Habilitations système configurées</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-emerald-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Contrôle d'Accès</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-emerald-600 dark:text-night-positive">verified</span>
@@ -743,7 +743,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <p className="text-2xs text-slate-500 dark:text-night-ink-2 mt-0.5">Sécurité &amp; Traçabilité unifiée</p>
             </div>
 
-            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md border-l-4 border-l-amber-500">
+            <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-4 rounded-md">
               <div className="flex items-center justify-between text-slate-500 dark:text-night-ink-2 mb-1">
                 <span className="text-xs font-black uppercase font-mono">Mode Attribution</span>
                 <span aria-hidden="true" className="material-symbols-outlined text-xl text-amber-600">tune</span>
@@ -1230,7 +1230,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* MODAL: ADD USER */}
       {showAddUserModal && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
           onClick={overlayClickClose(() => setShowAddUserModal(false))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 border border-slate-200 rounded-md shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-lg w-full p-6 space-y-4 text-white dark:text-night-ink">
@@ -1360,7 +1360,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* MODAL: EDIT USER */}
       {editingUser && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
           onClick={overlayClickClose(() => setEditingUser(null))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 border border-slate-200 rounded-md shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-lg w-full p-6 space-y-4 text-white dark:text-night-ink">
@@ -1475,7 +1475,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* MODAL: RESET PASSWORD */}
       {resetPasswordUser && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
           onClick={overlayClickClose(() => setResetPasswordUser(null))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 border border-amber-500/30 rounded-md shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white dark:text-night-ink">
@@ -1526,7 +1526,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* MODAL: CONFIRM DELETE */}
       {deletingUser && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
           onClick={overlayClickClose(() => setDeletingUser(null))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 border border-rose-500/30 rounded-md shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white dark:text-night-ink">
@@ -1565,7 +1565,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       {/* MODAL: PERMISSIONS & ROLES MATRIX */}
       {showPermissionsMatrix && (
         <div role="dialog" aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
           onClick={overlayClickClose(() => setShowPermissionsMatrix(false))}
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 border border-slate-200 rounded-md shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col p-6 space-y-4 text-white dark:text-night-ink">
