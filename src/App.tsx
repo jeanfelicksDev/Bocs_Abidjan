@@ -1,5 +1,5 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { useSharedList, revalidateLists } from './hooks/useData';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useSharedList, useVessels, revalidateLists } from './hooks/useData';
 import { ArrowLeft } from 'lucide-react';
 import { ToastContainer, toastError } from './components/common/Toast';
 import {
@@ -12,7 +12,6 @@ import {
   INITIAL_AUDIT_LOGS,
   INITIAL_INVOICE_TYPE_CONFIGS,
   INITIAL_RUBRIQUE_CONFIGS,
-  INITIAL_VESSELS,
   INITIAL_TIMBRE_BRACKETS
 } from './data/initialData';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
@@ -95,6 +94,9 @@ export function App() {
   // Persistence en Base LocalStorage avec déduplication automatique
   // Listes métier : cache partagé avec tous les modules (hooks/useData) — une
   // modification faite ici est visible partout sans rafraîchir la page.
+  const [vessels, setVessels] = useSharedList('/api/vessels');
+  const { isLoading: vesselsLoading, isError: vesselsLoadError } = useVessels();
+
   const [escales, setEscales] = useSharedList('/api/escales');
 
   const [bls, setBls] = useSharedList('/api/bls');
@@ -136,17 +138,6 @@ export function App() {
     return INITIAL_RUBRIQUE_CONFIGS;
   });
 
-  const [vessels, setVessels] = useState<Vessel[]>(() => {
-    const saved = localStorage.getItem('bocs_vessels');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) { console.error('Erreur chargement navires local', e); }
-    }
-    return INITIAL_VESSELS;
-  });
-
   const [timbreBrackets, setTimbreBrackets] = useState<TimbreBracket[]>(() => {
     const saved = localStorage.getItem('bocs_timbre_brackets');
     if (saved) {
@@ -166,10 +157,6 @@ export function App() {
 
   // Sauvegarde automatique en temps réel dans localStorage
   useEffect(() => {
-    localStorage.setItem('bocs_vessels', JSON.stringify(vessels));
-  }, [vessels]);
-
-  useEffect(() => {
     localStorage.setItem('bocs_timbre_brackets', JSON.stringify(timbreBrackets));
   }, [timbreBrackets]);
 
@@ -184,26 +171,6 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('bocs_rubriques', JSON.stringify(rubriqueConfigs));
   }, [rubriqueConfigs]);
-
-  const handleAddVessel = (vessel: Vessel) => {
-    setVessels(prev => {
-      const exists = prev.some(v => v.nom.trim().toLowerCase() === vessel.nom.trim().toLowerCase());
-      if (exists) return prev;
-      return [vessel, ...prev];
-    });
-    logAuditAction('CRÉATION_NAVIRE', 'VESSEL', vessel.nom);
-  };
-
-  const handleDeleteVessel = (vesselId: number) => {
-    const target = vessels.find(v => v.id === vesselId);
-    setVessels(prev => prev.filter(v => v.id !== vesselId));
-    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', target ? `${target.nom} (ID: ${vesselId})` : `ID: ${vesselId}`);
-  };
-
-  const handleUpdateVessel = (updated: Vessel) => {
-    setVessels(prev => prev.map(v => (v.id === updated.id ? updated : v)));
-    logAuditAction('MODIFICATION_NAVIRE', 'VESSEL', `${updated.nom} (ID: ${updated.id})`);
-  };
 
   const handleUpdateTimbreBrackets = (brackets: TimbreBracket[]) => {
     setTimbreBrackets(brackets);
@@ -533,6 +500,71 @@ export function App() {
       await revalidateLists(...affected);
     }
   };
+
+  // ── Navires : registre partagé en base (/api/vessels) ──
+  const sameVesselName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+  /** Enregistre un navire (création ou modification) puis recharge la liste ; en cas d'échec, l'écran revient à l'état de la base. */
+  const saveVessel = async (vessel: Vessel, action: string) => {
+    try {
+      await postJson('/api/vessels', vessel);
+    } catch (e) {
+      console.error(`Erreur lors de ${action} du navire`, e);
+      toastError(`Le navire ${vessel.nom} n'a pas été enregistré : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
+    } finally {
+      await revalidateLists('/api/vessels');
+    }
+  };
+
+  const handleAddVessel = (vessel: Vessel) => {
+    if (vessels.some(v => sameVesselName(v.nom, vessel.nom))) return;
+    setVessels(prev => [vessel, ...prev]);
+    logAuditAction('CRÉATION_NAVIRE', 'VESSEL', vessel.nom);
+    void saveVessel(vessel, 'la création');
+  };
+
+  const handleDeleteVessel = (vesselId: number) => {
+    const target = vessels.find(v => v.id === vesselId);
+    setVessels(prev => prev.filter(v => v.id !== vesselId));
+    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', target ? `${target.nom} (ID: ${vesselId})` : `ID: ${vesselId}`);
+    void deleteOnServer(`/api/vessels?id=${vesselId}`, `le navire ${target?.nom ?? vesselId}`, ['/api/vessels']);
+  };
+
+  const handleUpdateVessel = (updated: Vessel) => {
+    setVessels(prev => prev.map(v => (v.id === updated.id ? updated : v)));
+    logAuditAction('MODIFICATION_NAVIRE', 'VESSEL', `${updated.nom} (ID: ${updated.id})`);
+    void saveVessel(updated, 'la modification');
+  };
+
+  // Reprise unique des navires saisis avant le passage en base (localStorage `bocs_vessels`) :
+  // ceux absents de la base (comparaison par nom) y sont envoyés, puis la clé locale est retirée.
+  const vesselsMigrated = useRef(false);
+  useEffect(() => {
+    if (vesselsLoading || vesselsLoadError || vesselsMigrated.current) return;
+    vesselsMigrated.current = true;
+    const saved = localStorage.getItem('bocs_vessels');
+    if (!saved) return;
+    let local: Vessel[] = [];
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) local = parsed.filter((v): v is Vessel => typeof v?.nom === 'string' && v.nom.trim() !== '');
+    } catch (e) { console.error('Navires locaux illisibles', e); }
+    const missing = local.filter((v, i) =>
+      !vessels.some(s => sameVesselName(s.nom, v.nom)) && local.findIndex(o => sameVesselName(o.nom, v.nom)) === i
+    );
+    if (missing.length === 0) {
+      localStorage.removeItem('bocs_vessels');
+      return;
+    }
+    // Sans id : les id locaux (1, 2…) pourraient désigner un autre navire en base.
+    void Promise.allSettled(missing.map(({ id: _localId, ...v }) => postJson('/api/vessels', v))).then(async results => {
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed === 0) localStorage.removeItem('bocs_vessels');
+      else toastError(`${failed} navire(s) local(aux) n'ont pas pu être enregistrés en base ; nouvel essai au prochain chargement.`);
+      await revalidateLists('/api/vessels');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vesselsLoading, vesselsLoadError]);
 
   // Add Escale
   const handleAddEscale = async (escale: Escale) => {
