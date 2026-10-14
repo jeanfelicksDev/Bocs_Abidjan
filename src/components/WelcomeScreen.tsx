@@ -66,6 +66,7 @@ type PdfGen = typeof import('../utils/pdfGenerator');
 const generateImportManifestPdf = (...args: Parameters<PdfGen['generateImportManifestPdf']>) =>
   import('../utils/pdfGenerator').then((m) => m.generateImportManifestPdf(...args));
 import { extractBlsFromPdf, ExtractedBlItem } from '../utils/pdfExtractor';
+import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { RubriqueConfig, Payment } from '../types';
 import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
 
@@ -195,18 +196,7 @@ escales,
     if (plannedIds.length > 0) {
       totalAEditer = plannedIds.length;
     } else if (invoiceTypeConfigs && invoiceTypeConfigs.length > 0) {
-      const isContainer = Boolean(bl.conteneurs && bl.conteneurs.length > 0);
-      const applicable = invoiceTypeConfigs.filter(tc => {
-        const nameLow = tc.name.toLowerCase();
-        const isCaution = nameLow.includes('caution');
-        const isEchange = nameLow.includes('echange') || nameLow.includes('échange') || tc.id === '2';
-        const isTransfert = nameLow.includes('transfert');
-        if (isContainer) {
-          return isCaution || isEchange || isTransfert;
-        }
-        return isEchange;
-      });
-      totalAEditer = Math.max(applicable.length, 1);
+      totalAEditer = Math.max(defaultInvoiceTypeIds(bl, invoiceTypeConfigs).length, 1);
     } else {
       totalAEditer = 1;
     }

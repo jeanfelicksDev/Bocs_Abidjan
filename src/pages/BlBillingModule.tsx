@@ -12,6 +12,7 @@ import {
   rememberIssuedNumber
 } from '../utils/invoiceMatching';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { hasPermission, usePermissionsSync } from '../utils/permissions';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { generateProformaPdf, generateDoBadPdf, generateOriginalBlPdf, generateBocsExportBlLetterheadPdf } from '../utils/pdfGenerator';
@@ -402,13 +403,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     return name.includes('telex') || name.includes('télex') || typeConfig.id === '3';
   };
 
-  // Helper pour obtenir les types de factures par défaut selon le type d'opération
-  // et la marchandise : on vérifie s'il existe une rubrique active applicable à ce BL
-  const getDefaultTypeIdsForBl = (bl: BL): string[] => {
-    return invoiceTypeConfigs.filter(typeConfig => {
-      return typeConfig.id === '2' || typeConfig.name.toLowerCase().includes('echange') || typeConfig.name.toLowerCase().includes('échange');
-    }).map(t => t.id);
-  };
+  // Factures prévues par défaut selon le type de fret (règle partagée, utils/defaultInvoiceTypes)
+  const getDefaultTypeIdsForBl = (bl: BL): string[] => defaultInvoiceTypeIds(bl, invoiceTypeConfigs);
 
   // Prestations / Types de factures applicables & actifs pour le BL sélectionné
   const activeTypeConfigs = useMemo(() => {
@@ -416,6 +412,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     const blCargoCategories = getBlCargoCategories(activeBl);
     const plannedIds = plannedInvoicesByBl[activeBl.id];
     const excludedIds = excludedTypeIdsByBl[activeBl.id] || [];
+    const defaultIds = defaultInvoiceTypeIds(activeBl, invoiceTypeConfigs);
 
     // 1. Rassembler toutes les configurations officielles
     const allConfigs = [...invoiceTypeConfigs];
@@ -449,8 +446,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
         return plannedIds.includes(typeConfig.id);
       }
 
-      // Par défaut : seule la facture Echange est rattachée par défaut
-      return typeConfig.id === '2' || typeConfig.name.toLowerCase().includes('echange') || typeConfig.name.toLowerCase().includes('échange');
+      // Par défaut : les factures prévues pour ce type de fret
+      return defaultIds.includes(typeConfig.id);
     });
   }, [activeBl, invoiceTypeConfigs, blInvoices, plannedInvoicesByBl, excludedTypeIdsByBl, rubriqueConfigs]);
 

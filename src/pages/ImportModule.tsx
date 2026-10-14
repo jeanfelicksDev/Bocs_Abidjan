@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { exportBlsCsv } from '../utils/exportCsv';
 import { INITIAL_VESSELS } from '../data/initialData';
@@ -746,34 +747,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
       });
       setSelectedTypeIdsForBl(filteredExisting);
     } else {
-      const activeTypeIds = invoiceTypeConfigs
-        .filter(t => {
-          const isCaution = t.name.toLowerCase().includes('caution');
-          const isEchange = t.name.toLowerCase().includes('echange') || t.name.toLowerCase().includes('échange') || t.id === '2';
-          const isTransfert = t.name.toLowerCase().includes('transfert');
-          const isSurestarieOrDetention = 
-            t.name.toLowerCase().includes('surestarie') || 
-            t.name.toLowerCase().includes('detention') || 
-            t.name.toLowerCase().includes('détention');
-          const isTelex = t.name.toLowerCase().includes('telex');
-            
-          // HORMIS LA FACTURE TELEX
-          if (isTelex) return false;
-
-          if (isCaution && blCat !== 'CONTENEUR') return false;
-          if (isTransfert && (blCat !== 'CONTENEUR' || isDangerousBl)) return false;
-          // Ne JAMAIS cocher les surestaries ou détentions par défaut
-          if (isSurestarieOrDetention) return false;
-          
-          if (blCat === 'CONTENEUR') {
-            // Pour le type CONTENEUR, seuls Caution, Échange et Transfert sont cochés par défaut
-            return isCaution || isEchange || isTransfert;
-          }
-          
-          // Pour les autres types (VRAC, RORO, CONVENTIONNEL), SEULE la palette Échange est cochée par défaut
-          return isEchange;
-        })
-        .map(t => t.id);
+      // Factures prévues par défaut selon le type de fret (règle partagée)
+      const activeTypeIds = defaultInvoiceTypeIds(bl, invoiceTypeConfigs);
       setSelectedTypeIdsForBl(activeTypeIds.length > 0 ? activeTypeIds : (invoiceTypeConfigs.length > 0 ? [invoiceTypeConfigs[0].id] : ['2']));
     }
     setBlForInvoiceSelection(bl);

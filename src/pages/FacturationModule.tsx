@@ -10,6 +10,7 @@ import {
   findInvoiceForType
 } from '../utils/invoiceMatching';
 import { BlBillingModule } from './BlBillingModule';
+import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { hasPermission, usePermissionsSync } from '../utils/permissions';
 import { useEscales, useBls, useInvoices, useDrafts, useCreditNotes, usePayments } from '../hooks/useData';
@@ -122,19 +123,9 @@ function getPlannedTypeIdsForBl(bl: BL | undefined, invoiceTypeConfigs: InvoiceT
     planned = bl.selectedInvoiceTypeIds;
   }
 
-  // 3. Règles par défaut :
-  // - Conteneurs : Caution, Échange, Transfert
-  // - Vrac, RORO, Conventionnel : Échange
+  // 3. Factures prévues par défaut selon le type de fret
   if (planned.length === 0) {
-    const isContainer = (bl.conteneurs && bl.conteneurs.length > 0) || (bl.typeEmballage || '').toUpperCase().includes('CONTENEUR');
-    planned = invoiceTypeConfigs.filter(t => {
-      const name = t.name.toLowerCase();
-      const isCaution = name.includes('caution');
-      const isEchange = name.includes('echange') || name.includes('échange') || t.id === '2';
-      const isTransfert = name.includes('transfert');
-      if (isContainer) return isCaution || isEchange || isTransfert;
-      return isEchange;
-    }).map(t => t.id);
+    planned = defaultInvoiceTypeIds(bl, invoiceTypeConfigs);
   }
 
   return planned.filter(id => !excludedIds.includes(id));
