@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, FileUp, Plus } from 'lucide-react';
+import { ArrowRight, Plus } from 'lucide-react';
 import { BL, DraftExport, Escale, Invoice, UserRole } from '../../types';
 
 /**
@@ -40,7 +40,6 @@ interface CockpitPlanProps {
   getBlStats: (bl: BL) => BlStats;
   onEnter: (tab: string, blId?: number) => void;
   onOpenRegistry: () => void;
-  onImportManifest: () => void;
   onCreateEscale: () => void;
 }
 
@@ -121,7 +120,7 @@ function bayFromEscale(e: Escale): Omit<Bay, 'items'> {
 
 export const CockpitPlan: React.FC<CockpitPlanProps> = ({
   role, firstName, escales, bls, drafts, invoices, exchangeRateUsd, perms, getBlStats,
-  onEnter, onOpenRegistry, onImportManifest, onCreateEscale,
+  onEnter, onOpenRegistry, onCreateEscale,
 }) => {
   const kind = KIND_BY_ROLE[role] ?? 'bl';
   const labels = role === 'CLIENT_EXPORT' ? CLIENT_DRAFT_LABELS : STATE_LABELS[kind];
@@ -255,12 +254,12 @@ export const CockpitPlan: React.FC<CockpitPlanProps> = ({
   })();
 
   // ── Action principale : une seule, celle du métier ──────────────────────────
-  const canImport = perms.importGuce || perms.manageEscales;
+  // L'import des manifestes se fait depuis l'escale : l'accueil propose d'abord de la créer.
   const primary: { label: string; icon: React.ReactNode; run: () => void } | null = (() => {
     switch (role) {
       case 'ADMIN': case 'AGENT_IMPORT':
-        return canImport
-          ? { label: 'Importer un manifeste', icon: <FileUp className="w-4 h-4" aria-hidden />, run: onImportManifest }
+        return perms.manageEscales
+          ? { label: 'Nouvelle escale', icon: <Plus className="w-4 h-4" aria-hidden />, run: onCreateEscale }
           : perms.import ? { label: 'Ouvrir les BL import', icon: <ArrowRight className="w-4 h-4" aria-hidden />, run: () => onEnter('import') } : null;
       case 'AGENT_EXPORT':
         return perms.export ? { label: 'Instruire les drafts', icon: <ArrowRight className="w-4 h-4" aria-hidden />, run: () => onEnter('export') } : null;
@@ -287,50 +286,74 @@ export const CockpitPlan: React.FC<CockpitPlanProps> = ({
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const emptyBays = bays.length === 0;
   const emptyHint: Record<DeckKind, string> = {
-    bl: 'Importez un manifeste GUCE ou PDF : chaque BL prendra sa place dans la baie de son escale.',
+    bl: 'Créez une escale puis importez son manifeste GUCE ou PDF : chaque BL prendra sa place dans sa baie.',
     draft: role === 'CLIENT_EXPORT'
       ? 'Soumettez un draft : vous suivrez ici son instruction jusqu’au BL original.'
       : 'Aucun draft client à instruire pour le moment.',
     invoice: 'Aucune facture émise : les proformas apparaîtront ici dès leur création.',
   };
+  // ── Chaîne documentaire : la même donnée, de l'escale au règlement ─────────
+  const certifiees = activeInvoices.filter(inv => inv.statutFacture === 'VALIDEE').length;
+  const reglees = activeInvoices.filter(inv => inv.statutPaiement === 'PAYE' || (inv.soldeDuFcfa || 0) === 0).length;
+  const encaisse = totalTtc - soldeDu;
+  const chain = [
+    perms.vessels || perms.import ? { label: 'Escales', value: escales.length, note: `${enCours.length} en cours`, run: onOpenRegistry } : null,
+    perms.import || perms.vessels ? { label: 'BL import', value: bls.length, note: `${blAFacturer} à facturer`, run: () => onEnter('import') } : null,
+    perms.export ? { label: 'Drafts export', value: drafts.length, note: `${draftsAInstruire} à instruire`, run: () => onEnter('export') } : null,
+    perms.facturation ? { label: 'Proformas', value: proformas, note: 'À certifier', run: () => onEnter('facturation_journal') } : null,
+    perms.facturation ? { label: 'Factures certifiées', value: certifiees, note: 'Numérotation DGI / FNE', run: () => onEnter('facturation_journal') } : null,
+    perms.balance || perms.facturation ? { label: 'Réglées', value: reglees, note: encaisse > 0 ? `${compact.format(encaisse)} FCFA encaissés` : 'Aucun encaissement', run: () => onEnter(perms.balance ? 'facturation_balance' : 'facturation') } : null,
+  ].filter(Boolean) as { label: string; value: number; note: string; run: () => void }[];
+
   let cellIndex = 0;
 
   return (
-    <div className="w-full animate-fade-in space-y-6">
-      {/* ── En-tête du plan : le jour, le poste, l'unique action ── */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[color:var(--ink)]">
-            Plan du jour{firstName ? <span className="text-[color:var(--ink-muted)] font-medium">, {firstName}</span> : null}
-          </h1>
-          <p className="mt-1 text-sm text-[color:var(--ink-muted)]">
-            <span className="first-letter:uppercase inline-block">{today}</span>
-            <span aria-hidden> · </span>
-            {ROLE_LABEL[role]}
-            <span aria-hidden> · </span>
-            <strong className={decisions > 0 ? 'text-[color:var(--state-todo-ink)]' : 'text-[color:var(--ink)]'}>
-              {decisions > 0
-                ? `${decisions} dossier${decisions > 1 ? 's' : ''} attend${decisions > 1 ? 'ent' : ''} une décision`
-                : 'aucun dossier en attente de décision'}
-            </strong>
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
-          {(role === 'ADMIN' || role === 'AGENT_IMPORT') && perms.manageEscales && (
-            <button type="button" onClick={onCreateEscale} className="bocs-btn bocs-btn-ghost">
-              <Plus className="w-4 h-4" aria-hidden /> Nouvelle escale
-            </button>
-          )}
-          {primary && (
-            <button type="button" onClick={primary.run} className="bocs-btn bocs-btn-primary bocs-btn-lg w-full sm:w-auto justify-center">
-              {primary.icon} {primary.label}
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="w-full max-w-[1680px] mx-auto animate-fade-in space-y-6">
+      {/* ── Passerelle : le jour, le chiffre qui compte, l'unique action ── */}
+      <div>
+        <section className="bocs-bridge" aria-labelledby="bocs-plan-title">
+          <img src="/port-bg.jpg" alt="" className="bocs-bridge__photo" aria-hidden="true" />
+          <div className="relative px-6 sm:px-10 pt-8 sm:pt-10 pb-20 sm:pb-24 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+            <div className="min-w-0 max-w-2xl">
+              <h1 id="bocs-plan-title" className="text-3xl sm:text-4xl font-bold tracking-tight text-[color:var(--text-on-inverse)]">
+                Plan du jour{firstName ? <span className="font-medium opacity-70">, {firstName}</span> : null}
+              </h1>
+              <p className="mt-2 text-sm opacity-80">
+                <span className="first-letter:uppercase inline-block">{today}</span>
+                <span aria-hidden> · </span>
+                {ROLE_LABEL[role]}
+              </p>
+              <div className="mt-7 flex items-end gap-5">
+                <span className="bocs-bridge__count bocs-num" aria-hidden>{two(decisions)}</span>
+                <p className="pb-1.5 max-w-xs">
+                  <span className="block text-lg font-bold leading-snug">
+                    {decisions > 0
+                      ? `dossier${decisions > 1 ? 's' : ''} attend${decisions > 1 ? 'ent' : ''} une décision`
+                      : 'dossier en attente de décision'}
+                  </span>
+                  <span className="block text-sm opacity-75 mt-0.5">
+                    {total === 0
+                      ? 'La cale est vide : rien à traiter pour le moment.'
+                      : `${labels.late} : ${counts.late} · ${labels.todo} : ${counts.todo} · ${labels.ok} : ${counts.ok}`}
+                  </span>
+                </p>
+                <span className="sr-only">
+                  {decisions} dossier{decisions > 1 ? 's' : ''} en attente de décision.
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 lg:shrink-0">
+              {primary && (
+                <button type="button" onClick={primary.run} className="bocs-btn bocs-btn-primary bocs-btn-lg w-full sm:w-auto justify-center">
+                  {primary.icon} {primary.label}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
 
-      {/* ── Bande de liquidation ── */}
-      <div className="bocs-strip" role="list" aria-label="Comptes du jour">
+        {/* ── Bande de liquidation, amarrée au pied de la passerelle ── */}
+        <div className="bocs-strip bocs-strip--moored" role="list" aria-label="Comptes du jour">
         {ledger.map((c, i) => (
           <button
             key={c.label}
@@ -351,6 +374,7 @@ export const CockpitPlan: React.FC<CockpitPlanProps> = ({
             <span className="bocs-strip-cell__note">{c.note}</span>
           </button>
         ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
@@ -506,6 +530,28 @@ export const CockpitPlan: React.FC<CockpitPlanProps> = ({
           </nav>
         )}
       </div>
+
+      {/* ── Chaîne documentaire ── */}
+      {chain.length > 1 && (
+        <section className="bocs-chain" aria-labelledby="bocs-chain-title">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4">
+            <h2 id="bocs-chain-title" className="text-base font-bold text-[color:var(--ink)]">Chaîne documentaire</h2>
+            <p className="text-xs text-[color:var(--ink-muted)]">Une donnée saisie une fois, du manifeste à la facture certifiée.</p>
+          </div>
+          <ol className="bocs-chain__track" style={{ ['--stations' as string]: chain.length } as React.CSSProperties}>
+            {chain.map(st => (
+              <li key={st.label} className="contents">
+                <button type="button" onClick={st.run} className={`bocs-chain__station ${st.value > 0 ? 'bocs-chain__station--done' : ''}`}>
+                  <span className="bocs-chain__node" aria-hidden />
+                  <span className="bocs-chain__value bocs-num">{st.value}</span>
+                  <span className="bocs-chain__label">{st.label}</span>
+                  <span className="bocs-chain__note">{st.note}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </div>
   );
 };

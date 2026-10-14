@@ -885,11 +885,6 @@ escales,
             getBlStats={getBlInvoiceStats}
             onEnter={(tab, blId) => onEnter(tab, blId)}
             onOpenRegistry={() => (canViewVessels ? setViewState('escales') : onEnter('import'))}
-            onImportManifest={() => {
-              setTargetUploadEscaleId(null);
-              setMultiPdfInitialFiles([]);
-              setShowMultiPdfModal(true);
-            }}
             onCreateEscale={handleNouvelleEscale}
           />
         )}

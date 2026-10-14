@@ -774,3 +774,146 @@ textarea[aria-invalid='true'] {
 .bocs-legend__swatch--todo { border-color: var(--state-todo-line); }
 .bocs-legend__swatch--wait { border-color: var(--state-wait-line); }
 .bocs-legend__swatch--late { border-color: var(--state-late-line); }
+
+/* --- Passerelle : l'en-tête du plan, à l'encre de marque ------------------
+   Le seul aplat sombre de la page. La photo de proue (public/port-bg.jpg, actif
+   d'origine du projet) se fond depuis l'encre : elle situe, elle ne décore pas. */
+.bocs-bridge {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  isolation: isolate;
+}
+
+.bocs-bridge__photo {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 70%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 58%;
+  z-index: -2;
+  /* Le bord gauche de la photo se dissout dans l'encre : aucune couture. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+}
+
+.bocs-bridge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg,
+    var(--surface-inverse) 0%,
+    var(--surface-inverse) 30%,
+    color-mix(in srgb, var(--surface-inverse) 55%, transparent) 58%,
+    color-mix(in srgb, var(--surface-inverse) 12%, transparent) 100%);
+}
+
+.bocs-bridge__count {
+  font-size: clamp(3.5rem, 6vw, 5.5rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+}
+
+.bocs-bridge .bocs-btn-ghost {
+  color: var(--text-on-inverse);
+  border-color: color-mix(in srgb, var(--text-on-inverse) 35%, transparent);
+}
+.bocs-bridge .bocs-btn-ghost:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--text-on-inverse) 12%, transparent);
+}
+
+/* La bande de comptes s'amarre au pied de la passerelle. */
+.bocs-strip--moored {
+  position: relative;
+  z-index: 1;
+  margin: -3.25rem var(--space-6) 0;
+  box-shadow: var(--elevation-3);
+}
+@media (max-width: 640px) {
+  .bocs-strip--moored { margin: -2rem var(--space-3) 0; }
+}
+.bocs-strip--moored .bocs-strip-cell__value { font-size: var(--text-3xl); }
+
+/* --- Chaîne documentaire : une donnée, un chemin ------------------------- */
+.bocs-chain {
+  border: 1px solid var(--cell-rule);
+  border-radius: var(--radius-md);
+  background-color: var(--cell-bg);
+  overflow: hidden;
+}
+
+.bocs-chain__track {
+  display: grid;
+  grid-template-columns: repeat(var(--stations, 6), minmax(0, 1fr));
+  position: relative;
+}
+
+.bocs-chain__station {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-4) var(--space-5);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.bocs-chain__station:hover:not(:disabled) { background-color: var(--deck-ground); }
+.bocs-chain__station:disabled { cursor: default; }
+
+/* Le fil : un trait continu, un nœud par station, une flèche entre deux. */
+.bocs-chain__station::before {
+  content: '';
+  position: absolute;
+  top: 28px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--cell-rule);
+}
+.bocs-chain__track > li:first-child .bocs-chain__station::before { left: var(--space-4); }
+.bocs-chain__track > li:last-child .bocs-chain__station::before { right: calc(100% - var(--space-4) - 12px); }
+
+.bocs-chain__node {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  margin-top: -2px;
+  margin-bottom: var(--space-3);
+  border-radius: 999px;
+  background-color: var(--cell-bg);
+  border: 2px solid var(--state-todo-line);
+}
+.bocs-chain__station--done .bocs-chain__node {
+  background-color: var(--state-ok-line);
+  border-color: var(--state-ok-line);
+}
+
+.bocs-chain__value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+.bocs-chain__label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+.bocs-chain__note {
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+}
+
+@media (max-width: 960px) {
+  .bocs-chain__track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bocs-chain__station::before { display: none; }
+  .bocs-chain__station { border-top: 1px solid var(--border-subtle); }
+}
