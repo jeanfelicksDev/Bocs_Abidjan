@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { mutate } from 'swr';
+import { useSharedList, revalidateLists } from './hooks/useData';
 import { ArrowLeft } from 'lucide-react';
 import { ToastContainer, toastError } from './components/common/Toast';
 import {
@@ -93,57 +93,22 @@ export function App() {
   }, []);
 
   // Persistence en Base LocalStorage avec déduplication automatique
-  const [escales, setEscales] = useState<Escale[]>([]);
+  // Listes métier : cache partagé avec tous les modules (hooks/useData) — une
+  // modification faite ici est visible partout sans rafraîchir la page.
+  const [escales, setEscales] = useSharedList('/api/escales');
 
-  const [bls, setBls] = useState<BL[]>([]);
+  const [bls, setBls] = useSharedList('/api/bls');
 
   // Drafts export : persistés en base Neon (100% cloud) — plus de stockage local seul.
-  const [drafts, setDrafts] = useState<DraftExport[]>([]);
+  const [drafts, setDrafts] = useSharedList('/api/drafts');
 
-  const normalizeInvoice = (inv: Invoice): Invoice => {
-    const soldeDuFcfa = Number(inv.soldeDuFcfa || 0);
-    const montantTtcFcfa = Number(inv.montantTtcFcfa || 0);
-    // Validation explicite uniquement (handleValidateInvoice) : aucun statut dérivé
-    // (ni FA-, ni PAYE, ni PARTIEL) ne doit auto-promouvoir une proforma en VALIDEE.
-    const statutFacture = inv.statutFacture || 'BROUILLON';
-    return {
-      ...inv,
-      id: Number(inv.id),
-      blId: inv.blId ? Number(inv.blId) : undefined,
-      clientId: inv.clientId ? Number(inv.clientId) : undefined,
-      tauxChangeUsd: Number(inv.tauxChangeUsd || 600),
-      montantHtFcfa: Number(inv.montantHtFcfa || 0),
-      tvaFcfa: Number(inv.tvaFcfa || 0),
-      montantTtcFcfa,
-      soldeDuFcfa,
-      // Taxe additionnelle exceptionnelle (assiette TTC) — historique figé à l'émission
-      montantTtcAvantTaxeFcfa: inv.montantTtcAvantTaxeFcfa !== undefined && inv.montantTtcAvantTaxeFcfa !== null
-        ? Number(inv.montantTtcAvantTaxeFcfa)
-        : undefined,
-      taxeAdditionnelleFcfa: Number(inv.taxeAdditionnelleFcfa || 0),
-      taxeAdditionnelleLibelle: inv.taxeAdditionnelleLibelle || undefined,
-      taxeAdditionnelleMode: inv.taxeAdditionnelleMode || undefined,
-      taxeAdditionnelleValeur: inv.taxeAdditionnelleValeur !== undefined && inv.taxeAdditionnelleValeur !== null
-        ? Number(inv.taxeAdditionnelleValeur)
-        : undefined,
-      invoiceTypeId: inv.invoiceTypeId ? String(inv.invoiceTypeId) : undefined,
-      statutFacture,
-      lignes: (inv.lignes || []).map(line => ({
-        ...line,
-        id: line.id ? Number(line.id) : undefined,
-        quantite: Number(line.quantite || 0),
-        prixUnitaireFcfa: Number(line.prixUnitaireFcfa || 0),
-        montantHtFcfa: Number(line.montantHtFcfa || 0),
-        tauxTva: Number(line.tauxTva || 18)
-      }))
-    };
-  };
 
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
+  const [invoices, setInvoices] = useSharedList('/api/invoices');
 
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [creditNotes, setCreditNotes] = useSharedList('/api/credit-notes');
+
+  const [payments, setPayments] = useSharedList('/api/payments');
 
   const [fneParams, setFneParams] = useState<FneParam[]>(INITIAL_FNE_PARAMS);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -266,15 +231,10 @@ export function App() {
         // await fetch('/api/init-db');
 
         // 2. Charge les factures, avoirs, utilisateurs et données
-        const [invoicesRes, creditNotesRes, paymentsRes, auditRes, configsRes, escalesRes, blsRes, draftsRes, usersRes] = await Promise.all([
-          fetch('/api/invoices').catch(() => null),
-          fetch('/api/credit-notes').catch(() => null),
-          fetch('/api/payments').catch(() => null),
+        // Escales, BL, factures, règlements, drafts et avoirs sont chargés par le cache partagé (hooks/useData).
+        const [auditRes, configsRes, usersRes] = await Promise.all([
           fetch('/api/audit').catch(() => null),
           fetch('/api/configs').catch(() => null),
-          fetch('/api/escales').catch(() => null),
-          fetch('/api/bls').catch(() => null),
-          fetch('/api/drafts').catch(() => null),
           fetch('/api/users').catch(() => null)
         ]);
 
@@ -293,66 +253,6 @@ export function App() {
                 }
               } catch (e) { }
             }
-          }
-        }
-
-        if (invoicesRes && invoicesRes.ok) {
-          const invData = await invoicesRes.json();
-          if (invData.success && invData.invoices) {
-            setInvoices(invData.invoices.map(normalizeInvoice));
-          }
-        }
-
-        if (creditNotesRes && creditNotesRes.ok) {
-          const cnData = await creditNotesRes.json();
-          if (cnData.success && cnData.creditNotes) {
-            setCreditNotes(cnData.creditNotes);
-          }
-        }
-
-        if (paymentsRes && paymentsRes.ok) {
-          const payData = await paymentsRes.json();
-          if (payData.success && payData.payments) {
-            setPayments(payData.payments);
-          }
-        }
-
-        if (escalesRes && escalesRes.ok) {
-          const escaleData = await escalesRes.json();
-          if (escaleData.success && escaleData.escales && escaleData.escales.length > 0) {
-            const uniqueEscales = escaleData.escales.reduce((acc: Escale[], current: Escale) => {
-              const exists = acc.find(e =>
-                e.id === current.id ||
-                (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() &&
-                  e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
-              );
-              if (!exists) acc.push(current);
-              return acc;
-            }, []);
-            setEscales(uniqueEscales);
-          } else if (escaleData.success && Array.isArray(escaleData.escales)) {
-            setEscales([]);
-          }
-        }
-
-        if (blsRes && blsRes.ok) {
-          const blData = await blsRes.json();
-          if (blData.success && blData.bls && blData.bls.length > 0) {
-            const uniqueBls = blData.bls.reduce((acc: BL[], current: BL) => {
-              const exists = acc.find(b => b.id === current.id || (b.numeroBL === current.numeroBL && b.escaleId === current.escaleId));
-              if (!exists) acc.push(current);
-              return acc;
-            }, []);
-            setBls(uniqueBls);
-          } else if (blData.success && Array.isArray(blData.bls)) {
-            setBls([]);
-          }
-        }
-
-        if (draftsRes && draftsRes.ok) {
-          const draftData = await draftsRes.json();
-          if (draftData.success && Array.isArray(draftData.drafts)) {
-            setDrafts(draftData.drafts);
           }
         }
 
@@ -560,11 +460,7 @@ export function App() {
   const handleDeleteUser = async (userId: number) => {
     const target = allUsers.find(u => u.id === userId);
     setAllUsers(prev => prev.filter(u => u.id !== userId));
-    try {
-      await fetch(`/api/users?id=${userId}`, { method: 'DELETE' });
-    } catch (e) {
-      console.error('Erreur suppression utilisateur sur Neon:', e);
-    }
+    await deleteOnServer(`/api/users?id=${userId}`, "l'utilisateur", []);
     logAuditAction('SUPPRESSION_UTILISATEUR', 'User', `Suppression du compte #${userId} (${target?.nomComplet || 'Inconnu'})`);
   };
 
@@ -616,6 +512,26 @@ export function App() {
       throw new Error(result?.error || `Erreur serveur (${response.status})`);
     }
     return result;
+  };
+
+  /**
+   * Suppression côté serveur après retrait immédiat à l'écran. Puis rechargement des
+   * listes touchées (suppressions en cascade) : en cas d'échec, la ligne réapparaît
+   * avec un message, au lieu de rester masquée alors qu'elle existe encore en base.
+   */
+  const deleteOnServer = async (url: string, label: string, affected: Parameters<typeof revalidateLists>) => {
+    try {
+      const response = await fetch(url, { method: 'DELETE' });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) {
+        throw new Error(result?.error || `Erreur serveur (${response.status})`);
+      }
+    } catch (e) {
+      console.error(`Erreur lors de la suppression de ${label} en base`, e);
+      toastError(`Impossible de supprimer ${label} : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
+    } finally {
+      await revalidateLists(...affected);
+    }
   };
 
   // Add Escale
@@ -702,13 +618,7 @@ export function App() {
       `Suppression de l'escale ${targetEscale?.nomNavire || escaleId}, ses ${targetBls.length} BLs et ses ${targetInvoices.length} facture(s)/proforma(s) rattachée(s)`
     );
 
-    try {
-      await fetch(`/api/escales?id=${escaleId}`, {
-        method: 'DELETE'
-      });
-    } catch (e) {
-      console.error("Erreur lors de la suppression de l'escale en base", e);
-    }
+    await deleteOnServer(`/api/escales?id=${escaleId}`, "l'escale", ['/api/escales', '/api/bls', '/api/invoices', '/api/payments', '/api/credit-notes']);
   };
 
   // Persistance cloud d'un draft export (upsert Neon via /api/drafts)
@@ -759,12 +669,7 @@ export function App() {
   const handleDeleteDraft = async (draftId: number) => {
     const target = drafts.find(d => d.id === draftId);
     setDrafts(prev => prev.filter(d => d.id !== draftId));
-    try {
-      await fetch(`/api/drafts?id=${draftId}`, { method: 'DELETE' });
-      mutate('/api/drafts');
-    } catch (e) {
-      console.error("Erreur lors de la suppression du draft en base", e);
-    }
+    await deleteOnServer(`/api/drafts?id=${draftId}`, 'le draft', ['/api/drafts']);
     logAuditAction('SUPPRESSION_DRAFT', 'DraftExport', `Suppression du draft ${target?.numeroDraft || draftId} (${target?.clientNom || ''})`);
   };
 
@@ -1160,13 +1065,7 @@ export function App() {
       `Suppression de la proforma ${target.numeroFacture} (#${target.id}) et de toutes les pièces rattachées (lignes, paiements, avoirs)`
     );
 
-    try {
-      await fetch(`/api/invoices?id=${invoiceId}`, { method: 'DELETE' });
-      mutate('/api/invoices');
-      mutate('/api/payments');
-    } catch (e) {
-      console.error("Erreur lors de la suppression de la proforma sur Neon", e);
-    }
+    await deleteOnServer(`/api/invoices?id=${invoiceId}`, 'la proforma', ['/api/invoices', '/api/payments', '/api/credit-notes', '/api/bls']);
   };
 
   // Configuration update handlers for Neon Postgres
@@ -1215,13 +1114,7 @@ export function App() {
     const updatedRubriques = rubriqueConfigs.filter(r => r.invoiceTypeId !== typeId);
     setInvoiceTypeConfigs(updatedTypes);
     setRubriqueConfigs(updatedRubriques);
-    try {
-      await fetch(`/api/configs?typeId=${typeId}`, {
-        method: 'DELETE'
-      });
-    } catch (e) {
-      console.error("Erreur lors de la suppression du type de facture sur Neon", e);
-    }
+    await deleteOnServer(`/api/configs?typeId=${typeId}`, 'le type de facture', []);
   };
 
   // Update FNE Param
