@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toastSuccess, toastError, toastWarning, toastInfo } from '../components/common/Toast';
 import { exportInvoicesCsv, exportPaymentsCsv } from '../utils/exportCsv';
 import { BL, Escale, Invoice, CreditNote, Payment, User, UserRole, TarifSurestarie, ContainerType, InvoiceTypeConfig, RubriqueConfig, FretCategory, CalculationBase, PriceHistoryEntry, TimbreBracket, TaxeAdditionnelleConfig, DraftExport } from '../types';
+import { getNetAPayerFcfa } from '../utils/timbreFiscal';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, normalizeTaxeAdditionnelleConfig, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel, getTaxeAdditionnelleModeLabel } from '../utils/taxeAdditionnelle';
 import { INITIAL_TARIFS_SURESTARIE } from '../data/initialData';
 import { generateProformaPdf, generateDoBadPdf, generateCreditNotePdf } from '../utils/pdfGenerator';
@@ -932,14 +933,15 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
   // Aged balance metrics
   const totalSoldeDu = (invoices || []).reduce((acc, i) => acc + (i.soldeDuFcfa || 0), 0);
-  const totalPaye = (invoices || []).reduce((acc, i) => acc + ((i.montantTtcFcfa || 0) - (i.soldeDuFcfa || 0)), 0);
+  // Encaissé = net à payer (TTC + timbre fiscal) − solde dû : le solde inclut le timbre.
+  const totalPaye = (invoices || []).reduce((acc, i) => acc + Math.max(0, getNetAPayerFcfa(i) - (i.soldeDuFcfa || 0)), 0);
 
   // Recouvrement du mois civil en cours : part réglée des factures émises ce mois-ci.
   const recouvrementMois = React.useMemo(() => {
     const mois = new Date().toISOString().slice(0, 7); // AAAA-MM
     const duMois = (invoices || []).filter(i => (i.dateFacture || '').startsWith(mois));
-    const emis = duMois.reduce((acc, i) => acc + (i.montantTtcFcfa || 0), 0);
-    const regle = duMois.reduce((acc, i) => acc + ((i.montantTtcFcfa || 0) - (i.soldeDuFcfa || 0)), 0);
+    const emis = duMois.reduce((acc, i) => acc + getNetAPayerFcfa(i), 0);
+    const regle = duMois.reduce((acc, i) => acc + Math.max(0, getNetAPayerFcfa(i) - (i.soldeDuFcfa || 0)), 0);
     return { nbFactures: duMois.length, ratio: emis > 0 ? (regle / emis) * 100 : null };
   }, [invoices]);
 

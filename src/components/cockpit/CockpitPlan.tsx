@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowRight, Plus } from 'lucide-react';
 import { BL, DraftExport, Escale, Invoice, UserRole } from '../../types';
+import { getNetAPayerFcfa } from '../../utils/timbreFiscal';
 
 /**
  * Plan du jour — l'accueil du cockpit lu comme un plan de chargement.
@@ -200,7 +201,8 @@ export const CockpitPlan: React.FC<CockpitPlanProps> = ({
   const aQuai = enCours.filter(e => e.quai).length;
   const enRade = enCours.length - aQuai;
   const soldeDu = activeInvoices.reduce((acc, inv) => acc + (inv.soldeDuFcfa || 0), 0);
-  const totalTtc = activeInvoices.reduce((acc, inv) => acc + (inv.montantTtcFcfa || 0), 0);
+  // Net à payer (TTC + timbre fiscal) : même assiette que le solde dû, sinon l'encaissé devient négatif.
+  const totalTtc = activeInvoices.reduce((acc, inv) => acc + getNetAPayerFcfa(inv), 0);
   const blAFacturer = bls.filter(bl => !getBlStats(bl).isAllEditees).length;
   const draftsAInstruire = drafts.filter(d => draftState(d) === 'todo').length;
   const proformas = activeInvoices.filter(inv => inv.statutFacture === 'BROUILLON').length;

@@ -1,4 +1,5 @@
 import { prisma } from './_db.js';
+import { deleteInvoicesOfBls } from './_cascade.js';
 
 // Helper pour gérer le BigInt
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
@@ -146,8 +147,19 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ success: false, error: "Missing or invalid draft ID." });
       }
 
+      // Factures du BL export issu du draft : identifiant négatif (-id du draft,
+      // cf. utils/exportBlMapper) ou numéro de BL généré / numéro de draft.
+      const draft = await prisma.draft_exports.findUnique({
+        where: { id: BigInt(draftId) },
+        select: { numero_draft: true, numero_bl_genere: true },
+      });
+      const deletedInvoices = await deleteInvoicesOfBls(
+        [BigInt(-Math.abs(draftId))],
+        [draft?.numero_bl_genere || '', draft?.numero_draft || '']
+      );
+
       await prisma.draft_exports.deleteMany({ where: { id: draftId } });
-      return res.status(200).json({ success: true, message: `Draft ${draftId} supprimé.` });
+      return res.status(200).json({ success: true, message: `Draft ${draftId} supprimé (${deletedInvoices} facture(s) rattachée(s)).` });
     } catch (error: any) {
       console.error(error);
       return res.status(500).json({ success: false, error: error.message });

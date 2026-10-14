@@ -1,4 +1,5 @@
 import { prisma } from './_db.js';
+import { deleteInvoicesOfBls } from './_cascade.js';
 
 // Helper pour gérer le BigInt
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
@@ -126,43 +127,7 @@ export default async function handler(req: any, res: any) {
       const blIds = blsResult.map(b => b.id);
       const blNumbers = blsResult.map(b => b.numero_bl).filter(Boolean);
 
-      let invoiceIds: bigint[] = [];
-      if (blIds.length > 0 || blNumbers.length > 0) {
-        const invoicesResult = await prisma.invoices.findMany({
-          where: {
-            OR: [
-              { bl_id: { in: blIds } },
-              { numero_bl: { in: blNumbers } }
-            ]
-          },
-          select: { id: true }
-        });
-        invoiceIds = invoicesResult.map(i => i.id);
-      }
-
-      let creditNoteIds: bigint[] = [];
-      if (invoiceIds.length > 0) {
-        const creditNotesResult = await prisma.credit_notes.findMany({
-          where: { facture_id: { in: invoiceIds } },
-          select: { id: true }
-        });
-        creditNoteIds = creditNotesResult.map(c => c.id);
-      }
-
-      // Deletions in order of dependencies
-      if (invoiceIds.length > 0) {
-        await prisma.payments.deleteMany({ where: { facture_id: { in: invoiceIds.map(id => Number(id)) } } });
-      }
-      
-      if (creditNoteIds.length > 0) {
-        await prisma.credit_note_items.deleteMany({ where: { credit_note_id: { in: creditNoteIds } } });
-        await prisma.credit_notes.deleteMany({ where: { id: { in: creditNoteIds } } });
-      }
-
-      if (invoiceIds.length > 0) {
-        await prisma.invoice_items.deleteMany({ where: { invoice_id: { in: invoiceIds } } });
-        await prisma.invoices.deleteMany({ where: { id: { in: invoiceIds } } });
-      }
+      await deleteInvoicesOfBls(blIds, blNumbers);
 
       if (blIds.length > 0) {
         await prisma.containers.deleteMany({ where: { bl_id: { in: blIds } } });
