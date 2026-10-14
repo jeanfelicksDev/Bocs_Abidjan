@@ -166,7 +166,20 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-
+          {/* 3. Registre des navires */}
+          {isAllowed('navires') && (
+            <button
+              onClick={() => onTabChange('navires')}
+              className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'navires'
+                  ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
+                  : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+                }`}
+            >
+              <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${activeTab === 'navires' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                }`}>sailing</span>
+              <span>Navires</span>
+            </button>
+          )}
 
           {/* 4. Facturation & FNE Dropdown */}
           {isAllowed('facturation') && (
@@ -563,7 +576,17 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
 
-
+                {/* 3. Registre des navires */}
+                {isAllowed('navires') && (
+                  <button
+                    onClick={() => { onTabChange('navires'); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'navires' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-500/10'
+                      }`}
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined text-lg">sailing</span>
+                    <span>Registre des Navires</span>
+                  </button>
+                )}
 
                 {/* 4. Facturation Accordion */}
                 {isAllowed('facturation') && (

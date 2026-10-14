@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { toastSuccess, toastError, toastWarning } from '../components/common/Toast';
 import { exportBlsCsv } from '../utils/exportCsv';
-import { INITIAL_VESSELS } from '../data/initialData';
-import { Escale, BL, Invoice, UserRole, Container, ContainerType, RubriqueConfig, FretCategory, InvoiceTypeConfig } from '../types';
+import { VesselPicker, findVesselByName } from '../components/vessels/VesselPicker';
+import { Escale, BL, Invoice, UserRole, Container, ContainerType, RubriqueConfig, FretCategory, InvoiceTypeConfig, Vessel } from '../types';
 import { generateProformaPdf, generateDoBadPdf, generateImportManifestPdf } from '../utils/pdfGenerator';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 import { MultiPdfImportModal, EscaleCommitGroup } from '../components/import/MultiPdfImportModal';
@@ -17,7 +17,7 @@ import {
   resolveUniqueInvoiceNumber,
   rememberIssuedNumber
 } from '../utils/invoiceMatching';
-import { useEscales, useBls, useInvoices } from '../hooks/useData';
+import { useEscales, useBls, useInvoices, useVessels } from '../hooks/useData';
 
 interface ImportModuleProps {
   onAddEscale: (escale: Escale) => void;
@@ -31,6 +31,7 @@ interface ImportModuleProps {
   onUpdateBl?: (updatedBl: BL) => void;
   onUpdateInvoice?: (updatedInvoice: Invoice) => void;
   onNavigateToBilling?: (bl: BL) => void;
+  onAddVessel?: (vessel: Vessel) => void;
 }
 
 export const ImportModule: React.FC<ImportModuleProps> = ({
@@ -44,11 +45,13 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   rubriqueConfigs = [],
   invoiceTypeConfigs = [],
   onUpdateBl,
-  onNavigateToBilling
+  onNavigateToBilling,
+  onAddVessel
 }) => {
   const { escales } = useEscales();
   const { bls } = useBls();
   const { invoices } = useInvoices();
+  const { vessels } = useVessels();
 
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -513,11 +516,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   const handleCreateEscaleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomNavire || !numeroVoyage) return;
+    const vessel = findVesselByName(vessels, nomNavire);
+    if (!vessel) {
+      toastError(`Le navire « ${nomNavire} » n'est pas enregistré : créez-le ou sélectionnez un navire du registre.`);
+      return;
+    }
 
     const newEscale: Escale = {
       id: Date.now(),
-      nomNavire,
-      callsign: callsign || `CS-${Math.floor(1000 + Math.random() * 9000)}`,
+      nomNavire: vessel.nom,
+      callsign: vessel.callsign || callsign,
       numeroVoyage,
       portChargement,
       portDechargement,
@@ -2156,29 +2164,16 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
             </div>
 
             <form onSubmit={handleCreateEscaleSubmit} className="space-y-3 text-sm">
-              <div>
-                <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Nom du Navire</label>
-                <input
-                  type="text"
-                  required
-                  value={nomNavire}
-                  onChange={e => setNomNavire(e.target.value)}
-                  placeholder="ex: BOCS BREMEN"
-                  className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
-                />
-              </div>
+              <VesselPicker
+                id="import-escale-vessel"
+                vessels={vessels}
+                value={nomNavire}
+                onChange={v => { setNomNavire(v?.nom || ''); setCallsign(v?.callsign || ''); }}
+                onCreateVessel={onAddVessel}
+                required
+              />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">Callsign</label>
-                  <input
-                    type="text"
-                    value={callsign}
-                    onChange={e => setCallsign(e.target.value)}
-                    placeholder="CS-9021"
-                    className="w-full h-10 px-3 bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong rounded-md text-sm font-semibold text-text-primary dark:text-night-ink focus:outline-none focus:border-[#005DAA] "
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label className="block font-bold text-text-secondary dark:text-night-ink uppercase text-xs mb-1">N° Voyage</label>
                   <input

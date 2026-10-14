@@ -51,7 +51,8 @@ import {
   Anchor,
   ArrowRight as ArrowRightIcon
 } from 'lucide-react';
-import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User, TimbreBracket } from '../types';
+import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User, TimbreBracket, Vessel } from '../types';
+import { VesselPicker, findVesselByName } from './vessels/VesselPicker';
 import { filterDraftsForUser } from '../utils/draftOwnership';
 import { parseGuceXml } from '../utils/xmlGuceParser';
 
@@ -74,8 +75,8 @@ import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permis
 interface WelcomeScreenProps {
   escales: Escale[];
   bls: BL[];
-  vessels?: any[];
-  onAddVessel?: (vessel: any) => void;
+  vessels?: Vessel[];
+  onAddVessel?: (vessel: Vessel) => void;
   drafts?: DraftExport[];
   invoices?: Invoice[];
   invoiceTypeConfigs?: InvoiceTypeConfig[];
@@ -104,7 +105,7 @@ interface WelcomeScreenProps {
 type ViewState = 'welcome' | 'escales' | 'create-escale';
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
-  vessels,
+  vessels = [],
   onAddVessel,
   onDeleteEscale,
 escales,
@@ -444,12 +445,19 @@ escales,
             numeroVoyage: newEscaleForm.numeroVoyage || bl.numeroVoyage
           }));
 
-          // Pré-remplir le nom du navire et le voyage si encore vides
-          setNewEscaleForm(prev => ({
-            ...prev,
-            nomNavire: prev.nomNavire || parsed[0].nomNavire || '',
-            numeroVoyage: prev.numeroVoyage || parsed[0].numeroVoyage || ''
-          }));
+          // Pré-remplir le navire et le voyage si encore vides : un nom extrait connu du
+          // registre sélectionne ce navire (call sign compris) ; sinon il est proposé à la création.
+          setNewEscaleForm(prev => {
+            if (prev.nomNavire) return { ...prev, numeroVoyage: prev.numeroVoyage || parsed[0].numeroVoyage || '' };
+            const extracted = (parsed[0].nomNavire || '').trim();
+            const known = findVesselByName(vessels, extracted);
+            return {
+              ...prev,
+              nomNavire: known?.nom || extracted,
+              callsign: known?.callsign || prev.callsign,
+              numeroVoyage: prev.numeroVoyage || parsed[0].numeroVoyage || ''
+            };
+          });
 
           setNewEscaleBls(prev => [...prev, ...formatted]);
           totalExtracted += formatted.length;
@@ -480,28 +488,23 @@ escales,
   const handleSubmitNewEscaleWithBls = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEscaleForm.nomNavire.trim() || !newEscaleForm.numeroVoyage.trim()) {
-      toastError("Le nom du navire et le numéro de voyage sont obligatoires.");
+      toastError("Sélectionnez un navire et saisissez le numéro de voyage.");
       return;
     }
 
-    if (onAddVessel && newEscaleForm.nomNavire.trim()) {
-        const vesselName = newEscaleForm.nomNavire.trim();
-        const exists = vessels?.some((v: any) => v.nom.toLowerCase() === vesselName.toLowerCase());
-        if (!exists) {
-          onAddVessel({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            nom: vesselName,
-            callsign: (newEscaleForm.callsign || '').trim(),
-          });
-        }
-      }
+    // L'escale porte un navire du registre : nom et call sign viennent de sa fiche.
+    const vessel = findVesselByName(vessels, newEscaleForm.nomNavire);
+    if (!vessel) {
+      toastError(`Le navire « ${newEscaleForm.nomNavire.trim()} » n'est pas enregistré : créez-le ou sélectionnez un navire du registre.`);
+      return;
+    }
 
-      const newEscaleId = Date.now();
+    const newEscaleId = Date.now();
     const createdEscale: Escale = {
       id: newEscaleId,
-      nomNavire: newEscaleForm.nomNavire.trim(),
+      nomNavire: vessel.nom,
       numeroVoyage: newEscaleForm.numeroVoyage.trim(),
-      callsign: (newEscaleForm.callsign || '').trim(),
+      callsign: vessel.callsign || '',
       portChargement: newEscaleBls[0]?.portChargementCode || newEscaleForm.portChargement || 'ANVERS (BEANR)',
       portDechargement: newEscaleForm.portDechargement || 'ABIDJAN (CIABJ)',
       dateArrivee: newEscaleForm.dateArrivee || new Date().toISOString().split('T')[0],
@@ -575,11 +578,13 @@ escales,
       return;
     }
 
+    // Navire du registre : son call sign fait foi. Sinon (escale ancienne), les valeurs d'origine sont gardées.
+    const vessel = findVesselByName(vessels, escaleFormData.nomNavire);
     const updated: Escale = {
       ...editingEscale,
-      nomNavire: escaleFormData.nomNavire.trim(),
+      nomNavire: vessel?.nom || escaleFormData.nomNavire.trim(),
       numeroVoyage: escaleFormData.numeroVoyage.trim(),
-      callsign: (escaleFormData.callsign || '').trim(),
+      callsign: vessel ? vessel.callsign || '' : (escaleFormData.callsign || '').trim(),
       portChargement: escaleFormData.portChargement || editingEscale.portChargement,
       portDechargement: escaleFormData.portDechargement || editingEscale.portDechargement,
       dateArrivee: escaleFormData.dateArrivee || editingEscale.dateArrivee,
@@ -922,6 +927,17 @@ escales,
                   >
                     <PlusCircle className="w-4 h-4 text-white" />
                     <span className="text-white">Créer une Nouvelle Escale</span>
+                  </button>
+                )}
+
+                {canViewVessels && (
+                  <button
+                    type="button"
+                    onClick={() => onEnter('navires')}
+                    className="h-12 px-5 bg-white hover:bg-zinc-50 text-primary border border-primary/40 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Ship className="w-4 h-4" />
+                    <span>Gérer les Navires</span>
                   </button>
                 )}
 
@@ -1387,22 +1403,15 @@ escales,
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-black text-text-secondary mb-1">Nom du Navire *</label>
-                    <input
-                      type="text" list="vessels-list"
-                      required
-                      placeholder="ex: BOCS BREMEN, WIKING..."
-                      value={newEscaleForm.nomNavire}
-                      onChange={(e) => setNewEscaleForm({ ...newEscaleForm, nomNavire: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
-                    />
-                    <datalist id="vessels-list">
-                      {vessels?.map((v: any) => (
-                        <option key={v.id} value={v.nom} />
-                      ))}
-                    </datalist>
-                  </div>
+                  <VesselPicker
+                    id="new-escale-vessel"
+                    className="sm:col-span-2 lg:col-span-3"
+                    vessels={vessels}
+                    value={newEscaleForm.nomNavire}
+                    onChange={(v) => setNewEscaleForm(prev => ({ ...prev, nomNavire: v?.nom || '', callsign: v?.callsign || '' }))}
+                    onCreateVessel={onAddVessel}
+                    required
+                  />
 
                   <div>
                     <label className="block text-xs font-black text-text-secondary mb-1">Numéro de Voyage *</label>
@@ -1413,17 +1422,6 @@ escales,
                       value={newEscaleForm.numeroVoyage}
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, numeroVoyage: e.target.value })}
                       className="w-full h-11 px-3.5 text-sm font-mono font-black text-primary bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-text-secondary mb-1">Indicatif Radio (Callsign)</label>
-                    <input
-                      type="text"
-                      placeholder="ex: CQRT, DJNY2..."
-                      value={newEscaleForm.callsign}
-                      onChange={(e) => setNewEscaleForm({ ...newEscaleForm, callsign: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                     />
                   </div>
 
@@ -1440,7 +1438,7 @@ escales,
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2 lg:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-1">
                     <label className="block text-xs font-black text-text-secondary mb-1">Port de Déchargement</label>
                     <input
                       type="text"
@@ -1794,18 +1792,15 @@ escales,
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                <div>
-                  <label className="block text-xs font-black text-text-secondary mb-1">
-                    Nom du Navire *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={escaleFormData.nomNavire || ''}
-                    onChange={(e) => setEscaleFormData({ ...escaleFormData, nomNavire: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
-                  />
-                </div>
+                {/* Pas de `required` natif : une escale ancienne peut porter un navire absent du registre. */}
+                <VesselPicker
+                  id="edit-escale-vessel"
+                  className="sm:col-span-2"
+                  vessels={vessels}
+                  value={escaleFormData.nomNavire || ''}
+                  onChange={(v) => setEscaleFormData(prev => ({ ...prev, nomNavire: v?.nom || '', callsign: v?.callsign || '' }))}
+                  onCreateVessel={onAddVessel}
+                />
 
                 <div>
                   <label className="block text-xs font-black text-text-secondary mb-1">
@@ -1820,18 +1815,6 @@ escales,
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-black text-text-secondary mb-1">
-                    Indicatif Radio (Callsign)
-                  </label>
-                  <input
-                    type="text"
-                    value={escaleFormData.callsign || ''}
-                    onChange={(e) => setEscaleFormData({ ...escaleFormData, callsign: e.target.value })}
-                    placeholder="ex: 9V8974, CQRT..."
-                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
-                  />
-                </div>
 
                 <div>
                   <label className="block text-xs font-black text-text-secondary mb-1">

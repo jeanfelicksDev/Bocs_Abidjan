@@ -56,6 +56,7 @@ import {
 // Modules métier chargés à la première ouverture : le démarrage ne paie que
 // l'accueil et le cockpit.
 const VesselTrackingModule = lazy(() => import('./pages/VesselTrackingModule').then((m) => ({ default: m.VesselTrackingModule })));
+const VesselsModule = lazy(() => import('./pages/VesselsModule').then((m) => ({ default: m.VesselsModule })));
 const ImportModule = lazy(() => import('./pages/ImportModule').then((m) => ({ default: m.ImportModule })));
 const ExportModule = lazy(() => import('./pages/ExportModule').then((m) => ({ default: m.ExportModule })));
 const FacturationModule = lazy(() => import('./pages/FacturationModule').then((m) => ({ default: m.FacturationModule })));
@@ -1285,10 +1286,17 @@ export function App() {
             />
           )}
 
+          {!accessDenied && activeTab === 'navires' && (
+            <VesselsModule
+              onAddVessel={handleAddVessel}
+              onUpdateVessel={handleUpdateVessel}
+              onDeleteVessel={handleDeleteVessel}
+            />
+          )}
+
           {!accessDenied && activeTab === 'import' && (
             <ImportModule
-
-
+              onAddVessel={handleAddVessel}
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
               onDeleteEscaleIntegration={handleDeleteEscaleIntegration}

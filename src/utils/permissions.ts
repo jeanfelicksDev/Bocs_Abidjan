@@ -262,6 +262,7 @@ export function hasAnyPermission(user: PermissionSubject | null | undefined, per
 export const TAB_PERMISSIONS: Record<NavTab, string[]> = {
     dashboard: [],
     vessels: ['view_escales', 'fleet_radar'],
+    navires: ['view_escales', 'fleet_radar'],
     import: ['import_guce_xml'],
     export: ['saisie_draft_bl', 'validate_draft_bl', 'consolidation_export'],
     export_saisie: ['saisie_draft_bl'],
