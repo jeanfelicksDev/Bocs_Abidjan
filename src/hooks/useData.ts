@@ -1,5 +1,5 @@
 /**
- * Données métier partagées (escales, BL, factures, règlements, drafts, avoirs).
+ * Données métier partagées (navires, escales, BL, factures, règlements, drafts, avoirs).
  *
  * Une seule source de vérité : le cache SWR de chaque route API. `App.tsx` y écrit
  * (via `useSharedList`) et tous les modules y lisent (via `useEscales`, `useBls`…) :
@@ -17,6 +17,10 @@ import { normalizeInvoice } from '../utils/normalizeInvoice';
 const sameName = (a?: string, b?: string) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
 
 const LISTS = {
+  '/api/vessels': {
+    field: 'vessels',
+    clean: (list: Vessel[]) => list.filter((cur, i) => list.findIndex((v) => v.id === cur.id || sameName(v.nom, cur.nom)) === i),
+  },
   '/api/escales': {
     field: 'escales',
     clean: (list: Escale[]) =>
@@ -117,6 +121,6 @@ export function usePayments() {
 }
 
 export function useVessels() {
-  const { data, error, mutate } = useSWR<{ vessels: Vessel[] }>('/api/vessels', (url: string) => fetch(url).then((res) => res.json()));
-  return { vessels: data?.vessels || [], isLoading: !error && !data, isError: error, mutate };
+  const { list, ...rest } = useList('/api/vessels');
+  return { vessels: list, ...rest };
 }

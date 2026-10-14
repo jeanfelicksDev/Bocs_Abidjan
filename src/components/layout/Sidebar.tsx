@@ -7,6 +7,7 @@ import { useEscapeClose } from '../../hooks/useEscapeClose';
 export type NavTab =
   | 'dashboard'
   | 'vessels'
+  | 'navires'
   | 'import'
   | 'export'
   | 'export_saisie'
@@ -101,6 +102,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'vessels',
           label: 'Navires & Escales',
           icon: 'directions_boat',
+          colorClass: 'text-emerald-500 hover:text-emerald-400'
+        },
+        {
+          id: 'navires',
+          label: 'Registre des Navires',
+          icon: 'sailing',
           colorClass: 'text-emerald-500 hover:text-emerald-400'
         },
         {
