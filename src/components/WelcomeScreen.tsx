@@ -65,11 +65,7 @@ const BlBillingModal = lazy(() => import('./billing/BlBillingModal').then((m) =>
 type PdfGen = typeof import('../utils/pdfGenerator');
 const generateImportManifestPdf = (...args: Parameters<PdfGen['generateImportManifestPdf']>) =>
   import('../utils/pdfGenerator').then((m) => m.generateImportManifestPdf(...args));
-import {
-  extractRawTextFromPdf,
-  parseManifestBlsFromPdfText,
-  ExtractedBlItem
-} from '../utils/pdfExtractor';
+import { extractBlsFromPdf, ExtractedBlItem } from '../utils/pdfExtractor';
 import { RubriqueConfig, Payment } from '../types';
 import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
 
@@ -443,8 +439,7 @@ escales,
     let totalExtracted = 0;
     for (const file of pdfs) {
       try {
-        const { text: rawText, wasOcr } = await extractRawTextFromPdf(file);
-        const parsed = parseManifestBlsFromPdfText(rawText, file.name);
+        const { bls: parsed, rawText, wasOcr } = await extractBlsFromPdf(file);
 
         if (parsed.length > 0) {
           const formatted: ExtractedBlItem[] = parsed.map((bl, bIdx) => ({
@@ -469,7 +464,7 @@ escales,
           setNewEscaleBls(prev => [...prev, ...formatted]);
           totalExtracted += formatted.length;
         } else {
-          toastError(`Aucun connaissement lisible détecté dans ${file.name}.`);
+          toastError(`Aucun connaissement reconnu dans ${file.name} (format attendu : manifeste BOCS ou BL BIMCO).`);
         }
       } catch (err: any) {
         toastError(`Erreur lors de l'extraction de ${file.name} : ${err?.message || 'Document illisible'}`);

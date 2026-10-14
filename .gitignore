@@ -47,3 +47,8 @@ pgdata/
 /playwright/.auth/
 
 /src/generated/prisma
+
+# Documents réels (données clients) et artefacts OCR — non versionnés
+/samples/
+/tmp-pdf-images/
+*.traineddata

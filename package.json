@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "prisma generate && tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:pdf": "node --test tests/pdf-extraction.test.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.4",

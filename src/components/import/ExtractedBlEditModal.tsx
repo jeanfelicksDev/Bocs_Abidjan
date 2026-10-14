@@ -118,7 +118,8 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
       alert("Le numéro de connaissement (N° BL) est obligatoire.");
       return;
     }
-    onSave(form);
+    // Enregistrer vaut relecture : les points signalés sont considérés comme contrôlés.
+    onSave({ ...form, aVerifier: [] });
   };
 
   const modalContent = (
@@ -168,6 +169,21 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
             <X className="w-6 h-6" />
           </button>
         </div>
+
+        {/* ── POINTS À VÉRIFIER signalés par l'extraction (champs non lus, OCR incertaine, incohérences) ── */}
+        {form.aVerifier?.length > 0 && (
+          <div role="status" className="px-7 sm:px-10 py-3 border-b border-amber-300 bg-amber-50 text-amber-900 shrink-0">
+            <p className="font-bold text-sm flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4" />
+              {form.aVerifier.length} point(s) à vérifier avant intégration
+            </p>
+            <ul className="mt-1 text-sm list-disc pl-6 space-y-0.5">
+              {form.aVerifier.map((f, i) => (
+                <li key={`${f.field}-${i}`}>{f.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* ── ONGLETS DE NAVIGATION THÉMATIQUES AGRANDIS ── */}
         <div className="flex items-center gap-2 px-7 sm:px-10 pt-4 pb-3 border-b border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-surface overflow-x-auto shrink-0 text-sm sm:text-base">

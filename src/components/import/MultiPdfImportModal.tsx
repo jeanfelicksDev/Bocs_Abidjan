@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Escale, BL, Container, FretCategory } from '../../types';
-import { 
-  extractRawTextFromPdf, 
-  parseManifestBlsFromPdfText,
-  ExtractedBlItem 
-} from '../../utils/pdfExtractor';
+import { extractBlsFromPdf, ExtractedBlItem } from '../../utils/pdfExtractor';
 import { ExtractedBlEditModal } from './ExtractedBlEditModal';
 import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 import { 
@@ -108,6 +104,8 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
       fileSize: f.size,
       status: 'EXTRACTING',
       wasOcr: false,
+      sourceFormat: 'MANIFESTE_BOCS',
+      aVerifier: [],
       numeroBL: 'ANALYSE EN COURS...',
       shipperNom: '',
       shipperAdresse: '',
@@ -138,8 +136,9 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
       const targetPlaceholder = placeholders[i];
 
       try {
-        const { text: rawText, wasOcr } = await extractRawTextFromPdf(file);
-        const extractedBls = parseManifestBlsFromPdfText(rawText, file.name);
+        const { bls: extractedBls, rawText, wasOcr } = await extractBlsFromPdf(file, (message) =>
+          setItems(prev => prev.map(item => item.fileId === targetPlaceholder.fileId ? { ...item, consigneeNom: message } : item))
+        );
 
         if (extractedBls.length > 0) {
           const populatedItems: ExtractedBlItem[] = extractedBls.map((bl, bIdx) => ({
@@ -164,7 +163,7 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
               return {
                 ...item,
                 status: 'ERROR',
-                errorMessage: 'Aucun connaissement détecté dans ce document'
+                errorMessage: 'Format non reconnu : manifeste BOCS ou BL BIMCO attendu'
               };
             }
             return item;
@@ -568,6 +567,15 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                                           PDF Texte
                                         </span>
                                       )
+                                    )}
+                                    {item.status === 'SUCCESS' && item.aVerifier?.length > 0 && (
+                                      <span
+                                        className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-300 text-2xs font-mono font-bold flex items-center gap-0.5"
+                                        title={item.aVerifier.map(f => f.message).join(' • ')}
+                                      >
+                                        <AlertTriangle className="w-2.5 h-2.5" />
+                                        {item.aVerifier.length} à vérifier
+                                      </span>
                                     )}
                                   </div>
                                 </div>
