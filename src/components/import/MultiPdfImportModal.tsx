@@ -42,6 +42,9 @@ interface MultiPdfImportModalProps {
   onRequestCreateEscale?: () => void;
 }
 
+/** Clé de comparaison d'un numéro de BL (casse et espaces ignorés) ; vide si le numéro est inconnu. */
+const blKey = (numeroBL?: string) => (numeroBL || '').replace(/\s+/g, '').toUpperCase();
+
 export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
   isOpen,
   onClose,
@@ -54,6 +57,10 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
 }) => {
   const [items, setItems] = useState<ExtractedBlItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  // Numéros de BL écartés car déjà présents dans la liste (même BL dans deux PDF, fichier redéposé).
+  const [skippedDuplicates, setSkippedDuplicates] = useState<string[]>([]);
+  // Fichiers initiaux déjà analysés : l'effet d'ouverture ne doit pas les extraire deux fois.
+  const processedInitialFiles = useRef<File[] | null>(null);
 
   // Audit UX : Échap (sommet de pile) + clic sur l'arrière-plan ferment la modale.
   // La modale d'édition imbriquée (ExtractedBlEditModal) est au sommet de la pile :
@@ -78,7 +85,9 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
       }
     } else {
       setItems([]);
+      setSkippedDuplicates([]);
       setEditingDetailItem(null);
+      processedInitialFiles.current = null;
     }
   }, [isOpen, activeEscaleId, escales]);
 
@@ -155,7 +164,21 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
 
           setItems(prev => {
             const withoutPlaceholder = prev.filter(item => item.fileId !== targetPlaceholder.fileId);
-            return [...withoutPlaceholder, ...populatedItems];
+            // Un BL déjà extrait (même numéro) n'est pas ajouté une seconde fois.
+            const known = new Set(withoutPlaceholder.filter(i => i.status === 'SUCCESS').map(i => blKey(i.numeroBL)).filter(Boolean));
+            const fresh: ExtractedBlItem[] = [];
+            const skipped: string[] = [];
+            for (const item of populatedItems) {
+              const key = blKey(item.numeroBL);
+              if (key && known.has(key)) {
+                skipped.push(item.numeroBL);
+              } else {
+                if (key) known.add(key);
+                fresh.push(item);
+              }
+            }
+            if (skipped.length > 0) setSkippedDuplicates(s => [...s, ...skipped]);
+            return [...withoutPlaceholder, ...fresh];
           });
         } else {
           setItems(prev => prev.map(item => {
@@ -186,7 +209,8 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
 
   // Traitement des initialFiles à l'ouverture
   useEffect(() => {
-    if (isOpen && initialFiles && initialFiles.length > 0) {
+    if (isOpen && initialFiles && initialFiles.length > 0 && processedInitialFiles.current !== initialFiles) {
+      processedInitialFiles.current = initialFiles;
       processFiles(initialFiles);
     }
   }, [isOpen, initialFiles]);
@@ -230,11 +254,21 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
 
   const handleClearAll = () => {
     setItems([]);
+    setSkippedDuplicates([]);
   };
 
   // Validation et intégration : tous les BLs sont rattachés à l'escale choisie par l'utilisateur
   const handleCommit = () => {
-    const validItems = items.filter(i => i.status === 'SUCCESS');
+    // Dernier filet : un numéro modifié à la main peut recréer un doublon dans la liste.
+    const seen = new Set<string>();
+    const validItems = items.filter(i => {
+      if (i.status !== 'SUCCESS') return false;
+      const key = blKey(i.numeroBL);
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     if (validItems.length === 0 || !currentTargetEscale) return;
 
     const newBls: BL[] = validItems.map((item, idx) => {
@@ -283,7 +317,11 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
     onClose();
   };
 
-  const validCount = items.filter(i => i.status === 'SUCCESS').length;
+  const validCount = (() => {
+    const keys = items.filter(i => i.status === 'SUCCESS').map(i => blKey(i.numeroBL));
+    return keys.filter(k => !k).length + new Set(keys.filter(Boolean)).size;
+  })();
+  const duplicateNumbers = [...new Set(skippedDuplicates)];
   const extractingCount = items.filter(i => i.status === 'EXTRACTING').length;
 
   if (!isOpen) return null;
@@ -504,6 +542,15 @@ export const MultiPdfImportModal: React.FC<MultiPdfImportModalProps> = ({
                   </button>
                 </div>
               </div>
+
+              {duplicateNumbers.length > 0 && (
+                <p role="status" className="text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>
+                    {duplicateNumbers.length} BL déjà présent(s) dans la liste, ignoré(s) : {duplicateNumbers.join(', ')}.
+                  </span>
+                </p>
+              )}
 
               {/* Table de vérification & ajustement des BLs avant validation */}
               <div className="border border-border-default dark:border-night-line rounded-md overflow-hidden bg-surface-canvas dark:bg-night-surface shadow-1">

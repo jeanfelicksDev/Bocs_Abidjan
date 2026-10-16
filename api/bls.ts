@@ -91,7 +91,17 @@ export default async function handler(req: any, res: any) {
   } else if (req.method === 'POST') {
     try {
       const data = req.body;
-      const blsList = Array.isArray(data.bls) ? data.bls : (data.id ? [data] : []);
+      const received = Array.isArray(data.bls) ? data.bls : (data.id ? [data] : []);
+
+      // Un même numéro de BL envoyé deux fois dans le lot (BL présent dans deux PDF)
+      // créerait deux lignes en base : seule la dernière occurrence est conservée.
+      const lastIndexByNumber = new Map<string, number>();
+      received.forEach((bl: any, i: number) => {
+        if (bl.numeroBL) lastIndexByNumber.set(String(bl.numeroBL).trim().toUpperCase(), i);
+      });
+      const blsList = received.filter((bl: any, i: number) =>
+        !bl.numeroBL || lastIndexByNumber.get(String(bl.numeroBL).trim().toUpperCase()) === i
+      );
 
       if (blsList.length === 0) {
         return res.status(400).json({ success: false, error: "No BLs provided." });
