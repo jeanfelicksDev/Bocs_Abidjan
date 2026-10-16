@@ -77,6 +77,7 @@ interface WelcomeScreenProps {
   bls: BL[];
   vessels?: Vessel[];
   onAddVessel?: (vessel: Vessel) => void;
+  onUpdateVessel?: (vessel: Vessel) => void;
   drafts?: DraftExport[];
   invoices?: Invoice[];
   invoiceTypeConfigs?: InvoiceTypeConfig[];
@@ -107,6 +108,7 @@ type ViewState = 'welcome' | 'escales' | 'create-escale';
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   vessels = [],
   onAddVessel,
+  onUpdateVessel,
   onDeleteEscale,
 escales,
   bls,
@@ -1410,6 +1412,7 @@ escales,
                     value={newEscaleForm.nomNavire}
                     onChange={(v) => setNewEscaleForm(prev => ({ ...prev, nomNavire: v?.nom || '', callsign: v?.callsign || '' }))}
                     onCreateVessel={onAddVessel}
+                    onUpdateVessel={onUpdateVessel}
                     required
                   />
 
@@ -1800,6 +1803,7 @@ escales,
                   value={escaleFormData.nomNavire || ''}
                   onChange={(v) => setEscaleFormData(prev => ({ ...prev, nomNavire: v?.nom || '', callsign: v?.callsign || '' }))}
                   onCreateVessel={onAddVessel}
+                  onUpdateVessel={onUpdateVessel}
                 />
 
                 <div>

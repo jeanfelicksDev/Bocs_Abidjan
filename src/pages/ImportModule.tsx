@@ -32,6 +32,7 @@ interface ImportModuleProps {
   onUpdateInvoice?: (updatedInvoice: Invoice) => void;
   onNavigateToBilling?: (bl: BL) => void;
   onAddVessel?: (vessel: Vessel) => void;
+  onUpdateVessel?: (vessel: Vessel) => void;
 }
 
 export const ImportModule: React.FC<ImportModuleProps> = ({
@@ -46,7 +47,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   invoiceTypeConfigs = [],
   onUpdateBl,
   onNavigateToBilling,
-  onAddVessel
+  onAddVessel,
+  onUpdateVessel
 }) => {
   const { escales } = useEscales();
   const { bls } = useBls();
@@ -2170,6 +2172,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 value={nomNavire}
                 onChange={v => { setNomNavire(v?.nom || ''); setCallsign(v?.callsign || ''); }}
                 onCreateVessel={onAddVessel}
+                onUpdateVessel={onUpdateVessel}
                 required
               />
 

@@ -17,6 +17,8 @@ interface VesselPickerProps {
   onChange: (vessel: Vessel | null) => void;
   /** Création d'un navire depuis le formulaire ; sans elle, le lien « Créer un navire » est masqué. */
   onCreateVessel?: (vessel: Vessel) => void;
+  /** Modification du navire sélectionné ; sans elle, le lien « Modifier » est masqué. */
+  onUpdateVessel?: (vessel: Vessel) => void;
   required?: boolean;
   className?: string;
 }
@@ -29,16 +31,21 @@ const readOnlyClass =
  * et IMO affichés automatiquement (lecture seule). Un nom inconnu du registre (ex. extrait
  * d'un manifeste) est signalé avec un raccourci pour créer le navire pré-rempli.
  */
-export const VesselPicker: React.FC<VesselPickerProps> = ({ id, vessels, value, onChange, onCreateVessel, required, className = '' }) => {
+export const VesselPicker: React.FC<VesselPickerProps> = ({ id, vessels, value, onChange, onCreateVessel, onUpdateVessel, required, className = '' }) => {
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Vessel | null>(null);
   const selected = findVesselByName(vessels, value);
   const unknownName = value.trim() && !selected ? value.trim() : '';
   const sorted = [...vessels].sort((a, b) => a.nom.localeCompare(b.nom));
 
-  const handleCreated = (vessel: Vessel) => {
-    onCreateVessel?.(vessel);
+  const closeForm = () => { setCreating(false); setEditing(null); };
+
+  const handleSubmit = (vessel: Vessel) => {
+    if (editing) onUpdateVessel?.(vessel);
+    else onCreateVessel?.(vessel);
+    // Le formulaire d'escale reprend le nom et le call sign, éventuellement corrigés.
     onChange(vessel);
-    setCreating(false);
+    closeForm();
   };
 
   return (
@@ -46,11 +53,23 @@ export const VesselPicker: React.FC<VesselPickerProps> = ({ id, vessels, value, 
       <div>
         <div className="flex items-baseline justify-between gap-2 mb-1">
           <label htmlFor={id} className="block text-xs font-black text-text-secondary">Navire{required ? ' *' : ''}</label>
-          {onCreateVessel && (
-            <button type="button" onClick={() => setCreating(true)} className="text-xs font-black text-primary hover:underline cursor-pointer">
-              + Créer un navire
-            </button>
-          )}
+          <div className="flex items-baseline gap-3">
+            {onUpdateVessel && selected && (
+              <button
+                type="button"
+                onClick={() => setEditing(selected)}
+                aria-label={`Modifier le navire ${selected.nom}`}
+                className="text-xs font-black text-primary hover:underline cursor-pointer"
+              >
+                Modifier
+              </button>
+            )}
+            {onCreateVessel && (
+              <button type="button" onClick={() => setCreating(true)} className="text-xs font-black text-primary hover:underline cursor-pointer">
+                + Créer un navire
+              </button>
+            )}
+          </div>
         </div>
         <select
           id={id}
@@ -85,11 +104,12 @@ export const VesselPicker: React.FC<VesselPickerProps> = ({ id, vessels, value, 
       </div>
 
       <VesselFormModal
-        open={creating}
+        open={creating || !!editing}
+        editing={editing}
         initial={unknownName ? { nom: unknownName } : undefined}
         vessels={vessels}
-        onClose={() => setCreating(false)}
-        onSubmit={handleCreated}
+        onClose={closeForm}
+        onSubmit={handleSubmit}
       />
     </div>
   );

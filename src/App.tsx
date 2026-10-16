@@ -1216,6 +1216,7 @@ export function App() {
         timbreBrackets={timbreBrackets}
         vessels={vessels}
         onAddVessel={handleAddVessel}
+        onUpdateVessel={handleUpdateVessel}
       />
         {/* Notifications globales (toasts succès/erreur également sur la plateforme) */}
         <ToastContainer />
@@ -1297,6 +1298,7 @@ export function App() {
           {!accessDenied && activeTab === 'import' && (
             <ImportModule
               onAddVessel={handleAddVessel}
+              onUpdateVessel={handleUpdateVessel}
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
               onDeleteEscaleIntegration={handleDeleteEscaleIntegration}
