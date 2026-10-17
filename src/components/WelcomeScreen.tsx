@@ -70,6 +70,7 @@ import { extractBlsFromPdf, ExtractedBlItem } from '../utils/pdfExtractor';
 import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { RubriqueConfig, Payment } from '../types';
 import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
+import { MainNav } from './layout/MainNav';
 
 
 interface WelcomeScreenProps {
@@ -857,6 +858,31 @@ escales,
           </div>
 
         </div>
+
+        {/* Navigation principale : mêmes boutons que l'en-tête des modules. */}
+        {connectedUser && (
+          <div className="max-w-[2465px] mx-auto px-4 sm:px-8 pb-3">
+            <MainNav
+              currentUser={connectedUser}
+              activeTab="dashboard"
+              onTabChange={tab => {
+                if (tab === 'dashboard') {
+                  setViewState('welcome');
+                  setSelectedEscaleId(null);
+                  return;
+                }
+                onEnter(tab);
+              }}
+              counts={{
+                escalesCount: escales.length,
+                blsCount: bls.length,
+                draftsCount: drafts.length,
+                facturesCount: invoices.length
+              }}
+              className="flex flex-wrap justify-center"
+            />
+          </div>
+        )}
       </header>
 
       {/* ─── 2. MAIN EXECUTIVE WORKSPACE ─── */}
