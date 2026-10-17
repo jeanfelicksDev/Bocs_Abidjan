@@ -141,7 +141,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg shadow-2xl dark:shadow-black/70 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header with User Banner */}
-        <div className="bg-gradient-to-r from-[#00182f] via-[#0b2447] to-[#005daa] p-6 text-white dark:text-white relative">
+        <div className="bg-gradient-to-r from-[#00182f] via-[#0b2447] to-[#005daa] dark:from-night-accent dark:via-night-accent dark:to-night-accent-strong p-6 text-white dark:text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-canvas dark:bg-night-surface/10 hover:bg-surface-canvas flex items-center justify-center text-white dark:text-white transition-all cursor-pointer"
@@ -151,12 +151,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-emerald-400 to-[#209641] text-white dark:text-white flex items-center justify-center font-black text-xl shadow-lg dark:shadow-black/50 border-2 border-white/20">
+            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-emerald-400 to-[#209641] dark:from-[#E0A92B] dark:to-[#E0A92B] text-white dark:text-[#3A2A05] flex items-center justify-center font-black text-xl shadow-lg dark:shadow-black/50 border-2 border-white/20">
               {initials}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold font-heading">{currentUser.nomComplet}</h2>
+                <h2 className="text-xl font-bold font-heading text-white">{currentUser.nomComplet}</h2>
                 <span className={`px-2 py-0.5 rounded-full text-2xs font-black uppercase border ${getRoleColor(currentUser.role)}`}>
                   {getRoleLabel(currentUser.role)}
                 </span>

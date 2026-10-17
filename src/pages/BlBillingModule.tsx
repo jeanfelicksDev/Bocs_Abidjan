@@ -1437,7 +1437,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   </span>
                   <span className="text-2xl md:text-3xl text-rose-600 dark:text-night-critical font-black tracking-tight font-mono">
                     {blInvoices.reduce((sum, inv) => sum + (inv.soldeDuFcfa || 0), 0).toLocaleString('fr-FR')}{' '}
-                    <span className="text-sm font-bold text-rose-400 ml-0.5">FCFA</span>
+                    <span className="text-sm font-bold text-rose-400 dark:text-night-critical ml-0.5">FCFA</span>
                   </span>
                 </div>
               </div>
@@ -2464,7 +2464,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
             <div className="w-80 bg-[#1e1e1e] text-neutral-300 p-6 flex flex-col justify-between border-l border-neutral-800 shrink-0">
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-bold text-white dark:text-night-ink mb-1">Imprimer</h3>
+                  <h3 className="text-xl font-bold text-white mb-1">Imprimer</h3>
                   <p className="text-sm text-neutral-500 font-bold">1 feuille de papier</p>
                 </div>
 

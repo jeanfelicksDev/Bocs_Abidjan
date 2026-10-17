@@ -1526,7 +1526,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                       </span>
                                     ) : (
                                       <span
-                                        className="p-1 text-amber-400 cursor-not-allowed shrink-0"
+                                        className="p-1 text-amber-400 dark:text-night-caution cursor-not-allowed shrink-0"
                                         title="Validez la facture avant d'enregistrer un règlement"
                                       >
                                         <span aria-hidden="true" className="material-symbols-outlined text-base">pending</span>

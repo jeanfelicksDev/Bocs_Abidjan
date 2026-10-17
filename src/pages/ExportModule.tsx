@@ -2792,7 +2792,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-black text-base">Refus de la Demande de Correction</h3>
+                <h3 className="font-black text-base text-white">Refus de la Demande de Correction</h3>
                 <p className="text-xs text-rose-200">{targetDraftForApproval.numeroDraft} • {targetDraftForApproval.clientNom}</p>
               </div>
             </div>
@@ -2847,7 +2847,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 <DollarSign className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-black text-base">Acceptation des Frais de Correction</h3>
+                <h3 className="font-black text-base text-white">Acceptation des Frais de Correction</h3>
                 <p className="text-xs text-emerald-100 font-medium">
                   Draft {targetDraftForFeeAcceptance.numeroDraft} • Client : {targetDraftForFeeAcceptance.clientNom}
                 </p>
@@ -2930,10 +2930,10 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-md w-full shadow-2xl dark:shadow-black/70 border border-rose-300 overflow-hidden animate-scale-in">
             <div className="bg-gradient-to-r from-rose-600 to-rose-700 text-white dark:text-white p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/15 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-white dark:text-night-ink" />
+                <Trash2 className="w-5 h-5 text-white dark:text-white" />
               </div>
               <div>
-                <h3 className="font-black text-base text-white dark:text-night-ink">Suppression Définitive du Draft</h3>
+                <h3 className="font-black text-base text-white dark:text-white">Suppression Définitive du Draft</h3>
                 <p className="text-xs text-rose-200 font-medium">
                   Action réservée exclusivement à l'Administrateur
                 </p>

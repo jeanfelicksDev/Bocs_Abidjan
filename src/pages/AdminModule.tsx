@@ -387,7 +387,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 p-6 rounded-md shadow-2xl dark:shadow-black/70">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <span aria-hidden="true" className="material-symbols-outlined text-rose-400 text-2xl font-black">admin_panel_settings</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-rose-400 dark:text-night-critical text-2xl font-black">admin_panel_settings</span>
             <h1 className="text-2xl font-black text-primaryDark font-heading tracking-tight">Console d'Administration &amp; Sécurité</h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-night-ink-2 font-medium max-w-xl leading-relaxed">
@@ -1531,7 +1531,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         >
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 border border-rose-500/30 rounded-md shadow-[0_25px_50px_rgba(0,0,0,0.8)] max-w-md w-full p-6 space-y-4 text-white dark:text-night-ink">
 
-            <div className="flex items-center gap-3 text-rose-400 border-b border-rose-500/20 pb-3">
+            <div className="flex items-center gap-3 text-rose-400 dark:text-night-critical border-b border-rose-500/20 pb-3">
               <span aria-hidden="true" className="material-symbols-outlined text-3xl">warning</span>
               <div>
                 <h3 className="font-bold text-xl text-white dark:text-night-ink">Confirmer la Suppression</h3>
@@ -1630,7 +1630,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                     <td className="p-3.5 text-center text-slate-500 dark:text-night-ink-2">✕ Masqué</td>
                     <td className="p-3.5 text-center text-emerald-600 dark:text-night-positive font-bold">✓ Validation & BL</td>
                     <td className="p-3.5 text-center text-amber-600 font-bold">⚠️ Facturation uniquement</td>
-                    <td className="p-3.5 text-center text-indigo-400 font-bold">✓ Saisie Drafts Propres</td>
+                    <td className="p-3.5 text-center text-indigo-400 dark:text-night-link font-bold">✓ Saisie Drafts Propres</td>
                   </tr>
 
                   <tr>

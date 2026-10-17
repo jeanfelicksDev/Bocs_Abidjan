@@ -310,7 +310,7 @@ html.dark input[type='checkbox'], html.dark input[type='radio'] {
    panneau d'Eglin. Leur texte « dark: » visait l'ancien fond nuit : on le
    ramène au clair, sauf sur les éléments qui posent leur propre fond. */
 html.dark :is(.bg-\[\#061528\]\/90, .bg-\[\#051120\]\/80, .bg-\[\#030914\],
-  .bg-\[\#051424\], .bg-\[\#0F172A\], .bg-zinc-800, .bg-zinc-900, .bg-zinc-950) {
+  .bg-\[\#051424\], .bg-\[\#0F172A\], .bg-zinc-800, .bg-zinc-800\/90, .bg-zinc-900, .bg-zinc-950) {
   background-color: rgb(var(--night-accent));
   border-color: rgb(var(--night-accent-strong));
   color: rgb(var(--night-on-accent)) !important;
