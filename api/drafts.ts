@@ -1,5 +1,7 @@
 import { prisma } from './_db.js';
 import { deleteInvoicesOfBls } from './_cascade.js';
+import { protect } from './_auth.js';
+import { draftOwnershipView, keepInList, ownsDraft } from './_ownership.js';
 
 // Helper pour gérer le BigInt
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
@@ -91,7 +93,7 @@ function toDraftData(draft: any) {
   };
 }
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const drafts = await prisma.draft_exports.findMany({
@@ -169,3 +171,26 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   }
 }
+
+export default protect({
+  access: { GET: 'user', POST: ['ADMIN', 'AGENT_EXPORT', 'CLIENT_EXPORT'], DELETE: ['ADMIN', 'AGENT_EXPORT', 'CLIENT_EXPORT'] },
+  clientView: (body, user) => keepInList(body, 'drafts', (d: any) => ownsDraft(d, user)),
+  clientWrite: async (req, user) => {
+    if (req.method === 'DELETE') {
+      const raw = req.query?.id || req.body?.id;
+      if (raw === 'ALL') return 'Suppression globale réservée au personnel BOCS.';
+      const row = await prisma.draft_exports.findUnique({ where: { id: BigInt(Number(raw) || 0) } });
+      return row && !ownsDraft(draftOwnershipView(row), user) ? 'Ce draft ne vous appartient pas.' : null;
+    }
+    const list = Array.isArray(req.body?.drafts) ? req.body.drafts : req.body?.id ? [req.body] : [];
+    const ids = list.map((d: any) => Number(d.id)).filter((id: number) => !isNaN(id));
+    const existing = ids.length ? await prisma.draft_exports.findMany({ where: { id: { in: ids.map(BigInt) } } }) : [];
+    if (existing.some(row => !ownsDraft(draftOwnershipView(row), user))) return 'Ce draft ne vous appartient pas.';
+    // Un client ne peut déposer un draft qu'à son propre nom.
+    for (const d of list) {
+      d.clientId = user.id;
+      d.clientEmail = d.clientEmail || user.email;
+    }
+    return null;
+  }
+}, handler);

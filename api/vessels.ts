@@ -1,4 +1,5 @@
 import { prisma } from './_db.js';
+import { protect, STAFF } from './_auth.js';
 
 /** `imo_number` est obligatoire et unique : un navire sans IMO reçoit un identifiant technique, masqué côté client. */
 const NO_IMO_PREFIX = 'SANS-IMO-';
@@ -16,7 +17,7 @@ const toClient = (v: any) => ({
   deletedAt: v.deleted_at?.toISOString()
 });
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const vessels = await prisma.vessels.findMany({
@@ -114,3 +115,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   }
 }
+
+export default protect({
+  access: { GET: 'user', POST: STAFF, DELETE: STAFF }
+}, handler);

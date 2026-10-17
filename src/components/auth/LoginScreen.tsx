@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { ThemeSwitcher } from '../common/ThemeSwitcher';
 
+/** Connexions de démonstration (1-clic, comptes en mémoire) : serveur de développement uniquement. */
+const DEMO_LOGIN = import.meta.env.DEV;
+
 interface LoginScreenProps {
   allUsers: User[];
   onLoginSuccess: (user: User) => void;
@@ -89,7 +92,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         }
       }
 
-      // 2. Local fallback matching from allUsers state
+      if (res && res.status !== 404) {
+        // L'API a répondu : son verdict fait foi (identifiants refusés, compte désactivé,
+        // trop de tentatives). Aucun repli local : il permettait d'entrer sans mot de passe.
+        const data = await res.json().catch(() => null);
+        toastError(data?.error || 'Identifiants incorrects.');
+        return;
+      }
+
+      // 2. Développement sans API (vite seul) : comptes de démonstration en mémoire.
+      if (!DEMO_LOGIN) {
+        toastError('Service de connexion indisponible.');
+        return;
+      }
       const localUser = allUsers.find(u => u.email.toLowerCase() === loginEmail.trim().toLowerCase());
       if (localUser) {
         if (!localUser.estActif) {
@@ -421,7 +436,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 </button>
               </form>
 
-              {/* DEMO QUICK ACCESS CHIPS */}
+              {/* DEMO QUICK ACCESS CHIPS — développement uniquement : connexion sans mot de passe */}
+              {DEMO_LOGIN && (
               <div className="pt-5 border-t border-slate-100 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-2xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -502,18 +518,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   </button>
                 </div>
               </div>
+              )}
 
-              {/* Registration link */}
+              {/* Comptes clients : créés par BOCS (l'inscription libre permettrait de se faire
+                  passer pour une société cliente et d'accéder à ses drafts). */}
               <div className="pt-2 text-center">
                 <p className="text-xs text-slate-500">
                   Client exportateur maritime ?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setMode('register')}
-                    className="text-[#005DAA] font-semibold hover:underline transition-colors cursor-pointer"
-                  >
-                    Créer un compte client
-                  </button>
+                  {DEMO_LOGIN ? (
+                    <button
+                      type="button"
+                      onClick={() => setMode('register')}
+                      className="text-[#005DAA] font-semibold hover:underline transition-colors cursor-pointer"
+                    >
+                      Créer un compte client
+                    </button>
+                  ) : (
+                    <span className="font-semibold text-slate-600">Votre accès est créé par votre agent BOCS.</span>
+                  )}
                 </p>
               </div>
 

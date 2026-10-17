@@ -35,6 +35,8 @@ function resolveDatabaseUrl(): string {
 }
 
 const connectionString = resolveDatabaseUrl();
+/** Chaîne de connexion résolue (sert aussi de secret de session de repli, voir _auth.ts). */
+export const databaseUrl = connectionString;
 if (!connectionString) {
   console.warn('[api/_db] Aucune URL PostgreSQL trouvée dans les variables d\'environnement.');
 }

@@ -1,6 +1,7 @@
 import { prisma } from './_db.js';
+import { protect } from './_auth.js';
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   let body = req.body;
   if (typeof body === 'string') {
     try {
@@ -132,3 +133,8 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: "Method not allowed." });
   }
 }
+
+export default protect({
+  // Types de facture, rubriques : lisibles par tous (formulaires), modifiés par la comptabilité.
+  access: { GET: 'user', POST: ['ADMIN', 'COMPTABILITE'], DELETE: ['ADMIN', 'COMPTABILITE'] }
+}, handler);

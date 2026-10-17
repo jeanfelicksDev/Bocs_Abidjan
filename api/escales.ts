@@ -1,12 +1,13 @@
 import { prisma } from './_db.js';
 import { deleteInvoicesOfBls } from './_cascade.js';
+import { protect, STAFF } from './_auth.js';
 
 // Helper pour gérer le BigInt
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
     typeof value === 'bigint' ? Number(value) : value
 ));
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const escales = await prisma.escales.findMany({
@@ -145,3 +146,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   }
 }
+
+export default protect({
+  access: { GET: 'user', POST: STAFF, DELETE: STAFF }
+}, handler);

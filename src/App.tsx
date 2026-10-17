@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useSharedList, useVessels, revalidateLists } from './hooks/useData';
 import { ArrowLeft } from 'lucide-react';
-import { ToastContainer, toastError } from './components/common/Toast';
+import { ToastContainer, toastError, toastWarning } from './components/common/Toast';
 import {
   INITIAL_USERS,
   INITIAL_ESCALES,
@@ -53,6 +53,7 @@ import {
   invoiceNumberWithStatut,
   isDefinitiveInvoiceNumber
 } from './utils/invoiceNumber';
+import { SESSION_EXPIRED_EVENT, logoutOnServer } from './utils/sessionGuard';
 
 // Modules métier chargés à la première ouverture : le démarrage ne paie que
 // l'accueil et le cockpit.
@@ -200,8 +201,11 @@ export function App() {
     );
   };
 
-  // Initialisation et chargement des données depuis Neon Postgres
+  // Chargement des données une fois connecté : l'API exige une session (cookie) et
+  // répond 401 avant la connexion. Les listes partagées sont rechargées à chaque connexion.
   useEffect(() => {
+    if (!isAuthenticated) return;
+    void revalidateLists('/api/vessels', '/api/escales', '/api/bls', '/api/invoices', '/api/payments', '/api/drafts', '/api/credit-notes');
     const initAndLoad = async () => {
       try {
         // 1. Initialise les tables si nécessaire
@@ -256,7 +260,7 @@ export function App() {
       }
     };
     initAndLoad();
-  }, []);
+  }, [isAuthenticated]);
 
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
@@ -319,7 +323,21 @@ export function App() {
     setIsAuthenticated(false);
     setShowWelcome(false); // Retour à l'écran de connexion
     localStorage.removeItem('bocs_session_user');
+    void logoutOnServer();
   };
+
+  // Session expirée côté serveur (cookie absent ou périmé) : retour à l'écran de connexion.
+  useEffect(() => {
+    const onExpired = () => {
+      if (!localStorage.getItem('bocs_session_user')) return;
+      localStorage.removeItem('bocs_session_user');
+      setIsAuthenticated(false);
+      setShowWelcome(false);
+      toastWarning('Votre session a expiré : reconnectez-vous.');
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
 
   // Open Auth Modal
   const handleOpenAuthModal = (mode: 'login' | 'register' | 'forgot' = 'login') => {

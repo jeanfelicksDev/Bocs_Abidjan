@@ -1,10 +1,12 @@
 import { prisma } from './_db.js';
+import { protect } from './_auth.js';
+import { clientInvoiceIds, keepInList } from './_ownership.js';
 
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
     typeof value === 'bigint' ? Number(value) : value
 ));
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const creditNotes = await prisma.credit_notes.findMany({
@@ -109,3 +111,11 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: "Method not allowed." });
   }
 }
+
+export default protect({
+  access: { GET: 'user', POST: ['ADMIN', 'COMPTABILITE'], DELETE: ['ADMIN', 'COMPTABILITE'] },
+  clientView: async (body, user) => {
+    const ids = await clientInvoiceIds(user);
+    return keepInList(body, 'creditNotes', (cn: any) => ids.has(Number(cn.factureId)));
+  }
+}, handler);

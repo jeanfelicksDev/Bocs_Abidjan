@@ -1,8 +1,9 @@
 // Connexion partagée : Prisma 7 exige un adaptateur (Neon ou PostgreSQL local),
 // un `new PrismaClient()` nu échoue à l'instanciation.
 import { prisma } from './_db.js';
+import { protect } from './_auth.js';
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const perms = await prisma.role_permissions.findMany();
@@ -58,3 +59,8 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Allow', ['GET', 'POST']);
   res.status(405).end(`Method ${req.method} Not Allowed`);
 }
+
+export default protect({
+  // La matrice est lue par tous (affichage des menus) ; seul l'administrateur la modifie.
+  access: { GET: 'user', POST: ['ADMIN'] }
+}, handler);

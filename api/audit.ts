@@ -1,10 +1,11 @@
 import { prisma } from './_db.js';
+import { protect } from './_auth.js';
 
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
     typeof value === 'bigint' ? Number(value) : value
 ));
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const logs = await prisma.audit_logs.findMany({
@@ -59,3 +60,8 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: "Method not allowed." });
   }
 }
+
+export default protect({
+  // Journal : tout compte connecté y écrit ses actions ; seul l'administrateur le consulte.
+  access: { GET: ['ADMIN'], POST: 'user' }
+}, handler);

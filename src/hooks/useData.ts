@@ -49,7 +49,7 @@ async function fetchList(key: string): Promise<unknown[]> {
   const conf = LISTS[key as SharedListKey];
   const list = json?.[conf.field];
   if (!res.ok || json?.success === false || !Array.isArray(list)) {
-    throw new Error(json?.error || `Chargement impossible (${key}, ${res.status})`);
+    throw Object.assign(new Error(json?.error || `Chargement impossible (${key}, ${res.status})`), { status: res.status });
   }
   return (conf.clean as (l: unknown[]) => unknown[])(list);
 }
@@ -57,7 +57,11 @@ async function fetchList(key: string): Promise<unknown[]> {
 const EMPTY: never[] = [];
 
 function useList<K extends SharedListKey>(key: K) {
-  const { data, error, mutate } = useSWR<unknown[]>(key, fetchList);
+  const { data, error, mutate } = useSWR<unknown[]>(key, fetchList, {
+    // Non connecté (401) ou non autorisé (403) : réessayer ne changerait rien ; la liste
+    // est rechargée à la connexion (App.tsx).
+    shouldRetryOnError: (err: { status?: number }) => err?.status !== 401 && err?.status !== 403
+  });
   return { list: (data as ListOf<K> | undefined) || (EMPTY as ListOf<K>), isLoading: !error && !data, isError: error, mutate };
 }
 

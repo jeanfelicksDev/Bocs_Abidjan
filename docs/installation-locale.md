@@ -7,6 +7,10 @@ factures auprès de la DGI (FNE), qui est une obligation légale.
 Le déploiement Vercel / Neon reste possible et inchangé : le mode local est choisi
 par la variable `DB_DRIVER=pg`.
 
+Les **clients export continuent de transmettre leurs drafts par Internet** grâce à un
+portail client facultatif (§ 6) : seules leurs propres données y sont accessibles, et
+le personnel BOCS ne peut s'y connecter.
+
 ---
 
 ## 1. Ce qui a été rendu local dans l'application
@@ -21,6 +25,21 @@ par la variable `DB_DRIVER=pg`.
 
 Le serveur ajoute une politique de sécurité (`Content-Security-Policy`) qui interdit
 au navigateur de charger quoi que ce soit hors du serveur BOCS.
+
+### Sessions et droits (api/_auth.ts)
+
+- La connexion dépose un **cookie de session signé** (HttpOnly, SameSite=Lax, Secure en
+  HTTPS, 12 h). Toutes les routes de l'API l'exigent ; sans lui, elles répondent 401.
+- Le compte est relu en base à chaque requête (cache 30 s) : un compte désactivé perd
+  l'accès presque immédiatement.
+- Chaque route applique les droits par rôle (matrice d'habilitations par défaut).
+- Un **client export** ne reçoit que ses drafts, les factures de ses drafts, ainsi que
+  leurs règlements et avoirs. Il ne peut déposer un draft qu'à son nom.
+- 8 échecs de connexion en 15 minutes bloquent le compte depuis cette adresse IP.
+- Les comptes clients sont créés par l'administrateur BOCS (pas d'inscription libre).
+- Les connexions « 1-clic » de démonstration n'existent plus qu'en développement (`npm run dev`).
+- Secret de signature : variable `SESSION_SECRET` (aussi à définir dans les variables
+  d'environnement Vercel ; à défaut, il est dérivé de la chaîne de connexion à la base).
 
 ---
 
@@ -56,6 +75,7 @@ git clone <dépôt interne> /opt/bocs && cd /opt/bocs
 # 2. Configurer
 cp .env.example .env
 #    POSTGRES_PASSWORD : openssl rand -base64 32
+#    SESSION_SECRET    : openssl rand -base64 48
 #    BOCS_DOMAIN       : nom DNS interne du serveur
 #    BOCS_TLS          : internal, ou le certificat de l'entreprise (voir §4)
 chmod 600 .env
@@ -111,7 +131,40 @@ supprimer la base Neon et le fichier d'export conservé dans `backups/`.
 
 ---
 
-## 6. Sauvegardes
+## 6. Portail client sur Internet (drafts export)
+
+Les clients déposent et suivent leurs drafts depuis Internet ; le reste des données ne
+quitte pas l'entreprise.
+
+1. **DNS public** : un nom, par exemple `clients.bocs.ci`, pointant vers l'adresse IP
+   publique de l'entreprise.
+2. **Pare-feu** : redirection des ports 443 (et 80 si Let's Encrypt) d'Internet vers le
+   serveur BOCS, **en conservant l'adresse IP d'origine** (sans SNAT) : le site interne
+   refuse toute adresse qui n'est pas du réseau privé.
+3. **Activation** :
+   ```bash
+   cp deploy/portail/portail-client.caddy.exemple deploy/portail/portail-client.caddy
+   # dans .env : BOCS_PUBLIC_DOMAIN=clients.bocs.ci et BOCS_PUBLIC_TLS=informatique@bocs.ci
+   docker compose up -d
+   ```
+4. **Comptes clients** : l'administrateur crée un compte CLIENT_EXPORT par client
+   (Administration › Comptes utilisateurs) et lui communique son mot de passe.
+
+Protections en place sur le portail :
+
+| Mesure | Effet |
+|---|---|
+| Comptes client uniquement | Le personnel BOCS est refusé, même avec le bon mot de passe |
+| Routes filtrées par Caddy | Seules 10 routes API sont joignables ; BL d'import, etc. : 404 |
+| Filtrage serveur | Chaque client ne voit que ses drafts, factures, règlements et avoirs |
+| Site interne protégé | Le nom interne présenté à l'adresse publique répond 403 |
+| HTTPS public | Certificat Let's Encrypt ou certificat acheté |
+
+Pour un niveau supérieur, placer le portail sur une machine distincte en DMZ (même
+fichier Caddy, `reverse_proxy` vers le serveur BOCS interne) afin que le serveur de
+données ne reçoive aucune connexion directe d'Internet.
+
+## 7. Sauvegardes
 
 Sans le cloud, c'est l'entreprise qui garantit la survie des données.
 
@@ -128,7 +181,7 @@ crontab -e   # puis : 0 2 * * * cd /opt/bocs && ./scripts/backup-db.sh >> backup
 
 ---
 
-## 7. Vérifier que rien ne sort
+## 8. Vérifier que rien ne sort
 
 1. Bloquer tout trafic sortant du serveur (sauf FNE).
 2. Utiliser l'application : connexion, import d'un manifeste PDF scanné (OCR),
@@ -138,7 +191,7 @@ crontab -e   # puis : 0 2 * * * cd /opt/bocs && ./scripts/backup-db.sh >> backup
 
 ---
 
-## 8. Exploitation
+## 9. Exploitation
 
 - **Mise à jour** : `git pull && docker compose up -d --build`, en dehors des heures de
   travail, après une sauvegarde. Tester d'abord sur une copie du serveur.

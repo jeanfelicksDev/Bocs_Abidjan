@@ -1,7 +1,8 @@
 # BOCS — installation dans le réseau de l'entreprise (aucune donnée ne sort).
 #   db    : PostgreSQL 16, joignable uniquement depuis le conteneur de l'application
 #   app   : application + API (Node.js), joignable uniquement par Caddy
-#   caddy : HTTPS sur le réseau interne (ports 80/443 du serveur)
+#   caddy : HTTPS sur le réseau interne (ports 80/443 du serveur) et, si activé,
+#           portail client sur Internet (deploy/portail/)
 # Démarrage : cp .env.example .env (puis le compléter) ; docker compose up -d --build
 # Voir docs/installation-locale.md.
 
@@ -31,6 +32,8 @@ services:
         condition: service_healthy
     environment:
       DB_DRIVER: pg
+      # Secret de signature des sessions (voir .env.example)
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET manquant dans .env}
       DATABASE_URL: postgresql://bocs:${POSTGRES_PASSWORD}@db:5432/bocs
       NODE_ENV: production
     networks: [interne]
@@ -45,9 +48,12 @@ services:
     environment:
       BOCS_DOMAIN: ${BOCS_DOMAIN:-bocs.entreprise.local}
       BOCS_TLS: ${BOCS_TLS:-internal}
+      BOCS_PUBLIC_DOMAIN: ${BOCS_PUBLIC_DOMAIN:-}
+      BOCS_PUBLIC_TLS: ${BOCS_PUBLIC_TLS:-}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./deploy/certs:/certs:ro
+      - ./deploy/portail:/etc/caddy/portail:ro
       - caddy-data:/data
       - caddy-config:/config
     networks: [interne]

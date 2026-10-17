@@ -1,11 +1,13 @@
 import { prisma } from './_db.js';
+import { protect, STAFF } from './_auth.js';
+import { clientScope, invoiceBelongsTo, keepInList } from './_ownership.js';
 
 // Helper pour gérer le BigInt
 const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (key, value) =>
     typeof value === 'bigint' ? Number(value) : value
 ));
 
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     try {
       const invoices = await prisma.invoices.findMany({
@@ -212,3 +214,21 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: "Method not allowed." });
   }
 }
+
+export default protect({
+  access: { GET: 'user', POST: [...STAFF, 'CLIENT_EXPORT'], DELETE: STAFF },
+  clientView: async (body, user) => {
+    const scope = await clientScope(user);
+    return keepInList(body, 'invoices', (inv: any) => invoiceBelongsTo(inv.numeroBL, scope));
+  },
+  // Seul cas d'écriture client : la facture des frais d'amendement de son propre draft,
+  // créée quand il accepte ces frais. Il ne peut ni modifier ni écraser une facture.
+  clientWrite: async (req, user) => {
+    const inv = req.body || {};
+    const scope = await clientScope(user);
+    if (!invoiceBelongsTo(inv.numeroBL, scope)) return "Cette facture ne concerne pas l'un de vos drafts.";
+    const id = Number(inv.id);
+    const exists = !isNaN(id) && (await prisma.invoices.findUnique({ where: { id: BigInt(id) }, select: { id: true } }));
+    return exists ? 'Une facture émise ne peut pas être modifiée.' : null;
+  }
+}, handler);

@@ -1,0 +1,39 @@
+# Portail client BOCS exposé sur Internet.
+# Activation : copier ce fichier en « portail-client.caddy » (même dossier), renseigner
+# BOCS_PUBLIC_DOMAIN et BOCS_PUBLIC_TLS dans .env, puis : docker compose restart caddy
+#
+# Les clients export s'y connectent pour déposer et suivre LEURS drafts et consulter
+# LEURS factures. Tout le reste reste dans l'entreprise :
+#   • le serveur n'accepte sur ce portail que les comptes client (en-tête X-BOCS-Portail) ;
+#   • ici, seules les routes API utiles aux clients sont transmises ;
+#   • chaque route filtre les données du client côté serveur (api/_auth.ts, api/_ownership.ts).
+#
+# BOCS_PUBLIC_TLS :
+#   « adresse@entreprise.ci » → certificat public Let's Encrypt (ouvrir les ports 80 et 443
+#     depuis Internet, et la sortie vers Let's Encrypt) ;
+#   « /certs/portail.crt /certs/portail.key » → certificat acheté, déposé dans deploy/certs/.
+
+{$BOCS_PUBLIC_DOMAIN} {
+	tls {$BOCS_PUBLIC_TLS}
+
+	# Marque toutes les requêtes du portail (remplace toute valeur envoyée par le navigateur).
+	request_header X-BOCS-Portail client
+
+	# Routes API nécessaires à l'espace client ; toutes les autres sont introuvables ici.
+	@api_client path /api/users /api/drafts /api/invoices /api/payments /api/credit-notes /api/escales /api/vessels /api/configs /api/permissions /api/audit
+	handle @api_client {
+		reverse_proxy app:3000
+	}
+	handle /api/* {
+		respond "Introuvable" 404
+	}
+	handle {
+		reverse_proxy app:3000
+	}
+
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+	}
+}
