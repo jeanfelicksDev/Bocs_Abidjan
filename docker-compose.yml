@@ -1,20 +1,61 @@
-version: '3.8'
+# BOCS — installation dans le réseau de l'entreprise (aucune donnée ne sort).
+#   db    : PostgreSQL 16, joignable uniquement depuis le conteneur de l'application
+#   app   : application + API (Node.js), joignable uniquement par Caddy
+#   caddy : HTTPS sur le réseau interne (ports 80/443 du serveur)
+# Démarrage : cp .env.example .env (puis le compléter) ; docker compose up -d --build
+# Voir docs/installation-locale.md.
 
 services:
-  bocs-postgres:
+  db:
     image: postgres:16-alpine
-    container_name: bocs-postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: bocs_admin
-      POSTGRES_PASSWORD: bocs_secure_password_2026
-      POSTGRES_DB: bocs_db
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: bocs
+      POSTGRES_USER: bocs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
+    networks: [interne]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bocs_admin -d bocs_db"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U bocs -d bocs"]
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  app:
+    build: .
+    image: bocs-app:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_DRIVER: pg
+      DATABASE_URL: postgresql://bocs:${POSTGRES_PASSWORD}@db:5432/bocs
+      NODE_ENV: production
+    networks: [interne]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      BOCS_DOMAIN: ${BOCS_DOMAIN:-bocs.entreprise.local}
+      BOCS_TLS: ${BOCS_TLS:-internal}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/certs:/certs:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [interne]
+
+networks:
+  interne:
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

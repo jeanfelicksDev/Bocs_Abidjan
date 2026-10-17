@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// Connexion partagée : Prisma 7 exige un adaptateur (Neon ou PostgreSQL local),
+// un `new PrismaClient()` nu échoue à l'instanciation.
+import { prisma } from './_db.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {

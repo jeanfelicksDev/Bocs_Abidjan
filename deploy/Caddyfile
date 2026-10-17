@@ -1,0 +1,21 @@
+# HTTPS interne de BOCS.
+# BOCS_TLS = internal → certificat émis par l'autorité locale de Caddy (installer
+#   sa racine sur les postes : voir docs/installation-locale.md) ;
+# BOCS_TLS = "/certs/bocs.crt /certs/bocs.key" → certificat de l'autorité de
+#   l'entreprise (Active Directory…), déposé dans deploy/certs/.
+{
+	# Aucun appel sortant : pas de certificat public (ACME), pas de mise à jour automatique.
+	auto_https disable_redirects
+	skip_install_trust
+}
+
+{$BOCS_DOMAIN} {
+	tls {$BOCS_TLS}
+	encode zstd gzip
+	reverse_proxy app:3000
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+http://{$BOCS_DOMAIN} {
+	redir https://{host}{uri} permanent
+}

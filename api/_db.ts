@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { neon, neonConfig } from '@neondatabase/serverless';
 import ws from 'ws';
 
@@ -39,14 +40,19 @@ if (!connectionString) {
 }
 
 // Prisma ORM 7 exige un driver adapter explicite (pas de moteur embarqué).
-const adapter = new PrismaNeon({
-  connectionString: connectionString || 'postgresql://postgres:postgres@localhost:5432/postgres'
-});
+// `DB_DRIVER=pg` : PostgreSQL classique (serveur installé dans l'entreprise, TCP).
+// Par défaut : Neon serverless (déploiement Vercel).
+export const dbDriver = process.env.DB_DRIVER === 'pg' ? 'pg' : 'neon';
+const fallbackUrl = 'postgresql://postgres:postgres@localhost:5432/postgres';
+const adapter =
+  dbDriver === 'pg'
+    ? new PrismaPg({ connectionString: connectionString || fallbackUrl })
+    : new PrismaNeon({ connectionString: connectionString || fallbackUrl });
 
 // ── Accès SQL brut (endpoints de maintenance : /api/init-db, /api/purge-demo) ─
 // Conservé pour les migrations idempotentes et purges ciblées écrites en SQL
 // paramétré ; tous les endpoints métier passent par Prisma ci-dessous.
-export const sql = connectionString
+export const sql = connectionString && dbDriver === 'neon'
   ? neon(connectionString)
   : ((async () => []) as any);
 
@@ -59,7 +65,8 @@ export const prisma =
   global.prisma ||
   new PrismaClient({
     adapter,
-    log: ['query', 'info', 'warn', 'error'],
+    // Le journal de chaque requête SQL n'est utile qu'en développement.
+    log: process.env.NODE_ENV === 'production' ? ['warn', 'error'] : ['query', 'info', 'warn', 'error'],
   });
 
 if (process.env.NODE_ENV !== 'production') {

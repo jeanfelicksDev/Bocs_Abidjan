@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-server
+public/vendor
+.git
+.env
+.env.*
+!.env.example
+.vercel
+.agents
+.claude
+backups
+samples
+test-results
+playwright-report
+*.log

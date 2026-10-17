@@ -83,7 +83,14 @@ export async function extractBlsFromPdf(file: File, onProgress?: (message: strin
       onProgress?.(`OCR page ${p.page}/${pages.length}…`);
       if (!worker) {
         const { createWorker } = await import('tesseract.js');
-        worker = (await createWorker('eng')) as unknown as OcrWorker & { terminate(): Promise<unknown> };
+        // Moteur, cœur WebAssembly et langue servis par l'application (public/vendor/tesseract) :
+        // l'OCR ne télécharge plus rien depuis un CDN.
+        worker = (await createWorker('eng', 1, {
+          workerPath: '/vendor/tesseract/worker.min.js',
+          corePath: '/vendor/tesseract/core',
+          langPath: '/vendor/tesseract/lang',
+          gzip: false
+        })) as unknown as OcrWorker & { terminate(): Promise<unknown> };
       }
       const page = await doc.getPage(p.page);
       const viewport = page.getViewport({ scale: OCR_SCALE });

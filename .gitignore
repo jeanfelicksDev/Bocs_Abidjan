@@ -52,3 +52,10 @@ pgdata/
 /samples/
 /tmp-pdf-images/
 *.traineddata
+
+# Ressources hors ligne générées (scripts/prepare-offline-assets.mjs) et serveur compilé
+public/vendor/
+dist-server/
+backups/
+deploy/certs/
+!.env.example
