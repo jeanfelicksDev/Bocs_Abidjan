@@ -9,14 +9,8 @@ import { parseGuceXml } from '../utils/xmlGuceParser';
 import { MultiPdfImportModal, EscaleCommitGroup } from '../components/import/MultiPdfImportModal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { validateContainerNumber } from '../utils/containerValidator';
-import {
-  getInvoiceTypePrefix,
-  getInvoiceTypeDiscriminant,
-  findInvoiceForType,
-  invoiceMatchesType,
-  resolveUniqueInvoiceNumber,
-  rememberIssuedNumber
-} from '../utils/invoiceMatching';
+import { findInvoiceForType, invoiceMatchesType } from '../utils/invoiceMatching';
+import { formatInvoiceNumber, nextInvoiceNumber, resolveVesselCode } from '../utils/invoiceNumber';
 import { useEscales, useBls, useInvoices, useVessels } from '../hooks/useData';
 
 interface ImportModuleProps {
@@ -685,40 +679,6 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
     return Array.from(new Set(categories));
   };
 
-  // Numérotation : [FA-]<PRÉFIXE><DISCRIMINANT><voyage>-BOCS###
-  // Le discriminant (IMP/EXP) départage les types partageant un préfixe —
-  // sans lui, « Détention Import » et « Détention Export » d'un même BL
-  // produisaient des références identiques (doublon fiscal).
-  const getNextInvoiceNumber = (
-    type: 'PROFORMA' | 'FACTURE',
-    voyageNumber: string,
-    existingInvoices: Invoice[],
-    invoiceTypeName?: string
-  ): string => {
-    const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
-    const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
-    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
-    const faPrefix = type === 'FACTURE' ? 'FA-' : '';
-    const searchPrefix = `${faPrefix}${typePrefix}${typeDiscriminant}${cleanVoyage}-BOCS`;
-    
-    const matchedNumbers = existingInvoices
-      .map(inv => inv.numeroFacture || '')
-      .filter(num => num.startsWith(searchPrefix));
-      
-    let maxCounter = 0;
-    matchedNumbers.forEach(num => {
-      const suffix = num.replace(searchPrefix, '');
-      const counterVal = parseInt(suffix, 10);
-      if (!isNaN(counterVal) && counterVal > maxCounter) {
-        maxCounter = counterVal;
-      }
-    });
-    
-    const nextCounter = maxCounter + 1;
-    const nextCounterStr = String(nextCounter).padStart(3, '0');
-    return `${searchPrefix}${nextCounterStr}`;
-  };
-
   const handleOpenInvoiceSelection = (bl: BL) => {
     const existing = plannedInvoicesByBl[bl.id] || bl.selectedInvoiceTypeIds || [];
     const blCat = getBlCategory(bl);
@@ -951,8 +911,14 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
     const targetEscale = escales.find(e => e.id === bl.escaleId);
     const voyageNumber = targetEscale ? targetEscale.numeroVoyage : 'VOYAGE';
-    const nextProformaNumber = resolveUniqueInvoiceNumber(
-      getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, typeConfig.name),
+    const nextProformaNumber = nextInvoiceNumber(
+      {
+        statut: 'PF',
+        typeName: typeConfig.name,
+        vesselCode: resolveVesselCode(targetEscale, vessels),
+        voyage: targetEscale?.numeroVoyage,
+        numeroBL: bl.numeroBL
+      },
       invoices
     );
     const today = new Date().toISOString().split('T')[0];
@@ -1584,7 +1550,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                     isPaid 
                                       ? `Facture ${typeName} réglée. Cliquer pour télécharger.`
                                       : isCancelled
-                                      ? `Facture ${typeName} annulée par Avoir (${cancelledInv?.numeroFacture}).`
+                                      ? `Facture ${typeName} annulée par Avoir (${formatInvoiceNumber(cancelledInv?.numeroFacture)}).`
                                       : isGen
                                       ? `Facture ${typeName} éditée (Paiement en attente)`
                                       : `Éditer la Facture Proforma ${typeName}`
@@ -2523,7 +2489,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                 </span>
                               </div>
                               <span className="text-sm font-mono font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 dark:border-night-positive-line">
-                                {matchingInv?.numeroFacture}
+                                {formatInvoiceNumber(matchingInv?.numeroFacture)}
                               </span>
                             </div>
                             <p className="text-xs text-emerald-800/90 mt-1 font-medium">

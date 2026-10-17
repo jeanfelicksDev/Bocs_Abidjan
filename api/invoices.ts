@@ -161,7 +161,10 @@ export default async function handler(req: any, res: any) {
         const hasPayment = Number(existing.solde_du) === 0 ||
                            existing.statut_paiement === 'PAYE' ||
                            existing.statut_paiement === 'PARTIEL';
-        const isProforma = !(existing.numero_facture || '').startsWith('FA-') && 
+        // Référence définitive : ancien format FA-… ou nouveau FA<type><navire><voyage><BL>.
+        const numero = String(existing.numero_facture || '').toUpperCase();
+        const isDefinitive = numero.startsWith('FA-') || /^FA[A-Z]{3}[A-Z0-9]{4}[A-Z0-9]+[A-Z0-9]{6}(?:-[0-9]+)?$/.test(numero);
+        const isProforma = !isDefinitive && 
                            existing.statut_facture !== 'VALIDEE' && 
                            existing.statut_facture !== 'ANNULEE' && 
                            existing.statut_facture !== 'AVOIR' && 

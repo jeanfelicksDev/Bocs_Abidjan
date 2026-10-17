@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Vessel } from '../../types';
 import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
+import { normalizeVesselCode, uniqueVesselCode } from '../../utils/invoiceNumber';
 
 interface VesselFormModalProps {
   open: boolean;
@@ -17,7 +18,7 @@ interface VesselFormModalProps {
 
 const sameText = (a?: string, b?: string) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
 
-const emptyForm = { nom: '', callsign: '', imoNumber: '', pavillon: '', armateur: '' };
+const emptyForm = { nom: '', callsign: '', codeNavire: '', imoNumber: '', pavillon: '', armateur: '' };
 
 const inputClass =
   'w-full h-10 px-3 text-sm rounded-md border border-border-default dark:border-night-line bg-surface-canvas dark:bg-night-sunken focus:outline-hidden focus:border-[#005DAA]';
@@ -30,6 +31,8 @@ const inputClass =
 export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing, initial, vessels, onClose, onSubmit }) => {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
+  // Tant que l'utilisateur n'a pas saisi de code, il suit le nom du navire.
+  const [codeTouched, setCodeTouched] = useState(false);
 
   useEscapeClose(open, onClose);
 
@@ -39,10 +42,12 @@ export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing,
     setForm({
       nom: src.nom || '',
       callsign: src.callsign || '',
+      codeNavire: src.codeNavire || '',
       imoNumber: src.imoNumber || '',
       pavillon: src.pavillon || '',
       armateur: src.armateur || src.coque || ''
     });
+    setCodeTouched(Boolean(src.codeNavire));
     setError('');
     // Réinitialisé à l'ouverture seulement : un nouveau rendu du parent ne doit pas effacer la saisie.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,6 +57,9 @@ export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing,
 
   const set = (field: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  // Code affiché : celui saisi, sinon la proposition dérivée du nom.
+  const codeNavire = codeTouched ? normalizeVesselCode(form.codeNavire) : form.nom.trim() ? uniqueVesselCode(form.nom, vessels, editing?.id) : '';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +75,16 @@ export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing,
       setError('Le numéro IMO comporte 7 chiffres (ex. 9321483).');
       return;
     }
+    if (codeNavire.length !== 4) {
+      setError('Le code navire comporte 4 caractères (lettres ou chiffres), ex. MANA.');
+      return;
+    }
     const others = vessels.filter(v => v.id !== editing?.id);
+    const codeOwner = others.find(v => normalizeVesselCode(v.codeNavire) === codeNavire);
+    if (codeOwner) {
+      setError(`Le code navire ${codeNavire} est déjà attribué à ${codeOwner.nom}.`);
+      return;
+    }
     if (others.some(v => sameText(v.nom, nom))) {
       setError(`Le navire ${nom} existe déjà dans le registre.`);
       return;
@@ -82,6 +99,7 @@ export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing,
       id: editing?.id ?? Date.now(),
       nom,
       callsign: form.callsign.trim().toUpperCase(),
+      codeNavire,
       imoNumber: imo || undefined,
       pavillon: form.pavillon.trim() || undefined,
       armateur: armateur || undefined,
@@ -108,7 +126,21 @@ export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing,
             <input id="vessel-nom" type="text" required autoFocus value={form.nom} onChange={set('nom')} placeholder="ex. BOCS DAKAR" className={`${inputClass} font-bold uppercase`} />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="vessel-code" className="block font-bold text-text-secondary dark:text-night-ink uppercase mb-1">Code facture *</label>
+              <input
+                id="vessel-code"
+                type="text"
+                required
+                maxLength={4}
+                value={codeNavire}
+                onChange={e => { setCodeTouched(true); setForm(prev => ({ ...prev, codeNavire: e.target.value })); }}
+                placeholder="MANA"
+                aria-describedby="vessel-code-aide"
+                className={`${inputClass} font-mono font-bold uppercase tracking-wider`}
+              />
+            </div>
             <div>
               <label htmlFor="vessel-callsign" className="block font-bold text-text-secondary dark:text-night-ink uppercase mb-1">Call sign *</label>
               <input id="vessel-callsign" type="text" required value={form.callsign} onChange={set('callsign')} placeholder="ex. 9V8974" className={`${inputClass} font-mono uppercase`} />
@@ -118,6 +150,10 @@ export const VesselFormModal: React.FC<VesselFormModalProps> = ({ open, editing,
               <input id="vessel-imo" type="text" inputMode="numeric" maxLength={7} value={form.imoNumber} onChange={set('imoNumber')} placeholder="7 chiffres" className={`${inputClass} font-mono`} />
             </div>
           </div>
+
+          <p id="vessel-code-aide" className="-mt-1 text-xs text-text-muted dark:text-night-ink-3">
+            Le code facture identifie le navire dans les numéros de facture (ex. FA ECH <strong className="font-mono">{codeNavire || 'MANA'}</strong> 26607 123456). Proposé d'après le nom, modifiable.
+          </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

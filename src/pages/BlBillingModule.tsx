@@ -3,14 +3,17 @@ import { BL, Escale, Invoice, User, UserRole, InvoiceTypeConfig, RubriqueConfig,
 import { isValidatedExportDraft, mapDraftToExportBl } from '../utils/exportBlMapper';
 import { DEFAULT_TAXE_ADDITIONNELLE_CONFIG, computeTaxeAdditionnelle, getTaxeAdditionnelleValeurLabel } from '../utils/taxeAdditionnelle';
 import { computeTimbreFiscal, getNetAPayerFcfa, getModeReglementLabel, MODES_REGLEMENT } from '../utils/timbreFiscal';
+import { invoiceMatchesType, findInvoiceForType } from '../utils/invoiceMatching';
 import {
-  getInvoiceTypePrefix,
-  invoiceMatchesType,
-  findInvoiceForType,
-  resolveUniqueInvoiceNumber,
-  getInvoiceTypeDiscriminant,
-  rememberIssuedNumber
-} from '../utils/invoiceMatching';
+  decodeInvoiceNumber,
+  formatInvoiceNumber,
+  invoiceNumberMentionsType,
+  isProformaInvoice,
+  isDefinitiveInvoiceNumber,
+  nextInvoiceNumber,
+  resolveVesselCode
+} from '../utils/invoiceNumber';
+import { useVessels } from '../hooks/useData';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { hasPermission, usePermissionsSync } from '../utils/permissions';
@@ -344,49 +347,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     }
   };
 
-  // Helper prefix : voir `utils/invoiceMatching` (source unique de vérité,
-  // partagée avec FacturationModule / ImportModule / SurestarieModule).
-
-  const getNextInvoiceNumber = (
-    type: 'PROFORMA' | 'FACTURE',
-    voyageNumber: string,
-    existingInvoices: Invoice[],
-    invoiceTypeName?: string
-  ): string => {
-    const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
-    const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
-    // Segment discriminant : « Détention Import » et « Détention Export » partagent
-    // le préfixe `DET`. Sans ce segment, leurs proformas se disputent le même numéro
-    // (une seule carte pouvait alors afficher la facture de l'autre type — le doublon).
-    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
-    const typeSegment = `${typePrefix}${typeDiscriminant}`;
-    const faPrefix = type === 'FACTURE' ? 'FA-' : '';
-    const searchPrefix = `${faPrefix}${typeSegment}${cleanVoyage}-BOCS`;
-
-    const matchedNumbers = existingInvoices
-      .map(inv => inv.numeroFacture || '')
-      .filter(num => num.startsWith(searchPrefix));
-
-    let maxCounter = 0;
-    matchedNumbers.forEach(num => {
-      const suffix = num.replace(searchPrefix, '');
-      const counterVal = parseInt(suffix, 10);
-      if (!isNaN(counterVal) && counterVal > maxCounter) {
-        maxCounter = counterVal;
-      }
-    });
-
-    // Le compteur est calculé sur les numéros présents en base ; on y ajoute une
-    // seconde barrière (registre de session) pour couvrir les émissions successives
-    // effectuées avant le re-rendu React, qui réutilisaient le même compteur.
-    let nextCounter = maxCounter + 1;
-    let candidate = `${searchPrefix}${String(nextCounter).padStart(3, '0')}`;
-    while (existingInvoices.some(inv => inv.numeroFacture === candidate)) {
-      nextCounter += 1;
-      candidate = `${searchPrefix}${String(nextCounter).padStart(3, '0')}`;
-    }
-    return candidate;
-  };
+  // Numérotation : voir `utils/invoiceNumber` (générateur unique).
+  const { vessels } = useVessels();
 
   // Détection d'un connaissement export (typeOperation EXPORT).
   // Les BL export sont matérialisés depuis les drafts export validés — leur identifiant
@@ -423,8 +385,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     blInvoices.forEach(inv => {
       const match = allConfigs.find(t => invoiceMatchesType(inv, t, allConfigs));
       if (!match) {
-        const isDet = inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET');
-        const isSur = inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR');
+        const isDet = inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || invoiceNumberMentionsType(inv.numeroFacture, 'DET');
+        const isSur = inv.typeFacture?.toLowerCase().includes('surestarie') || invoiceNumberMentionsType(inv.numeroFacture, 'SUR');
         allConfigs.push({
           id: inv.invoiceTypeId || `dyn-${inv.id}`,
           name: inv.typeFacture || (isDet ? 'Détention' : isSur ? 'Surestarie' : 'Facture Spécifique'),
@@ -467,7 +429,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       }
       const typeFacture = (inv.typeFacture || '').toLowerCase();
       if (typeFacture.includes('telex') || typeFacture.includes('télex')) return true;
-      // Numérotation : [FA-]TEL<voyage>-BOCS###
+      // Numérotation : type TEL du nouveau format, ou ancien [FA-]TEL<voyage>-BOCS###
+      if (decodeInvoiceNumber(inv.numeroFacture)?.type === 'TEL') return true;
       return /TEL\d/.test((inv.numeroFacture || '').toUpperCase());
     });
   }, [activeBl, activeTypeConfigs, blInvoices, invoiceTypeConfigs]);
@@ -479,7 +442,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     if (existingInvoice) {
       // Suppression directe réservée aux proformas non validées et non réglées :
       // statut explicite VALIDEE ou tout paiement (PAYE/PARTIEL/solde 0) verrouille.
-      const isProforma = !(existingInvoice.numeroFacture || '').startsWith('FA-') && existingInvoice.statutFacture !== 'VALIDEE';
+      const isProforma = isProformaInvoice(existingInvoice);
       const isPaid = existingInvoice.soldeDuFcfa === 0 || existingInvoice.statutPaiement === 'PAYE' || existingInvoice.statutPaiement === 'PARTIEL';
       if (!isProforma || isPaid) {
         toastError('Impossible de retirer directement une facture validée ou payée (utiliser une note d\'avoir).');
@@ -529,7 +492,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
       return copy;
     });
 
-    toastSuccess(existingInvoice ? `Proforma ${existingInvoice.numeroFacture} supprimée et retirée du BL.` : `Prestation "${typeConfig.name}" retirée de ce BL.`);
+    toastSuccess(existingInvoice ? `Proforma ${formatInvoiceNumber(existingInvoice.numeroFacture)} supprimée et retirée du BL.` : `Prestation "${typeConfig.name}" retirée de ce BL.`);
   };
 
   // Initialize DMDT Modal Rows
@@ -777,11 +740,16 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
     const proformaNumber = existingInvoice
       ? existingInvoice.numeroFacture
-      : resolveUniqueInvoiceNumber(
-          getNextInvoiceNumber('PROFORMA', voyageNum, invoices, typeConfig.name),
+      : nextInvoiceNumber(
+          {
+            statut: 'PF',
+            typeName: typeConfig.name,
+            vesselCode: resolveVesselCode(escale, vessels),
+            voyage: escale?.numeroVoyage,
+            numeroBL: bl.numeroBL
+          },
           invoices
         );
-    if (!existingInvoice) rememberIssuedNumber(proformaNumber);
     const now = new Date().toISOString().split('T')[0];
 
     return {
@@ -927,15 +895,19 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
     const escale = escales.find(e => e.id === bl.escaleId);
     const voyageNum = escale?.numeroVoyage || '—';
 
-    // Numéro unique : base calculée sur la séquence officielle (compteur voyage + type
-    // discriminant), puis barrière anti-collision DGI/FNE (suffixe -02, -03…).
+    // Numéro unique : PF + type + navire + voyage + BL ; suffixe -2 si la référence existe déjà.
     const proformaNumber = existingInvoice
       ? existingInvoice.numeroFacture
-      : resolveUniqueInvoiceNumber(
-          getNextInvoiceNumber('PROFORMA', voyageNum, invoices, typeConfig.name),
+      : nextInvoiceNumber(
+          {
+            statut: 'PF',
+            typeName: typeConfig.name,
+            vesselCode: resolveVesselCode(escale, vessels),
+            voyage: escale?.numeroVoyage,
+            numeroBL: bl.numeroBL
+          },
           invoices
         );
-    if (!existingInvoice) rememberIssuedNumber(proformaNumber);
     const now = new Date().toISOString().split('T')[0];
 
     const invoicePayload: Invoice = {
@@ -1496,8 +1468,8 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
                   // Validation explicite uniquement : une facture n'est validée que si
                   // statutFacture === 'VALIDEE'. Le préfixe FA- ou le paiement ne suffisent pas.
-                  const isProforma = existingInvoice && !(existingInvoice.numeroFacture || '').startsWith('FA-') && existingInvoice.statutFacture !== 'VALIDEE';
-                  const isValidated = Boolean(existingInvoice && (existingInvoice.statutFacture === 'VALIDEE' || (existingInvoice.numeroFacture || '').startsWith('FA-')));
+                  const isProforma = existingInvoice && isProformaInvoice(existingInvoice);
+                  const isValidated = Boolean(existingInvoice && (existingInvoice.statutFacture === 'VALIDEE' || isDefinitiveInvoiceNumber(existingInvoice.numeroFacture)));
                   const isPaid = existingInvoice && (existingInvoice.soldeDuFcfa === 0 || existingInvoice.statutPaiement === 'PAYE');
 
                   const calcKey = `${activeBl.id}-${typeConfig.id}`;
@@ -1713,7 +1685,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                                   ? 'text-rose-600 dark:text-night-critical bg-rose-50/70 hover:bg-rose-100 border-rose-200 hover:border-rose-300' 
                                   : 'text-text-muted dark:text-night-ink-3 hover:text-rose-600 bg-surface-base dark:bg-night-sunken hover:bg-rose-50 border-border-default dark:border-night-line hover:border-rose-300'
                               }`}
-                              title={existingInvoice ? `Supprimer la proforma ${existingInvoice.numeroFacture} et retirer du BL` : `Retirer ${typeConfig.name} de ce BL`}
+                              title={existingInvoice ? `Supprimer la proforma ${formatInvoiceNumber(existingInvoice.numeroFacture)} et retirer du BL` : `Retirer ${typeConfig.name} de ce BL`}
                             >
                               <Trash2 className="w-4 h-4 group-hover/del:scale-110 transition-transform" />
                             </button>
@@ -1738,7 +1710,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                               ? 'text-zinc-950 dark:text-night-ink bg-surface-sunken dark:bg-night-sunken border-zinc-300 dark:border-night-line-strong' 
                               : 'text-text-muted dark:text-night-ink-2 bg-surface-base dark:bg-night-sunken border-border-default dark:border-night-line'
                           }`}>
-                            {existingInvoice ? existingInvoice.numeroFacture : 'NON ÉMISE'}
+                            {existingInvoice ? formatInvoiceNumber(existingInvoice.numeroFacture) : 'NON ÉMISE'}
                           </div>
                         </div>
                         <div>
@@ -2014,7 +1986,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               <div className="p-3 bg-[#f4f4f5] dark:bg-night-sunken rounded-md space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-night-ink-2">Facture :</span>
-                  <span className="font-bold text-slate-900 dark:text-night-ink font-mono">{paymentFacture.numeroFacture}</span>
+                  <span className="font-bold text-slate-900 dark:text-night-ink font-mono">{formatInvoiceNumber(paymentFacture.numeroFacture)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-night-ink-2">Client :</span>
@@ -2294,7 +2266,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     return (
                       <div className="my-6 flex justify-between items-center">
                         <h2 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-night-ink">
-                          PROFORMA N° : <span className="font-mono text-[#005daa] font-black">{invoice.numeroFacture}</span>
+                          PROFORMA N° : <span className="font-mono text-[#005daa] font-black">{formatInvoiceNumber(invoice.numeroFacture)}</span>
                         </h2>
                         <div className="text-right">
                           <span className="text-2xs uppercase font-bold text-slate-400 dark:text-night-ink-2 block">Date de Facturation</span>
@@ -2540,10 +2512,10 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     
                     if (printPreviewData.existingInvoice && onUpdateInvoice) {
                       onUpdateInvoice(calculatedPayload);
-                      toastSuccess(`Proforma ${calculatedPayload.numeroFacture} (${printPreviewData.typeConfig.name}) mise à jour.`);
+                      toastSuccess(`Proforma ${formatInvoiceNumber(calculatedPayload.numeroFacture)} (${printPreviewData.typeConfig.name}) mise à jour.`);
                     } else {
                       onGenerateInvoice(calculatedPayload);
-                      toastSuccess(`Proforma ${calculatedPayload.numeroFacture} (${printPreviewData.typeConfig.name}) générée avec succès !`);
+                      toastSuccess(`Proforma ${formatInvoiceNumber(calculatedPayload.numeroFacture)} (${printPreviewData.typeConfig.name}) générée avec succès !`);
                     }
 
                     onLogAudit(

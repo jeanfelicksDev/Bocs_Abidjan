@@ -24,6 +24,8 @@ export interface Vessel {
   id: number;
   nom: string;
   callsign: string;
+  /** Code court (4 caractères) du navire dans les numéros de facture (ex. `MANA`). */
+  codeNavire?: string;
   pavillon?: string;
   /** Armateur / coque du navire (ex. BOCS Line). */
   coque?: string;

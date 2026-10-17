@@ -1,4 +1,4 @@
-import { Invoice, InvoiceTypeConfig } from '../types';
+import type { Invoice, InvoiceTypeConfig } from '../types';
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -61,12 +61,18 @@ export const getInvoiceTypeDiscriminant = (typeName?: string | null): string => 
   return '';
 };
 
+/** Type (caractères 3 à 5) d'une référence au format sans séparateur. */
+const NEW_FORMAT_TYPE = /^(?:PF|FA|AV)([A-Z]{3})[A-Z0-9]{4}[A-Z0-9]+[A-Z0-9]{6}(?:-[0-9]+)?$/;
+
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * Le préfixe apparaît-il — à sa place légitime — dans la référence de facture ?
  *
- * Les deux familles de numérotation BOCS sont reconnues :
+ * Les trois familles de numérotation BOCS sont reconnues :
+ *   0. `STATUT TYPE NAVIRE VOYAGE BL` sans séparateur (ex. `FAECHMANA26607123456`,
+ *      voir `utils/invoiceNumber`) : le type occupe les caractères 3 à 5. Les
+ *      détentions y sont codées `DTI` / `DTE` : elles répondent aussi à `DET`.
  *   1. `[FA-]PREFIX<chiffres du voyage>[-BOCS###]` (ex. `FA-SUR23409-BOCS001`) :
  *      le préfixe ouvre la référence et est IMMÉDIATEMENT suivi des chiffres du
  *      voyage — c'est exactement ce que produit `getNextInvoiceNumber`.
@@ -81,6 +87,11 @@ export const invoiceNumberHasToken = (numeroFacture?: string | null, token?: str
   const num = String(numeroFacture ?? '').toUpperCase();
   const t = String(token ?? '').toUpperCase();
   if (!num || !t) return false;
+  const nouveau = NEW_FORMAT_TYPE.exec(num);
+  if (nouveau) {
+    const type = nouveau[1];
+    return type === t || (t === 'DET' && (type === 'DTI' || type === 'DTE'));
+  }
   const esc = escapeRegex(t);
   // Famille 1 : préfixe en tête de référence, suivi des chiffres du voyage.
   if (new RegExp(`^(?:FA-)?${esc}(?=\\d)`).test(num)) return true;
@@ -92,6 +103,8 @@ export const invoiceNumberHasToken = (numeroFacture?: string | null, token?: str
 export const getDiscriminantFromNumber = (numeroFacture?: string | null): string => {
   const num = String(numeroFacture ?? '').toUpperCase();
   if (!num) return '';
+  const nouveau = NEW_FORMAT_TYPE.exec(num);
+  if (nouveau) return nouveau[1] === 'DTE' ? 'EXP' : nouveau[1] === 'DTI' ? 'IMP' : '';
   if (/(?:^|[^A-Z0-9])EXP(?=$|[^A-Z0-9])/.test(num)) return 'EXP';
   if (/(?:^|[^A-Z0-9])IMP(?=$|[^A-Z0-9])/.test(num)) return 'IMP';
   return '';
@@ -174,61 +187,4 @@ export const invoicesOfBl = (invoices: Invoice[], blId?: number, numeroBL?: stri
     inv => (blId !== undefined && inv.blId === blId) || (!!numeroBL && inv.numeroBL === numeroBL)
   );
 
-/**
- * Garde-fou d'unicité des numéros de facture.
- *
- * Le contrôle ne peut pas se limiter au tableau `invoices` reçu en props : lors
- * d'émissions successives dans le même cycle de rendu, React n'a pas encore
- * re-rendu le composant et l'état est périmé — d'où des numéros réutilisés.
- * Ce registre de session (persisté en `localStorage`) ferme cette fenêtre de tir.
- */
-const ISSUED_NUMBERS_KEY = 'bocs_issued_invoice_numbers';
-
-const loadIssuedNumbers = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(ISSUED_NUMBERS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed.map((n: unknown) => String(n)) : []);
-  } catch {
-    return new Set<string>();
-  }
-};
-
-const issuedNumberRegistry: Set<string> = loadIssuedNumbers();
-
-/** Mémorise un numéro pour interdire sa réutilisation durant la session. */
-export const rememberIssuedNumber = (numero: string): void => {
-  if (!numero) return;
-  issuedNumberRegistry.add(numero);
-  try {
-    localStorage.setItem(ISSUED_NUMBERS_KEY, JSON.stringify([...issuedNumberRegistry]));
-  } catch {
-    /* quota / mode privé : le registre mémoire suffit */
-  }
-};
-
-/**
- * Retourne un numéro de facture unique, dérivé de `baseNumero`.
- * En cas de collision (facture existante ou numéro déjà émis), ajoute un suffixe
- * `-02`, `-03`… L'unicité des références est exigée par la certification DGI / FNE.
- */
-export const resolveUniqueInvoiceNumber = (
-  baseNumero: string,
-  existingInvoices: Invoice[],
-  currentInvoiceId?: number
-): string => {
-  const isTaken = (candidate: string): boolean =>
-    issuedNumberRegistry.has(candidate) ||
-    existingInvoices.some(
-      inv => inv.numeroFacture === candidate && inv.id !== currentInvoiceId
-    );
-
-  let candidate = baseNumero;
-  let seq = 1;
-  while (isTaken(candidate)) {
-    seq += 1;
-    candidate = `${baseNumero}-${String(seq).padStart(2, '0')}`;
-  }
-  rememberIssuedNumber(candidate);
-  return candidate;
-};
+// Numérotation, unicité et registre des numéros émis : voir `utils/invoiceNumber`.

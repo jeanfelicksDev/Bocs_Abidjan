@@ -48,10 +48,11 @@ import { applyTimbreFiscalToInvoice } from './utils/timbreFiscal';
 import { useDialogFocus } from './hooks/useDialogFocus';
 import { snapshotContenuDraft } from './utils/draftDiff';
 import {
-  getInvoiceTypePrefix,
-  getInvoiceTypeDiscriminant,
-  resolveUniqueInvoiceNumber
-} from './utils/invoiceMatching';
+  formatInvoiceNumber,
+  invoiceNumberForDuplicate,
+  invoiceNumberWithStatut,
+  isDefinitiveInvoiceNumber
+} from './utils/invoiceNumber';
 
 // Modules métier chargés à la première ouverture : le démarrage ne paie que
 // l'accueil et le cockpit.
@@ -797,41 +798,6 @@ export function App() {
     }
   };
 
-  // Numérotation : [FA-]<PRÉFIXE><DISCRIMINANT><voyage>-BOCS###
-  // Le discriminant (IMP/EXP) départage les types partageant un préfixe —
-  // sans lui, « Détention Import » et « Détention Export » d'un même BL
-  // produisaient des références identiques (doublon fiscal).
-  const getNextInvoiceNumber = (
-    type: 'PROFORMA' | 'FACTURE',
-    voyageNumber: string,
-    existingInvoices: Invoice[],
-    invoiceTypeName?: string
-  ): string => {
-    const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
-    const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
-    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
-    const faPrefix = type === 'FACTURE' ? 'FA-' : '';
-    // Format : [FA-]TEL25586-BOCS001
-    const searchPrefix = `${faPrefix}${typePrefix}${typeDiscriminant}${cleanVoyage}-BOCS`;
-
-    const matchedNumbers = existingInvoices
-      .map(inv => inv.numeroFacture || '')
-      .filter(num => num.startsWith(searchPrefix));
-
-    let maxCounter = 0;
-    matchedNumbers.forEach(num => {
-      const suffix = num.replace(searchPrefix, '');
-      const counterVal = parseInt(suffix, 10);
-      if (!isNaN(counterVal) && counterVal > maxCounter) {
-        maxCounter = counterVal;
-      }
-    });
-
-    const nextCounter = maxCounter + 1;
-    const nextCounterStr = String(nextCounter).padStart(3, '0');
-    return `${searchPrefix}${nextCounterStr}`;
-  };
-
   // Add Payment — le règlement n'attribue JAMAIS le numéro FA- ni la VALIDEE :
   // seule handleValidateInvoice prononce la validation explicite (Comptabilité/Admin).
   const handleAddPayment = async (payment: Payment) => {
@@ -890,24 +856,12 @@ export function App() {
     let numeroFacture = target.numeroFacture;
     let typeFacture = target.typeFacture;
 
-    if (!numeroFacture.startsWith('FA-') || target.statutFacture !== 'VALIDEE') {
-      let voyageNumber = 'VOYAGE';
-      const targetBl = bls.find(b => b.id === target.blId || b.numeroBL === target.numeroBL);
-      const targetEscale = targetBl ? escales.find(e => e.id === targetBl.escaleId) : null;
-      if (targetEscale) {
-        voyageNumber = targetEscale.numeroVoyage;
-      } else if (target.escaleInfo) {
-        const parts = target.escaleInfo.split(/V\./i);
-        if (parts.length > 1) {
-          voyageNumber = parts[1].trim();
-        }
-      }
-      const invTypeName = invoiceTypeConfigs.find(t => t.id === target.invoiceTypeId)?.name || '';
-      numeroFacture = resolveUniqueInvoiceNumber(
-        getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName),
-        invoices,
-        target.id
-      );
+    if (!isDefinitiveInvoiceNumber(numeroFacture) || target.statutFacture !== 'VALIDEE') {
+      // PF… devient FA… : seul le statut change, le reste de la référence est conservé.
+      // Une ancienne référence est reconstruite au nouveau format.
+      numeroFacture = invoiceNumberWithStatut(target, 'FA', invoices, {
+        bls, escales, vessels, invoiceTypeConfigs
+      });
 
       if (typeFacture === 'PROFORMA_IMPORT') typeFacture = 'DEFINITIVE_IMPORT';
       if (typeFacture === 'PROFORMA_EXPORT') typeFacture = 'DEFINITIVE_EXPORT';
@@ -984,22 +938,10 @@ export function App() {
     const newId = Date.now();
     const dateToday = new Date().toISOString().split('T')[0];
 
-    let voyageNumber = 'VOYAGE';
-    const targetBl = bls.find(b => b.id === originalInvoice.blId || b.numeroBL === originalInvoice.numeroBL);
-    const targetEscale = targetBl ? escales.find(e => e.id === targetBl.escaleId) : null;
-    if (targetEscale) {
-      voyageNumber = targetEscale.numeroVoyage;
-    } else if (originalInvoice.escaleInfo) {
-      const parts = originalInvoice.escaleInfo.split(/V\./i);
-      if (parts.length > 1) {
-        voyageNumber = parts[1].trim();
-      }
-    }
-    const origTypeName = invoiceTypeConfigs.find(t => t.id === originalInvoice.invoiceTypeId)?.name || '';
-    const newInvoiceNumber = resolveUniqueInvoiceNumber(
-      getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, origTypeName),
-      invoices
-    );
+    // Nouvelle proforma de la même facture : même référence, rang suivant (…-2).
+    const newInvoiceNumber = invoiceNumberForDuplicate(originalInvoice, invoices, {
+      bls, escales, vessels, invoiceTypeConfigs
+    });
 
     const newInvoice: Invoice = applyTaxeAdditionnelleToInvoice({
       ...originalInvoice,
@@ -1053,14 +995,14 @@ export function App() {
     const hasPayment = target.soldeDuFcfa === 0 ||
       target.statutPaiement === 'PAYE' ||
       target.statutPaiement === 'PARTIEL';
-    const isProforma = !(target.numeroFacture || '').startsWith('FA-') &&
+    const isProforma = !isDefinitiveInvoiceNumber(target.numeroFacture) &&
       target.statutFacture !== 'VALIDEE' &&
       target.statutFacture !== 'ANNULEE' &&
       target.statutFacture !== 'AVOIR' &&
       !hasPayment;
 
     if (!isProforma) {
-      toastError(`Conformité fiscale : La facture ${target.numeroFacture} est inaltérable. Veuillez émettre un Avoir pour l'annuler.`);
+      toastError(`Conformité fiscale : La facture ${formatInvoiceNumber(target.numeroFacture)} est inaltérable. Veuillez émettre un Avoir pour l'annuler.`);
       return;
     }
 

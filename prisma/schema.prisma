@@ -57,6 +57,7 @@ model vessels {
   imo_number String    @unique @db.VarChar(50) // Contrainte d'unicité absolue
   nom        String    @db.VarChar(255)
   callsign   String?   @db.VarChar(100)
+  code_navire String?  @db.VarChar(4) // Code court des numéros de facture (ex. MANA)
   pavillon   String?   @db.VarChar(100)
   armateur   String?   @db.VarChar(255)
   tonnage    Float?

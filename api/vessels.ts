@@ -7,6 +7,7 @@ const toClient = (v: any) => ({
   id: Number(v.id),
   nom: v.nom,
   callsign: v.callsign || '',
+  codeNavire: v.code_navire || undefined,
   pavillon: v.pavillon || undefined,
   armateur: v.armateur || undefined,
   coque: v.armateur || undefined,
@@ -43,9 +44,28 @@ export default async function handler(req: any, res: any) {
         (imo ? await prisma.vessels.findUnique({ where: { imo_number: imo } }) : null) ||
         (await prisma.vessels.findFirst({ where: { deleted_at: null, nom: { equals: nom, mode: 'insensitive' } } }));
 
+      // Code court des numéros de facture : 4 caractères alphanumériques, unique parmi les navires actifs.
+      const codeNavire =
+        typeof vessel.codeNavire === 'string'
+          ? vessel.codeNavire.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+          : '';
+      if (codeNavire && codeNavire.length !== 4) {
+        return res.status(400).json({ success: false, error: 'Le code navire comporte 4 caractères (lettres ou chiffres).' });
+      }
+      if (codeNavire) {
+        const taken = await prisma.vessels.findFirst({
+          where: { deleted_at: null, code_navire: codeNavire, ...(existing ? { NOT: { id: existing.id } } : {}) }
+        });
+        if (taken) {
+          return res.status(409).json({ success: false, error: `Le code navire ${codeNavire} est déjà attribué à ${taken.nom}.` });
+        }
+      }
+
       const fields = {
         nom,
         callsign: vessel.callsign || '',
+        // Absent de la requête (ancien formulaire) : le code déjà enregistré est conservé.
+        ...(vessel.codeNavire !== undefined ? { code_navire: codeNavire || null } : {}),
         pavillon: vessel.pavillon || '',
         armateur: vessel.armateur || vessel.coque || null,
         tonnage: typeof vessel.dwt === 'number' ? vessel.dwt : null

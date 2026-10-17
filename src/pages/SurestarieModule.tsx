@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { BL, Escale, Invoice, InvoiceTypeConfig, Payment, UserRole } from '../types';
 import { DEFAULT_TARIFS, DEFAULT_FRANCHISES } from '../utils/dmdtCalculator';
-import { resolveUniqueInvoiceNumber } from '../utils/invoiceMatching';
+import { formatInvoiceNumber, invoiceNumberMentionsType, nextInvoiceNumber, resolveVesselCode } from '../utils/invoiceNumber';
 import { toastSuccess, toastError } from '../components/common/Toast';
 import {
   Search, Calculator, FileText, CheckCircle2, Clock, AlertTriangle,
   ArrowRight, Ship, Package, Calendar, DollarSign, Filter, RotateCcw
 } from 'lucide-react';
-import { useEscales, useBls, useInvoices } from '../hooks/useData';
+import { useEscales, useBls, useInvoices, useVessels } from '../hooks/useData';
 
 /* ─── Types locaux ─── */
 interface ContainerRow {
@@ -123,6 +123,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
   const { escales } = useEscales();
   const { bls } = useBls();
   const { invoices } = useInvoices();
+  const { vessels } = useVessels();
 
   const [searchQ, setSearchQ] = useState('');
   const [regimeFilter, setRegimeFilter] = useState<'SURESTARIE' | 'DETENTION'>('SURESTARIE');
@@ -216,8 +217,8 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
             (inv.blId === bl.id || inv.numeroBL === bl.numeroBL) &&
             inv.statutFacture !== 'ANNULEE' &&
             (isDet
-              ? inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET')
-              : inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR'))
+              ? inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || invoiceNumberMentionsType(inv.numeroFacture, 'DET')
+              : inv.typeFacture?.toLowerCase().includes('surestarie') || invoiceNumberMentionsType(inv.numeroFacture, 'SUR'))
           );
 
         rows.push({
@@ -318,23 +319,18 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const isDet = regimeFilter === 'DETENTION';
-    const prefix = isDet ? 'PROF-DET' : 'PROF-SUR';
-    // Code discriminant du type de facture : « Détention Import » et « Détention Export »
-    // partagent le même régime (DETENTION) — sans ce segment, deux proformas distinctes
-    // reçoivent le même numéro (PROF-DET-<BL>-<AAAAMM>), ce qui viole l'unicité fiscale
-    // exigée par la certification DGI / FNE.
-    const typeName = (sureTypeConfig.name || '').toLowerCase();
-    const typeCode = typeName.includes('import') ? 'IMP' : typeName.includes('export') ? 'EXP' : '';
-    const cleanBL = row.numeroBL.replace(/[^a-zA-Z0-9-]/g, '-');
-    const periode = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const baseNumero = [prefix, typeCode, cleanBL, periode].filter(Boolean).join('-');
-
-    // Garde-fou anti-collision : un numéro de facture n'est jamais réutilisé (même après
-    // annulation). Une ré-émission du même couple (type, BL) sur la même période — après
-    // annulation, ou pour un autre conteneur facturé séparément — reçoit un suffixe -02, -03…
-    // `resolveUniqueInvoiceNumber` consulte en outre le registre de session, ce qui couvre
-    // les émissions successives d'un même cycle de rendu (état React encore périmé).
-    const numeroProforma = resolveUniqueInvoiceNumber(baseNumero, invoices);
+    // PF + type (SUR, DTI/DTE pour « Détention Import / Export ») + navire + voyage + BL.
+    // Un autre conteneur du même BL, ou une réémission après annulation, reçoit -2, -3…
+    const numeroProforma = nextInvoiceNumber(
+      {
+        statut: 'PF',
+        typeName: sureTypeConfig.name || (isDet ? 'Détention' : 'Surestarie'),
+        vesselCode: resolveVesselCode(escale, vessels),
+        voyage: escale?.numeroVoyage,
+        numeroBL: row.numeroBL
+      },
+      invoices
+    );
 
     const lines = calc.details.flatMap((det: any, idx: number) =>
       det.breakdown?.length > 0
@@ -683,7 +679,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                                     </button>
                                   )}
                                   {row.existingInvoice ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-1" title={`Facture émise : ${row.existingInvoice.numeroFacture}`}>
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-1" title={`Facture émise : ${formatInvoiceNumber(row.existingInvoice.numeroFacture)}`}>
                                       Proforma OK
                                     </span>
                                   ) : hasValidatedCalc ? (

@@ -8,7 +8,8 @@ import { SignatureModal } from '../components/common/SignatureModal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { getDraftDiff, getDraftFieldColor, snapshotContenuDraft, isDraftEnPeriodeCorrection } from '../utils/draftDiff';
 import { validateContainerNumber, formatIsoContainerNumber } from '../utils/containerValidator';
-import { useEscales, useDrafts } from '../hooks/useData';
+import { useEscales, useDrafts, useInvoices, useVessels } from '../hooks/useData';
+import { nextInvoiceNumber, resolveVesselCode } from '../utils/invoiceNumber';
 import {
   Lock,
   Unlock,
@@ -91,6 +92,23 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 }) => {
   const { drafts } = useDrafts();
   const { escales } = useEscales();
+  const { vessels } = useVessels();
+  const { invoices: allInvoices } = useInvoices();
+
+  // Facture d'amendement : définitive d'emblée (FA), type AMD, navire et voyage du draft.
+  const amendmentInvoiceNumber = (draft: DraftExport): string => {
+    const escale = escales.find(e => e.id === draft.escaleId);
+    return nextInvoiceNumber(
+      {
+        statut: 'FA',
+        typeCode: 'AMD',
+        vesselCode: resolveVesselCode(escale, vessels, draft.navireNom),
+        voyage: escale?.numeroVoyage || draft.numeroVoyage,
+        numeroBL: draft.numeroBlGenere || draft.numeroDraft
+      },
+      allInvoices
+    );
+  };
 
   // Navigation par sous-onglets : « Espace Client & Historique » est l'onglet
   // actif par défaut à l'ouverture de la page (tous profils). Un client export
@@ -781,7 +799,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       else onUpdateDraftStatus(targetDraftForApproval.id, 'CORRECTION_AUTORISEE');
 
       // Génération de facture rattachée
-      const invoiceNumber = `FA-AMD-${targetDraftForApproval.numeroVoyage || 'EXP'}-BOCS${String(Math.floor(100 + Math.random() * 900))}`;
+      const invoiceNumber = amendmentInvoiceNumber(targetDraftForApproval);
       const lignesFacture = [
         {
           id: 1,
@@ -863,7 +881,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     const dateLimite = new Date(now + 2 * 3600 * 1000).toISOString(); // 2 heures exactes
 
     // Génération automatique de la facture de frais d'amendement
-    const invoiceNumber = `FA-AMD-${draft.numeroVoyage || 'EXP'}-BOCS${String(Math.floor(100 + Math.random() * 900))}`;
+    const invoiceNumber = amendmentInvoiceNumber(draft);
     const invoice: Invoice = {
       id: Date.now(),
       numeroFacture: invoiceNumber,

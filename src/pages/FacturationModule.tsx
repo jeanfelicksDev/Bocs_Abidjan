@@ -14,7 +14,15 @@ import { BlBillingModule } from './BlBillingModule';
 import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { hasPermission, usePermissionsSync } from '../utils/permissions';
-import { useEscales, useBls, useInvoices, useDrafts, useCreditNotes, usePayments } from '../hooks/useData';
+import { useEscales, useBls, useInvoices, useDrafts, useCreditNotes, usePayments, useVessels } from '../hooks/useData';
+import {
+  decodeInvoiceNumber,
+  formatInvoiceNumber,
+  invoiceNumberMatchesQuery,
+  invoiceNumberMentionsType,
+  invoiceNumberWithStatut,
+  isDefinitiveInvoiceNumber
+} from '../utils/invoiceNumber';
 
 interface FacturationModuleProps {
   initialSubTab?: 'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG';
@@ -169,6 +177,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   const { invoices } = useInvoices();
   const { creditNotes } = useCreditNotes();
   const { payments } = usePayments();
+  const { vessels } = useVessels();
 
   const [activeTab, setActiveTab] = useState<'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG'>(initialSubTab);
 
@@ -741,23 +750,14 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
       return;
     }
 
-    const currentYearSuffix = new Date().getFullYear().toString().slice(-2);
-    const yearPrefix = `AV-BOCS${currentYearSuffix}`;
-    const existingAvoirs = (creditNotes || [])
-      .map(cn => cn.numeroAvoir)
-      .filter(num => num && num.startsWith(yearPrefix));
-
-    let maxCounter = -1;
-    existingAvoirs.forEach(num => {
-      const counterStr = num.replace(yearPrefix, '');
-      const counterVal = parseInt(counterStr, 10);
-      if (!isNaN(counterVal) && counterVal > maxCounter) {
-        maxCounter = counterVal;
-      }
-    });
-
-    const nextCounter = maxCounter >= 0 ? maxCounter + 1 : 1;
-    const numeroAvoir = `${yearPrefix}${String(nextCounter).padStart(4, '0')}`;
+    // AV + la référence de la facture annulée (FAECHMANA26607123456 → AVECHMANA26607123456).
+    // Un second avoir sur la même facture (avoir partiel) reçoit -2, -3…
+    const numeroAvoir = invoiceNumberWithStatut(
+      targetInvoiceForCreditNote,
+      'AV',
+      (creditNotes || []).map(cn => ({ id: cn.id, numeroFacture: cn.numeroAvoir })),
+      { bls, escales, vessels, invoiceTypeConfigs }
+    );
     const dateToday = new Date().toISOString().split('T')[0];
 
     const isTotal = creditNoteType === 'TOTAL';
@@ -818,7 +818,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
     setShowCreditNoteModal(false);
     setTargetInvoiceForCreditNote(null);
-    toastSuccess(`Note d'Avoir ${numeroAvoir} émise. La facture ${targetInvoiceForCreditNote.numeroFacture} est annulée.`);
+    toastSuccess(`Note d'Avoir ${formatInvoiceNumber(numeroAvoir)} émise. La facture ${formatInvoiceNumber(targetInvoiceForCreditNote.numeroFacture)} est annulée.`);
   };
 
   const handleConfirmValidateInvoice = () => {
@@ -838,7 +838,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     }
     setShowDuplicateModal(false);
     setInvoiceToDuplicate(null);
-    toastSuccess(`Brouillon créé par duplication de la facture ${invoiceToDuplicate.numeroFacture}.`);
+    toastSuccess(`Brouillon créé par duplication de la facture ${formatInvoiceNumber(invoiceToDuplicate.numeroFacture)}.`);
   };
 
   const handleConfirmDeleteDraft = () => {
@@ -846,7 +846,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     const hasPayment = invoiceToDelete.soldeDuFcfa === 0 ||
                        invoiceToDelete.statutPaiement === 'PAYE' ||
                        invoiceToDelete.statutPaiement === 'PARTIEL';
-    const isProforma = !(invoiceToDelete.numeroFacture || '').startsWith('FA-') &&
+    const isProforma = !isDefinitiveInvoiceNumber(invoiceToDelete.numeroFacture) &&
                        invoiceToDelete.statutFacture !== 'VALIDEE' &&
                        invoiceToDelete.statutFacture !== 'ANNULEE' &&
                        invoiceToDelete.statutFacture !== 'AVOIR' &&
@@ -945,8 +945,9 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     return { nbFactures: duMois.length, ratio: emis > 0 ? (regle / emis) * 100 : null };
   }, [invoices]);
 
-  // Audit réel des avoirs : format AV-BOCS<aa><nnnn>, numérotation continue
-  // par année, pas de doublon, facture d'origine retrouvée.
+  // Audit réel des avoirs : pas de doublon, facture d'origine retrouvée, format reconnu.
+  // Format actuel AV + référence de la facture ; l'ancien AV-BOCS<aa><nnnn> garde son
+  // contrôle de numérotation continue par année.
   const auditAvoirs = React.useMemo(() => {
     const notes = creditNotes || [];
     const FORMAT = /^AV-BOCS(\d{2})(\d{4})$/;
@@ -957,8 +958,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     for (const cn of notes) {
       vus.set(cn.numeroAvoir, (vus.get(cn.numeroAvoir) || 0) + 1);
       const m = FORMAT.exec(cn.numeroAvoir || '');
-      if (!m) malformes++;
-      else parAnnee.set(m[1], [...(parAnnee.get(m[1]) || []), parseInt(m[2], 10)]);
+      if (m) parAnnee.set(m[1], [...(parAnnee.get(m[1]) || []), parseInt(m[2], 10)]);
+      else if (decodeInvoiceNumber(cn.numeroAvoir)?.statut !== 'AV') malformes++;
       const origine = (invoices || []).some(i => i.id === cn.factureId || i.numeroFacture === cn.numeroFactureOrigine);
       if (!origine) orphelins++;
     }
@@ -1100,7 +1101,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     return list.filter(g => 
       (g.numeroBL && g.numeroBL.toLowerCase().includes(q)) ||
       (g.representative.clientNom && g.representative.clientNom.toLowerCase().includes(q)) ||
-      g.invoices.some(inv => inv.numeroFacture.toLowerCase().includes(q))
+      g.invoices.some(inv => invoiceNumberMatchesQuery(inv.numeroFacture, q))
     );
   }, [groupedInvoices, searchQuery, statusFilter, userRole]);
 
@@ -1370,8 +1371,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     g.invoices.forEach(inv => {
                       const match = allConfigs.find(t => invoiceMatchesType(inv, t, allConfigs));
                       if (!match) {
-                        const isDet = inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || inv.numeroFacture?.includes('DET');
-                        const isSur = inv.typeFacture?.toLowerCase().includes('surestarie') || inv.numeroFacture?.includes('SUR');
+                        const isDet = inv.typeFacture?.toLowerCase().includes('detention') || inv.typeFacture?.toLowerCase().includes('détention') || invoiceNumberMentionsType(inv.numeroFacture, 'DET');
+                        const isSur = inv.typeFacture?.toLowerCase().includes('surestarie') || invoiceNumberMentionsType(inv.numeroFacture, 'SUR');
                         allConfigs.push({
                           id: inv.invoiceTypeId || `dyn-${inv.id}`,
                           name: inv.typeFacture || (isDet ? 'Détention' : isSur ? 'Surestarie' : 'Facture Spécifique'),
@@ -1443,7 +1444,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                 // ne doivent auto-promouvoir une proforma.
                                 const isValidated = !isCancelled && rawStatus === 'VALIDEE';
                                 const isDraft = !isCancelled && !isValidated;
-                                const isProforma = isDraft && !(inv.numeroFacture || '').startsWith('FA-');
+                                const isProforma = isDraft && !isDefinitiveInvoiceNumber(inv.numeroFacture);
 
                                 return (
                                   <div key={typeConfig.id} className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg shadow-1 transition-all min-w-[200px] ${
@@ -1471,8 +1472,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                           </span>
                                         )}
                                       </span>
-                                      <span className="text-2xs font-mono text-slate-600 dark:text-night-ink truncate max-w-[150px] whitespace-nowrap" title={`${inv.numeroFacture} - ${Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} FCFA`}>
-                                        {inv.numeroFacture} ({Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} F)
+                                      <span className="text-2xs font-mono text-slate-600 dark:text-night-ink truncate max-w-[150px] whitespace-nowrap" title={`${formatInvoiceNumber(inv.numeroFacture)} - ${Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} FCFA`}>
+                                        {formatInvoiceNumber(inv.numeroFacture)} ({Number(inv.montantTtcFcfa || 0).toLocaleString('fr-FR')} F)
                                       </span>
                                     </div>
 
@@ -1791,8 +1792,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     const q = creditNotesSearch.toLowerCase();
                     if (!q) return true;
                     return (
-                      cn.numeroAvoir.toLowerCase().includes(q) ||
-                      cn.numeroFactureOrigine.toLowerCase().includes(q) ||
+                      invoiceNumberMatchesQuery(cn.numeroAvoir, q) ||
+                      invoiceNumberMatchesQuery(cn.numeroFactureOrigine, q) ||
                       cn.clientNom.toLowerCase().includes(q) ||
                       cn.motif.toLowerCase().includes(q)
                     );
@@ -1808,8 +1809,8 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       const q = creditNotesSearch.toLowerCase();
                       if (!q) return true;
                       return (
-                        cn.numeroAvoir.toLowerCase().includes(q) ||
-                        cn.numeroFactureOrigine.toLowerCase().includes(q) ||
+                        invoiceNumberMatchesQuery(cn.numeroAvoir, q) ||
+                        invoiceNumberMatchesQuery(cn.numeroFactureOrigine, q) ||
                         cn.clientNom.toLowerCase().includes(q) ||
                         cn.motif.toLowerCase().includes(q)
                       );
@@ -1820,11 +1821,11 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         <tr key={cn.id} className="hover:bg-[#f4f4f5] dark:bg-night-sunken transition-colors">
                           <td className="p-3 font-mono font-bold text-rose-600 dark:text-night-critical">
                             <span className="bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line px-2 py-0.5 rounded text-sm">
-                              {cn.numeroAvoir}
+                              {formatInvoiceNumber(cn.numeroAvoir)}
                             </span>
                           </td>
                           <td className="p-3 font-mono text-slate-600 dark:text-night-ink">{cn.dateEmission}</td>
-                          <td className="p-3 font-mono font-bold text-slate-700 dark:text-night-ink">{cn.numeroFactureOrigine}</td>
+                          <td className="p-3 font-mono font-bold text-slate-700 dark:text-night-ink">{formatInvoiceNumber(cn.numeroFactureOrigine)}</td>
                           <td className="p-3 font-semibold text-slate-900 dark:text-night-ink">{cn.clientNom}</td>
                           <td className="p-3 text-slate-700 dark:text-night-ink max-w-xs truncate" title={cn.motif}>
                             <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">
@@ -2180,7 +2181,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     {invoiceTypeConfigs.find(c => c.id === paymentFacture.invoiceTypeId)?.name || paymentFacture.typeFacture.replace(/_/g, ' ')}
                   </span>
                 </div>
-                <p className="font-bold font-mono text-primary text-base">{paymentFacture.numeroFacture}</p>
+                <p className="font-bold font-mono text-primary text-base">{formatInvoiceNumber(paymentFacture.numeroFacture)}</p>
                 <p className="text-slate-900 dark:text-night-ink font-semibold">{paymentFacture.clientNom}</p>
               </div>
 
@@ -4029,7 +4030,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <div className="p-3.5 bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line rounded-md space-y-1.5">
                 <span className="text-2xs text-rose-800 dark:text-night-critical font-extrabold uppercase tracking-wider">Facture d'Origine Cible</span>
                 <div className="flex justify-between items-center">
-                  <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{targetInvoiceForCreditNote.numeroFacture}</p>
+                  <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{formatInvoiceNumber(targetInvoiceForCreditNote.numeroFacture)}</p>
                   <span className="font-mono font-extrabold text-rose-700 dark:text-night-critical text-base">
                     {targetInvoiceForCreditNote.montantTtcFcfa.toLocaleString('fr-FR')} FCFA TTC
                   </span>
@@ -4190,7 +4191,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             <div className="space-y-3 text-sm">
               <div className="p-3.5 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-md space-y-1">
                 <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-bold uppercase">Facture Brouillon</span>
-                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{invoiceToValidate.numeroFacture}</p>
+                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{formatInvoiceNumber(invoiceToValidate.numeroFacture)}</p>
                 <p className="text-slate-800 dark:text-night-ink font-semibold">{invoiceToValidate.clientNom}</p>
                 <p className="font-mono font-bold text-emerald-700 dark:text-night-positive text-base pt-1">
                   Montant: {invoiceToValidate.montantTtcFcfa.toLocaleString('fr-FR')} FCFA TTC
@@ -4200,7 +4201,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <div className="p-3 bg-blue-50 dark:bg-night-accent-soft border border-blue-200 dark:border-night-accent-line rounded-md text-xs text-blue-900 flex items-start gap-2">
                 <span aria-hidden="true" className="material-symbols-outlined text-base text-blue-600 dark:text-night-link shrink-0 mt-0.5">info</span>
                 <p>
-                  En validant cette facture, elle recevra son <strong>numéro fiscal officiel</strong> (ex: FA-BOCS26-XXXX) et sera <strong>verrouillée contre toute modification ou suppression directe</strong>.
+                  En validant cette facture, elle recevra son <strong>numéro fiscal officiel</strong>{decodeInvoiceNumber(invoiceToValidate?.numeroFacture)?.statut === 'PF' ? <> <strong className="font-mono">{formatInvoiceNumber(`FA${invoiceToValidate!.numeroFacture.slice(2)}`)}</strong></> : ' au format FA + type + navire + voyage + BL'} et sera <strong>verrouillée contre toute modification ou suppression directe</strong>.
                 </p>
               </div>
 
@@ -4243,7 +4244,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             <div className="space-y-3 text-sm">
               <div className="p-3.5 bg-[#f4f4f5] dark:bg-night-sunken border border-slate-200 dark:border-night-line rounded-md space-y-1">
                 <span className="text-2xs text-slate-500 dark:text-night-ink-2 font-bold uppercase">Facture Source</span>
-                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{invoiceToDuplicate.numeroFacture}</p>
+                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{formatInvoiceNumber(invoiceToDuplicate.numeroFacture)}</p>
                 <p className="text-slate-800 dark:text-night-ink font-semibold">{invoiceToDuplicate.clientNom}</p>
                 <p className="font-mono font-bold text-slate-700 dark:text-night-ink">
                   Total: {invoiceToDuplicate.montantTtcFcfa.toLocaleString('fr-FR')} FCFA
@@ -4293,7 +4294,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             <div className="space-y-3 text-sm">
               <div className="p-3.5 bg-rose-50 dark:bg-night-critical-soft border border-rose-200 dark:border-night-critical-line rounded-md space-y-1">
                 <span className="text-2xs text-rose-700 dark:text-night-critical font-bold uppercase">Brouillon à supprimer</span>
-                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{invoiceToDelete.numeroFacture}</p>
+                <p className="font-bold font-mono text-slate-900 dark:text-night-ink text-base">{formatInvoiceNumber(invoiceToDelete.numeroFacture)}</p>
                 <p className="text-slate-800 dark:text-night-ink font-semibold">{invoiceToDelete.clientNom}</p>
                 <p className="text-slate-600 dark:text-night-ink font-medium text-sm bg-rose-100/50 inline-block px-1.5 py-0.5 rounded border border-rose-200/50">{invoiceTypeConfigs.find(t => t.id === invoiceToDelete.invoiceTypeId)?.name || invoiceToDelete.typeFacture}</p>
                 <p className="font-mono font-bold text-rose-700 dark:text-night-critical mt-1">

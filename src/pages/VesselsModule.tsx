@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Vessel } from '../types';
 import { useVessels, useEscales } from '../hooks/useData';
 import { VesselFormModal } from '../components/vessels/VesselFormModal';
+import { suggestVesselCode } from '../utils/invoiceNumber';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 
 interface VesselsModuleProps {
@@ -28,7 +29,7 @@ export const VesselsModule: React.FC<VesselsModuleProps> = ({ onAddVessel, onUpd
 
   const query = search.trim().toLowerCase();
   const rows = [...vessels]
-    .filter(v => !query || [v.nom, v.callsign, v.imoNumber, v.armateur, v.pavillon].some(f => f?.toLowerCase().includes(query)))
+    .filter(v => !query || [v.nom, v.codeNavire, v.callsign, v.imoNumber, v.armateur, v.pavillon].some(f => f?.toLowerCase().includes(query)))
     .sort((a, b) => a.nom.localeCompare(b.nom));
   const escaleCount = (v: Vessel) => escales.filter(e => sameName(e.nomNavire, v.nom)).length;
 
@@ -82,6 +83,7 @@ export const VesselsModule: React.FC<VesselsModuleProps> = ({ onAddVessel, onUpd
             <thead className="bg-surface-base dark:bg-night-sunken border-b border-border-default dark:border-night-line text-text-secondary dark:text-night-ink font-bold uppercase text-xs">
               <tr>
                 <th scope="col" className="p-3">Navire</th>
+                <th scope="col" className="p-3">Code facture</th>
                 <th scope="col" className="p-3">Call sign</th>
                 <th scope="col" className="p-3">N° IMO</th>
                 <th scope="col" className="p-3">Armateur</th>
@@ -94,6 +96,7 @@ export const VesselsModule: React.FC<VesselsModuleProps> = ({ onAddVessel, onUpd
               {rows.map(v => (
                 <tr key={v.id} className="hover:bg-surface-base dark:hover:bg-night-sunken transition-colors">
                   <td className="p-3 font-extrabold text-[#002B49] dark:text-night-ink">{v.nom}</td>
+                  <td className="p-3 font-mono font-bold tracking-wider text-text-primary dark:text-night-ink">{v.codeNavire || <span className="text-text-muted dark:text-night-ink-3 font-normal" title="Code proposé d'après le nom, utilisé tant qu'aucun code n'est enregistré">{suggestVesselCode(v.nom)} ?</span>}</td>
                   <td className="p-3 font-mono font-bold text-text-secondary dark:text-night-ink">{v.callsign || '—'}</td>
                   <td className="p-3 font-mono text-text-secondary dark:text-night-ink">{v.imoNumber || '—'}</td>
                   <td className="p-3 text-text-secondary dark:text-night-ink">{v.armateur || v.coque || '—'}</td>
@@ -113,7 +116,7 @@ export const VesselsModule: React.FC<VesselsModuleProps> = ({ onAddVessel, onUpd
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-text-muted dark:text-night-ink-2">
+                  <td colSpan={8} className="p-8 text-center text-text-muted dark:text-night-ink-2">
                     {isLoading
                       ? 'Chargement du registre…'
                       : isError

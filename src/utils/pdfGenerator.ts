@@ -1,5 +1,6 @@
 import { BL, DraftExport, Invoice, Escale, CreditNote, Container } from '../types';
 import { INITIAL_INVOICE_TYPE_CONFIGS } from '../data/initialData';
+import { formatInvoiceNumber } from './invoiceNumber';
 
 /**
  * Renders HTML inside a hidden iframe and triggers the print dialog
@@ -340,7 +341,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
         <div class="header-main">
           <div>
             <span class="title">${titleText} N° &nbsp;&nbsp;&nbsp;</span>
-            <span class="title">${invoice.numeroFacture.includes('/') ? invoice.numeroFacture.split('/')[0] : invoice.numeroFacture}</span>${invoice.numeroFacture.includes('/') ? `<span class="title-red">/${invoice.numeroFacture.split('/')[1] || '022'}</span>` : ''}
+            <span class="title">${invoice.numeroFacture.includes('/') ? invoice.numeroFacture.split('/')[0] : formatInvoiceNumber(invoice.numeroFacture)}</span>${invoice.numeroFacture.includes('/') ? `<span class="title-red">/${invoice.numeroFacture.split('/')[1] || '022'}</span>` : ''}
           </div>
           <div>
             <div class="type-fact">${(() => {
@@ -1028,13 +1029,13 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
         <div class="header-main">
           <div>
             <span class="title">NOTE D'AVOIR / CREDIT NOTE N° &nbsp;</span>
-            <span class="title" style="color: #0f172a;">${creditNote.numeroAvoir}</span>
+            <span class="title" style="color: #0f172a;">${formatInvoiceNumber(creditNote.numeroAvoir)}</span>
           </div>
           <div>
             <div class="type-fact">Avoir sur Facture</div>
             <div class="dates">
               Date d'émission : ${creditNote.dateEmission}<br />
-              Réf. Facture d'Origine : <strong>${creditNote.numeroFactureOrigine}</strong>
+              Réf. Facture d'Origine : <strong>${formatInvoiceNumber(creditNote.numeroFactureOrigine)}</strong>
             </div>
           </div>
         </div>
@@ -1052,7 +1053,7 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
               <tr><td>Voy :</td><td>${blVoy}</td></tr>
               <tr><td>Pol/Pod :</td><td>${blPolPod}</td></tr>
               <tr><td>B/L N° :</td><td>${bl?.numeroBL || originalInvoice?.numeroBL || 'NC'}</td></tr>
-              <tr><td>Facture d'origine :</td><td><strong>${creditNote.numeroFactureOrigine}</strong></td></tr>
+              <tr><td>Facture d'origine :</td><td><strong>${formatInvoiceNumber(creditNote.numeroFactureOrigine)}</strong></td></tr>
             </table>
           </div>
           <div>
@@ -1093,7 +1094,7 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
         <div class="footer-section">
           <div style="width: 60%;">
             <div class="notes">
-              NB : Cette note d'avoir annule et compense à due concurrence la facture N° ${creditNote.numeroFactureOrigine}.<br />
+              NB : Cette note d'avoir annule et compense à due concurrence la facture N° ${formatInvoiceNumber(creditNote.numeroFactureOrigine)}.<br />
               Conformément à la réglementation fiscale en vigueur, ce document fait foi pour la déduction de la TVA correspondante.
             </div>
             <div class="amount-words">

@@ -5,6 +5,7 @@ import { NavTab } from '../components/layout/Sidebar';
 import { generateImportManifestPdf } from '../utils/pdfGenerator';
 import { MultiPdfImportModal, EscaleCommitGroup } from '../components/import/MultiPdfImportModal';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
+import { uniqueVesselCode } from '../utils/invoiceNumber';
 import { useEscales, useBls, useInvoices, usePayments, useVessels } from '../hooks/useData';
 
 interface VesselTrackingModuleProps {
@@ -122,6 +123,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
       pavillon: newVesselPavillon.trim(),
       coque: newVesselCoque.trim(),
       armateur: newVesselCoque.trim(),
+      codeNavire: uniqueVesselCode(newVesselNom, vessels),
       typeNavire: 'Porte-conteneurs',
       dateCreation: new Date().toISOString().split('T')[0]
     };

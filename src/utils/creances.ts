@@ -1,5 +1,6 @@
 import type { BL, DraftExport, Invoice } from '../types';
 import { getNetAPayerFcfa } from './timbreFiscal';
+import { isDefinitiveInvoiceNumber } from './invoiceNumber';
 
 /**
  * Créances clients — RÈGLE PARTAGÉE UNIQUE (cockpit, tableau de bord).
@@ -45,12 +46,10 @@ export interface CreancesSummary {
 export const isFactureActive = (inv: Invoice): boolean =>
   inv.statutFacture !== 'ANNULEE' && inv.statutFacture !== 'AVOIR';
 
-/** Numérotation définitive d'une facture (les proformas utilisent PROF-/ECH-/…). */
-const NUMERO_DEFINITIVE = /^FA-/i;
 
 /** Facture définitive (validée) — les proformas BROUILLON ne sont pas des créances fermes. */
 export const isFactureDefinitive = (inv: Invoice): boolean =>
-  inv.statutFacture === 'VALIDEE' || NUMERO_DEFINITIVE.test((inv.numeroFacture || '').trim());
+  inv.statutFacture === 'VALIDEE' || isDefinitiveInvoiceNumber(inv.numeroFacture);
 
 /** La référence de la facture correspond-elle à un BL ou à un draft export connus ? */
 export function isFactureRattachee(
