@@ -39,7 +39,8 @@ import {
   Sparkles,
   RotateCcw,
   Trash2,
-  Lock
+  Lock,
+  CircleDollarSign
 } from 'lucide-react';
 
 interface BlBillingModuleProps {
@@ -1687,7 +1688,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                             </span>
                           ) : isPaid ? (
                             <span className="bg-emerald-50 dark:bg-night-positive-soft text-emerald-800 dark:text-night-positive border border-emerald-300 dark:border-night-positive/30 px-3.5 py-1.5 rounded-md font-black text-sm flex items-center gap-1.5 select-none shadow-1">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-night-positive" />
+                              <CircleDollarSign className="w-4 h-4 text-[#E0A92B]" aria-hidden />
                               <span>Soldée / Payée</span>
                             </span>
                           ) : isValidated ? (
