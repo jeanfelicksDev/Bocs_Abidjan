@@ -1127,7 +1127,7 @@ escales,
                                   <div className="space-y-5 animate-fade-in">
 
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-200 pb-3.5">
-                                      <div className="flex flex-wrap items-center gap-3 text-base font-black text-zinc-950">
+                                      <div className="min-w-0 flex flex-wrap items-center gap-3 text-base font-black text-zinc-950">
                                         <div className="flex items-center gap-2">
                                           <MapPin className="w-5 h-5 text-primary" />
                                           <span>Route : {esc.portChargement} → {esc.portDechargement}</span>
@@ -1138,7 +1138,7 @@ escales,
                                         </span>
                                       </div>
 
-                                      <div className="flex flex-wrap items-center gap-2.5">
+                                      <div className="flex flex-wrap sm:flex-nowrap sm:shrink-0 items-center gap-2.5">
                                         <button
                                           type="button"
                                           onClick={(e) => {
