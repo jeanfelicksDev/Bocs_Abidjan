@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, UserRole } from '../../types';
 import { useEscapeClose, overlayClickClose } from '../../hooks/useEscapeClose';
 import { toastSuccess, toastError, toastWarning } from '../common/Toast';
@@ -24,6 +24,8 @@ interface ProfileModalProps {
   currentUser: User;
   onUpdateProfile: (updatedUser: User) => Promise<boolean>;
   onChangePassword: (userId: number, currentPass: string, newPass: string) => Promise<boolean>;
+  /** Onglet ouvert à l'affichage (défaut : profil). */
+  initialTab?: 'profile' | 'password' | 'security';
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -31,14 +33,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onClose,
   currentUser,
   onUpdateProfile,
-  onChangePassword
+  onChangePassword,
+  initialTab = 'profile'
 }) => {
   if (!isOpen) return null;
   // Audit UX P1 : fermeture au clavier (Échap) + clic sur l'arrière-plan.
   // (Modale montée conditionnellement : convention hooks du fichier conservée.)
   useEscapeClose(true, onClose);
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'security'>(initialTab);
+  // L'onglet demandé (ex. « Mot de passe » depuis la page Paramétrage).
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
   
   // Profile form state
   const [nomComplet, setNomComplet] = useState(currentUser.nomComplet);

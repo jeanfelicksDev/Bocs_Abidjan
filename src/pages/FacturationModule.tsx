@@ -26,6 +26,8 @@ import {
 
 interface FacturationModuleProps {
   initialSubTab?: 'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG';
+  /** Onglet du paramétrage des factures ouvert depuis la page Paramétrage. */
+  initialConfigSubTab?: 'TYPES' | 'TAXE' | 'TIMBRE';
   selectedBlId?: number | null;
   onSelectBl?: (blId: number) => void;
   onNavigateToImport?: () => void;
@@ -144,6 +146,7 @@ function getPlannedTypeIdsForBl(bl: BL | undefined, invoiceTypeConfigs: InvoiceT
 
 export const FacturationModule: React.FC<FacturationModuleProps> = ({
   initialSubTab = 'FACTURATION_BL',
+  initialConfigSubTab,
   selectedBlId = null,
   onSelectBl,
   onNavigateToImport,
@@ -189,7 +192,10 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   // TYPES  : types de factures + rubriques tarifaires
   // TAXE   : taxe additionnelle exceptionnelle (assiette TTC)
   // TIMBRE : timbre fiscal d'État (assiette HT, par tranches)
-  const [configSubTab, setConfigSubTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE'>('TYPES');
+  const [configSubTab, setConfigSubTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE'>(initialConfigSubTab || 'TYPES');
+  useEffect(() => {
+    if (initialConfigSubTab) setConfigSubTab(initialConfigSubTab);
+  }, [initialConfigSubTab]);
 
   // RBAC : droits effectifs issus de la matrice (overrides individuels > matrice par rôle)
   usePermissionsSync();

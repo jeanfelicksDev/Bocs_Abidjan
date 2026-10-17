@@ -63,6 +63,7 @@ const ExportModule = lazy(() => import('./pages/ExportModule').then((m) => ({ de
 const FacturationModule = lazy(() => import('./pages/FacturationModule').then((m) => ({ default: m.FacturationModule })));
 const SurestarieModule = lazy(() => import('./pages/SurestarieModule').then((m) => ({ default: m.SurestarieModule })));
 const AdminModule = lazy(() => import('./pages/AdminModule').then((m) => ({ default: m.AdminModule })));
+const ParametrageModule = lazy(() => import('./pages/ParametrageModule').then((m) => ({ default: m.ParametrageModule })));
 
 const ModuleLoading = () => (
   <p role="status" className="mt-16 text-center text-sm font-medium text-text-muted">Chargement du module…</p>
@@ -80,7 +81,14 @@ export function App() {
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+  const [profileTab, setProfileTab] = useState<'profile' | 'password' | 'security'>('profile');
+  // Onglet du paramétrage des factures demandé depuis la page Paramétrage.
+  const [invoiceConfigTab, setInvoiceConfigTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE' | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  // La demande ne vaut que pour l'ouverture : en quittant l'écran, il reprend son onglet par défaut.
+  useEffect(() => {
+    if (activeTab !== 'facturation_config') setInvoiceConfigTab(undefined);
+  }, [activeTab]);
   const [showWelcome, setShowWelcome] = useState<boolean>(true);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(null);
@@ -1128,7 +1136,7 @@ export function App() {
         exchangeRateUsd={exchangeRateUsd}
         userRole={currentUser.role}
         currentUser={currentUser}
-        onOpenProfile={() => setShowProfileModal(true)}
+        onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
         onLogout={handleLogout}
         onEnter={(targetTab, targetBlId) => {
           // RBAC : refus immédiat si l'habilitation requise est absente de la matrice des droits
@@ -1180,7 +1188,7 @@ export function App() {
         onUpdateExchangeRate={setExchangeRateUsd}
         onLogout={handleLogout}
         onOpenLogin={() => handleOpenAuthModal('login')}
-        onOpenProfile={() => setShowProfileModal(true)}
+        onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onReturnToWelcome={() => setShowWelcome(true)}
@@ -1281,6 +1289,7 @@ export function App() {
 
           {!accessDenied && (activeTab === 'facturation' || activeTab === 'facturation_journal' || activeTab === 'facturation_tarifs' || activeTab === 'facturation_balance' || activeTab === 'facturation_config' || activeTab === 'facturation_avoirs') && (
             <FacturationModule
+              initialConfigSubTab={invoiceConfigTab}
               initialSubTab={
                 activeTab === 'facturation_journal' ? 'PROFORMA' :
                   activeTab === 'facturation_tarifs' ? 'TARIFS' :
@@ -1335,6 +1344,22 @@ export function App() {
             />
           )}
 
+          {!accessDenied && activeTab === 'parametrage' && (
+            <ParametrageModule
+              currentUser={currentUser}
+              exchangeRateUsd={exchangeRateUsd}
+              onUpdateExchangeRate={setExchangeRateUsd}
+              onNavigate={(tab, configTab) => {
+                setInvoiceConfigTab(configTab);
+                setActiveTab(tab);
+              }}
+              onOpenProfile={tab => {
+                setProfileTab(tab);
+                setShowProfileModal(true);
+              }}
+            />
+          )}
+
           {!accessDenied && (activeTab === 'admin' || activeTab === 'admin_users' || activeTab === 'admin_rights' || activeTab === 'admin_fne' || activeTab === 'admin_audit') && (
             <AdminModule
               initialTab={
@@ -1375,6 +1400,7 @@ export function App() {
       {/* Profile Modal */}
       <ProfileModal
         isOpen={showProfileModal}
+        initialTab={profileTab}
         onClose={() => setShowProfileModal(false)}
         currentUser={currentUser}
         onUpdateProfile={handleUpdateProfile}

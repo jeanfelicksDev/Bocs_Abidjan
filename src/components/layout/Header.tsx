@@ -4,7 +4,7 @@ import { User, UserRole } from '../../types';
 import { NavTab } from './Sidebar';
 import { LogOut, LogIn, ShieldCheck, Menu, X, ChevronDown, DollarSign, ArrowLeft } from 'lucide-react';
 import { ThemeSwitcher } from '../common/ThemeSwitcher';
-import { isTabAllowed, usePermissionsSync } from '../../utils/permissions';
+import { canEditExchangeRate, isTabAllowed, usePermissionsSync } from '../../utils/permissions';
 import { useEscapeClose } from '../../hooks/useEscapeClose';
 
 interface HeaderProps {
@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   const handleRateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(tempRate);
-    if (!isNaN(val) && val > 0) {
+    if (canEditExchangeRate(currentUser) && !isNaN(val) && val > 0) {
       onUpdateExchangeRate(val);
     }
     setEditingRate(false);
@@ -427,6 +427,21 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
+          {/* 7. Paramétrage : tous les réglages de l'application */}
+          {isAllowed('parametrage') && (
+            <button
+              onClick={() => onTabChange('parametrage')}
+              className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'parametrage'
+                  ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
+                  : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+                }`}
+            >
+              <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${activeTab === 'parametrage' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
+                }`}>settings</span>
+              <span>Paramétrage</span>
+            </button>
+          )}
+
         </div>
 
         {/* Right Section: Currency Exchange, Profile, Role Switcher */}
@@ -435,7 +450,7 @@ export const Header: React.FC<HeaderProps> = ({
           <ThemeSwitcher compact className="hidden sm:flex shrink-0" />
 
           {/* Quick Currency Rate Widget */}
-          {editingRate ? (
+          {editingRate && canEditExchangeRate(currentUser) ? (
             <form onSubmit={handleRateSubmit} className="flex items-center gap-1 bg-zinc-50 border border-[#005DAA]/40 rounded-xl px-2 py-1">
               <span className="text-2xs text-[#005DAA] font-mono font-bold">$1=</span>
               <input
@@ -449,14 +464,25 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-2xs text-zinc-500">F</span>
             </form>
           ) : (
-            <button
-              onClick={() => setEditingRate(true)}
-              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 hover:text-[#005DAA] transition-all cursor-pointer shadow-2xs"
-              title="Taux USD / FCFA officiel - Cliquer pour modifier"
-            >
-              <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" />
-              <span>1 USD = {exchangeRateUsd} FCFA</span>
-            </button>
+            canEditExchangeRate(currentUser) ? (
+              <button
+                onClick={() => setEditingRate(true)}
+                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 hover:text-[#005DAA] transition-all cursor-pointer shadow-2xs"
+                title="Taux USD / FCFA officiel - Cliquer pour modifier"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" />
+                <span>1 USD = {exchangeRateUsd} FCFA</span>
+              </button>
+            ) : (
+              // Lecture seule : seuls la comptabilité et l'administrateur modifient le taux.
+              <span
+                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 shadow-2xs"
+                title="Taux USD / FCFA officiel (modifiable par la comptabilité et l'administrateur)"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" />
+                <span>1 USD = {exchangeRateUsd} FCFA</span>
+              </span>
+            )
           )}
 
           {/* User Account summary */}
@@ -726,6 +752,20 @@ export const Header: React.FC<HeaderProps> = ({
                         <span>Journal d'Audit</span>
                       </button>
                     )}
+                  </div>
+                )}
+
+                {/* 7. Paramétrage */}
+                {isAllowed('parametrage') && (
+                  <div className="pt-2 border-t border-zinc-200">
+                    <button
+                      onClick={() => { onTabChange('parametrage'); setMobileMenuOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'parametrage' ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40' : 'hover:bg-zinc-500/10'
+                        }`}
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-lg text-[#005DAA]">settings</span>
+                      <span>Paramétrage</span>
+                    </button>
                   </div>
                 )}
 

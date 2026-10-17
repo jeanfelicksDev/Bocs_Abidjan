@@ -279,8 +279,15 @@ export const TAB_PERMISSIONS: Record<NavTab, string[]> = {
     admin_users: ['admin_users_manage'],
     admin_rights: ['admin_rights_assign'],
     admin_fne: ['fne_certification'],
-    admin_audit: ['admin_audit_logs']
+    admin_audit: ['admin_audit_logs'],
+    // Ouvert à tous : chaque réglage de la page applique son propre droit.
+    parametrage: []
 };
+
+// ─── Taux de change USD / FCFA : réservé à la comptabilité et à l'administrateur ───
+export function canEditExchangeRate(user: { role?: string; estActif?: boolean } | null | undefined): boolean {
+    return !!user && user.estActif !== false && (user.role === 'ADMIN' || user.role === 'COMPTABILITE');
+}
 
 // ─── Contrôle d'accès effectif à un onglet / module ───
 export function isTabAllowed(user: PermissionSubject | null | undefined, tab: NavTab): boolean {

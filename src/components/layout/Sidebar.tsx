@@ -24,7 +24,8 @@ export type NavTab =
   | 'admin_users'
   | 'admin_rights'
   | 'admin_fne'
-  | 'admin_audit';
+  | 'admin_audit'
+  | 'parametrage';
 
 interface SidebarProps {
   activeTab: NavTab;
