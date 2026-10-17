@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [tempRate, setTempRate] = useState(exchangeRateUsd.toString());
 
   // Audit UX : fermeture clavier du menu mobile via Ã‰chap.
-  useEscapeClose(mobileMenuOpen, () => setMobileMenuOpen(false));
+  useEscapeClose(mobileMenuOpen, () => setMobileMenuOpen(false), { menu: true });
 
   const getRoleLabel = (role: UserRole) => {
     switch (role) {

@@ -27,7 +27,7 @@ interface MainNavProps {
  */
 export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabChange, counts, className = '' }) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  useEscapeClose(activeDropdown !== null, () => setActiveDropdown(null));
+  useEscapeClose(activeDropdown !== null, () => setActiveDropdown(null), { menu: true });
   usePermissionsSync();
 
   const isAllowed = (tab: NavTab) => isTabAllowed(currentUser, tab);

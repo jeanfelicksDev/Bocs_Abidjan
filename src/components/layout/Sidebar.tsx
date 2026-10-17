@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   usePermissionsSync();
 
   // Audit UX : fermeture clavier du drawer mobile via Échap.
-  useEscapeClose(isOpen, onClose);
+  useEscapeClose(isOpen, onClose, { menu: true });
 
   const isAllowed = (tab: NavTab) => isTabAllowed(currentUser || { id: -1, role: userRole }, tab);
 

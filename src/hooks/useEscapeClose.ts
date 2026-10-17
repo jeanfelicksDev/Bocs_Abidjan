@@ -1,50 +1,59 @@
 import { useEffect } from 'react';
 
 /**
- * Pile globale des modales ouvertes : Échap ne ferme que la modale au sommet,
- * pas toutes les modales empilées (ex. aperçu d'impression au-dessus du module).
+ * Fermeture des fenêtres modales : UNIQUEMENT par leurs boutons (Fermer, ×,
+ * Annuler, Enregistrer…). Un clic à côté de la fenêtre ou la touche Échap ne
+ * la ferment plus : on ne perd plus une saisie en cours par mégarde.
+ *
+ * Les menus (menu déroulant de la navigation, menu mobile) gardent la touche
+ * Échap : ils s'appellent avec `{ menu: true }`.
  */
-const modalesOuvertes: symbol[] = [];
 
 /**
- * Ferme une modale via la touche Échap tant qu'elle est affichée.
- *
- * @param active   La modale est-elle ouverte ?
- * @param onClose  Callback de fermeture (ex. `() => setOpened(null)`).
- *
- * Audit UX P1 : seules 3 modales géraient Échap ; ce hook standardise la
- * fermeture clavier sur toutes les modales de l'application.
+ * Pile globale des menus ouverts : Échap ne ferme que le menu au sommet,
+ * pas tous les menus empilés.
  */
-export function useEscapeClose(active: boolean | undefined, onClose: (() => void) | undefined): void {
+const menusOuverts: symbol[] = [];
+
+/**
+ * Ferme un menu via la touche Échap tant qu'il est affiché.
+ * Sans `{ menu: true }` (fenêtre modale), l'appel ne fait rien : la fenêtre
+ * reste ouverte jusqu'au clic sur l'un de ses boutons.
+ *
+ * @param active   Le menu est-il ouvert ?
+ * @param onClose  Callback de fermeture (ex. `() => setOpened(null)`).
+ */
+export function useEscapeClose(
+  active: boolean | undefined,
+  onClose: (() => void) | undefined,
+  options: { menu?: boolean } = {}
+): void {
+  const menu = Boolean(options.menu);
   useEffect(() => {
-    if (!active || !onClose) return;
-    const id = Symbol('modal');
-    modalesOuvertes.push(id);
+    if (!menu || !active || !onClose) return;
+    const id = Symbol('menu');
+    menusOuverts.push(id);
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // Seule la modale affichée en dernier (sommet de pile) se ferme.
-      if (modalesOuvertes[modalesOuvertes.length - 1] !== id) return;
-      const i = modalesOuvertes.indexOf(id);
-      if (i >= 0) modalesOuvertes.splice(i, 1);
+      // Seul le menu affiché en dernier (sommet de pile) se ferme.
+      if (menusOuverts[menusOuverts.length - 1] !== id) return;
+      const i = menusOuverts.indexOf(id);
+      if (i >= 0) menusOuverts.splice(i, 1);
       onClose();
     };
     window.addEventListener('keydown', handler);
     return () => {
-      const i = modalesOuvertes.indexOf(id);
-      if (i >= 0) modalesOuvertes.splice(i, 1);
+      const i = menusOuverts.indexOf(id);
+      if (i >= 0) menusOuverts.splice(i, 1);
       window.removeEventListener('keydown', handler);
     };
-  }, [active, onClose]);
+  }, [menu, active, onClose]);
 }
 
 /**
- * Gestionnaire de clic sur l'arrière-plan d'une modale : ferme UNIQUEMENT si
- * l'utilisateur clique sur l'overlay lui-même (et pas dans le panneau),
- * grâce au test `e.target === e.currentTarget`. Une seule édition par modale,
- * sans stopPropagation sur les panneaux.
+ * Clic sur l'arrière-plan d'une fenêtre modale : sans effet. La fenêtre ne se
+ * ferme que par ses boutons. Conservé pour les ~70 fenêtres qui l'utilisent.
  */
-export function overlayClickClose(onClose: () => void) {
-  return (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
+export function overlayClickClose(_onClose: () => void) {
+  return (_e: React.MouseEvent<HTMLDivElement>) => {};
 }

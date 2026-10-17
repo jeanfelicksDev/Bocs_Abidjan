@@ -1975,6 +1975,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               </div>
               <button
                 type="button"
+                aria-label="Fermer"
                 onClick={() => setShowPaymentModal(false)}
                 className="text-slate-400 dark:text-night-ink-2 hover:text-slate-600 p-1 text-base cursor-pointer"
               >
