@@ -23,27 +23,27 @@ export const StatCard: React.FC<StatCardProps> = ({
       case 'red':
         return {
           bg: 'bg-rose-50 text-bocs-red border-rose-200',
-          iconBg: 'bg-bocs-red text-white dark:text-night-ink'
+          iconBg: 'bg-bocs-red text-white dark:text-white'
         };
       case 'emerald':
         return {
           bg: 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-900 border-emerald-200 dark:border-night-positive-line',
-          iconBg: 'bg-emerald-600 text-white dark:text-night-ink'
+          iconBg: 'bg-emerald-600 text-white dark:text-white'
         };
       case 'amber':
         return {
           bg: 'bg-amber-50 text-amber-900 border-amber-200',
-          iconBg: 'bg-amber-600 text-white dark:text-night-ink'
+          iconBg: 'bg-amber-600 text-white dark:text-white'
         };
       case 'purple':
         return {
           bg: 'bg-purple-50 text-purple-900 border-purple-200',
-          iconBg: 'bg-purple-600 text-white dark:text-night-ink'
+          iconBg: 'bg-purple-600 text-white dark:text-white'
         };
       default:
         return {
           bg: 'bg-blue-50 dark:bg-night-accent-soft text-bocs-navy border-blue-200 dark:border-night-accent-line',
-          iconBg: 'bg-bocs-navy text-white dark:text-night-ink'
+          iconBg: 'bg-bocs-navy text-white dark:text-white'
         };
     }
   };

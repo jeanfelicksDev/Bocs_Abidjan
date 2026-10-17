@@ -448,7 +448,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
         <div className="flex rounded-md border border-border-default dark:border-night-line overflow-hidden">
           {(['ALL', 'IMPORT', 'EXPORT'] as const).map(op => (
             <button key={op} type="button" onClick={() => setOpFilter(op)}
-              className={`px-3 py-1.5 text-sm font-black transition-all cursor-pointer ${opFilter === op ? 'bg-zinc-800 text-white dark:text-night-ink' : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink hover:bg-surface-base '}`}>
+              className={`px-3 py-1.5 text-sm font-black transition-all cursor-pointer ${opFilter === op ? 'bg-zinc-800 dark:bg-night-accent text-white dark:text-white' : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink hover:bg-surface-base '}`}>
               {op === 'ALL' ? 'Tous' : op}
             </button>
           ))}
@@ -578,7 +578,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
                       handleEmettreProforma(row, res.calc);
                     }
                   }}
-                  className="px-6 py-2.5 bg-[#00875A] hover:bg-[#006E48] text-white dark:text-night-ink rounded-md text-base font-black flex items-center gap-2 cursor-pointer shadow-sm dark:shadow-black/30 transition-all active:scale-95"
+                  className="px-6 py-2.5 bg-[#00875A] hover:bg-[#006E48] text-white dark:text-white rounded-md text-base font-black flex items-center gap-2 cursor-pointer shadow-sm dark:shadow-black/30 transition-all active:scale-95"
                 >
                   <FileText className="w-4 h-4" /> Valider &amp; Émettre Proforma
                 </button>

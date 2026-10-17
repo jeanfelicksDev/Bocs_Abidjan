@@ -1105,7 +1105,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                       generateImportManifestPdf(targetEsc, escBls);
                     }
                   }}
-                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white dark:text-white font-bold text-sm rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                   title="Imprimer le Manifeste Import aux couleurs de BOCS"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-base">print</span>
@@ -1150,7 +1150,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 type="button"
                 onClick={() => setQuickFilter('DANGEROUS')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
-                  quickFilter === 'DANGEROUS' ? 'bg-rose-600 text-white dark:text-night-ink font-black shadow-1' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                  quickFilter === 'DANGEROUS' ? 'bg-rose-600 text-white dark:text-white font-black shadow-1' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
                 }`}
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-sm">warning</span>
@@ -1160,7 +1160,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 type="button"
                 onClick={() => setQuickFilter('WITH_CONTAINERS')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
-                  quickFilter === 'WITH_CONTAINERS' ? 'bg-blue-600 dark:bg-night-accent text-white dark:text-night-ink font-black shadow-1' : 'bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line text-blue-700 dark:text-night-link border border-blue-200 dark:border-night-accent-line'
+                  quickFilter === 'WITH_CONTAINERS' ? 'bg-blue-600 dark:bg-night-accent text-white dark:text-white font-black shadow-1' : 'bg-blue-50 dark:bg-night-accent-soft hover:bg-blue-100 dark:hover:bg-night-accent-line text-blue-700 dark:text-night-link border border-blue-200 dark:border-night-accent-line'
                 }`}
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-sm">inventory_2</span>
@@ -1170,7 +1170,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 type="button"
                 onClick={() => setQuickFilter('WITHOUT_INVOICE')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
-                  quickFilter === 'WITHOUT_INVOICE' ? 'bg-amber-600 text-white dark:text-night-ink font-black shadow-1' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
+                  quickFilter === 'WITHOUT_INVOICE' ? 'bg-amber-600 text-white dark:text-white font-black shadow-1' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
                 }`}
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-sm">receipt_long</span>
@@ -1180,7 +1180,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                 type="button"
                 onClick={() => setQuickFilter('PENDING')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 cursor-pointer shadow-1 ${
-                  quickFilter === 'PENDING' ? 'bg-zinc-800 text-white dark:text-night-ink font-black shadow-1' : 'bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line'
+                  quickFilter === 'PENDING' ? 'bg-zinc-800 text-white dark:text-white font-black shadow-1' : 'bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 text-text-secondary dark:text-night-ink border border-border-default dark:border-night-line'
                 }`}
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-sm">hourglass_empty</span>
@@ -1524,7 +1524,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setEditingBl(bl); setEditBlForm(JSON.parse(JSON.stringify(bl))); setEditBlTab('general'); }}
-                          className="p-1.5 text-[#005DAA] dark:text-night-link hover:text-white bg-[#F0F7FF] hover:bg-[#005DAA] dark:bg-night-accent rounded-md transition-all cursor-pointer border border-[#005DAA] dark:border-night-line/30 shadow-1"
+                          className="p-1.5 text-[#005DAA] dark:text-night-link hover:text-white bg-[#F0F7FF] hover:bg-[#005DAA] dark:bg-night-accent-soft dark:hover:bg-night-accent dark:hover:text-white rounded-md transition-all cursor-pointer border border-[#005DAA] dark:border-night-line/30 shadow-1"
                           title="Modifier ce connaissement"
                         >
                           <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
@@ -1618,7 +1618,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           const totalRoroCount = filteredBls.filter(b => b.typeEmballage === 'RORO').reduce((acc, b) => acc + (b.nombreColis || 0), 0);
 
           return (
-            <div className="p-4 bg-zinc-900 text-white dark:text-night-ink border-t border-zinc-800 flex flex-wrap items-center justify-between gap-4 text-sm shadow-md rounded-b-2xl">
+            <div className="p-4 bg-zinc-900 text-white dark:text-white border-t border-zinc-800 flex flex-wrap items-center justify-between gap-4 text-sm shadow-md rounded-b-2xl">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-md bg-[#005DAA] dark:bg-night-accent flex items-center justify-center text-white dark:text-white shadow-1">
                   <span aria-hidden="true" className="material-symbols-outlined text-xl">analytics</span>
@@ -1646,18 +1646,18 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                 {/* Total Conteneurs */}
                 <div className="flex items-center gap-2 bg-[#005DAA] dark:bg-night-accent text-white dark:text-white px-3.5 py-2 rounded-md border border-[#005DAA] dark:border-night-line/40 shadow-1">
-                  <span className="text-2xs uppercase text-white dark:text-night-ink/90 font-black tracking-wider">Conteneurs:</span>
+                  <span className="text-2xs uppercase text-white dark:text-white/90 font-black tracking-wider">Conteneurs:</span>
                   <span className="font-black text-white dark:text-night-ink text-base">{totalConteneursCount} TC</span>
                 </div>
 
                 {/* Total Vrac */}
-                <div className="flex items-center gap-2 bg-zinc-800 text-white dark:text-night-ink px-3.5 py-2 rounded-md border border-zinc-700 shadow-1">
+                <div className="flex items-center gap-2 bg-zinc-800 text-white dark:text-white px-3.5 py-2 rounded-md border border-zinc-700 shadow-1">
                   <span className="text-2xs uppercase text-text-muted dark:text-night-ink-3 font-black tracking-wider">Vrac:</span>
                   <span className="font-black text-amber-400 text-base">{totalVracCount}</span>
                 </div>
 
                 {/* Total RoRo */}
-                <div className="flex items-center gap-2 bg-zinc-800 text-white dark:text-night-ink px-3.5 py-2 rounded-md border border-zinc-700 shadow-1">
+                <div className="flex items-center gap-2 bg-zinc-800 text-white dark:text-white px-3.5 py-2 rounded-md border border-zinc-700 shadow-1">
                   <span className="text-2xs uppercase text-text-muted dark:text-night-ink-3 font-black tracking-wider">RoRo:</span>
                   <span className="font-black text-emerald-400 text-base">{totalRoroCount}</span>
                 </div>
@@ -2082,7 +2082,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                   e.stopPropagation();
                                   handleGenerateProformaForType(selectedBlDetails, config);
                                 }}
-                                className="px-3 py-1.5 bg-[#1762a3] hover:bg-blue-800 text-white dark:text-night-ink text-xs font-bold rounded flex items-center gap-1.5 shadow-sm dark:shadow-black/30 transition-colors cursor-pointer"
+                                className="px-3 py-1.5 bg-[#1762a3] hover:bg-blue-800 text-white dark:text-white text-xs font-bold rounded flex items-center gap-1.5 shadow-sm dark:shadow-black/30 transition-colors cursor-pointer"
                                 title={`Éditer la Proforma PDF pour ${config.name}`}
                               >
                                 <span aria-hidden="true" className="material-symbols-outlined text-xs">description</span>
@@ -2123,7 +2123,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                         setSelectedBlDetails(null);
                         generateDoBadPdf(target, matchedEscale);
                       }}
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-extrabold rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer text-sm active:scale-95"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white font-extrabold rounded-md shadow-1 transition-all flex items-center gap-1.5 cursor-pointer text-sm active:scale-95"
                     >
                       <span aria-hidden="true" className="material-symbols-outlined text-lg">verified</span>
                       <span>Imprimer DO / BAD</span>
@@ -2345,7 +2345,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                     setEscaleToDelete(null);
                     setSelectedEscaleId('ALL');
                   }}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-lg">delete_forever</span>
                   <span>Confirmer la Suppression Définitive</span>
@@ -2638,7 +2638,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
                                 className={`px-2.5 py-1 text-2xs font-black rounded-lg transition-all shadow-1 flex items-center gap-1 active:scale-95 cursor-pointer ${
                                   isCalcValidated
                                     ? 'bg-emerald-100 border border-emerald-300 text-emerald-800 hover:bg-emerald-200'
-                                    : 'bg-[#00182f] text-white dark:text-night-ink hover:bg-blue-600 dark:bg-night-accent'
+                                    : 'bg-[#00182f] text-white dark:text-white hover:bg-blue-600 dark:bg-night-accent'
                                 }`}
                               >
                                 <span aria-hidden="true" className="material-symbols-outlined text-sm">{isCalcValidated ? 'edit' : 'calculate'}</span>
@@ -3162,7 +3162,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
                   {/* Summary Totals */}
                   <div className="flex justify-end pt-2">
-                    <div className="px-5 py-3 bg-zinc-950 text-white dark:text-night-ink rounded-md shadow-1 text-right space-y-1 border border-zinc-800">
+                    <div className="px-5 py-3 bg-zinc-950 text-white dark:text-white rounded-md shadow-1 text-right space-y-1 border border-zinc-800">
                       <span className="text-2xs text-text-muted dark:text-night-ink-3 font-bold uppercase tracking-wider block font-mono">Total Calculé HT</span>
                       <strong className="text-xl font-black font-mono text-[#005DAA] dark:text-night-link">
                         {modalRows.reduce((sum, row) => {

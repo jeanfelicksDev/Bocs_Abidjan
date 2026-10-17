@@ -141,17 +141,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg shadow-2xl dark:shadow-black/70 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header with User Banner */}
-        <div className="bg-gradient-to-r from-[#00182f] via-[#0b2447] to-[#005daa] p-6 text-white dark:text-night-ink relative">
+        <div className="bg-gradient-to-r from-[#00182f] via-[#0b2447] to-[#005daa] p-6 text-white dark:text-white relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-canvas dark:bg-night-surface/10 hover:bg-surface-canvas flex items-center justify-center text-white dark:text-night-ink transition-all cursor-pointer"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-canvas dark:bg-night-surface/10 hover:bg-surface-canvas flex items-center justify-center text-white dark:text-white transition-all cursor-pointer"
             aria-label="Fermer"
           >
             <X className="w-4 h-4" />
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-emerald-400 to-[#209641] text-white dark:text-night-ink flex items-center justify-center font-black text-xl shadow-lg dark:shadow-black/50 border-2 border-white/20">
+            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-emerald-400 to-[#209641] text-white dark:text-white flex items-center justify-center font-black text-xl shadow-lg dark:shadow-black/50 border-2 border-white/20">
               {initials}
             </div>
             <div>
@@ -177,7 +177,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'profile'
                   ? 'bg-surface-canvas dark:bg-night-surface text-slate-900 dark:text-night-ink shadow-sm dark:shadow-black/30'
-                  : 'text-white dark:text-night-ink/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
+                  : 'text-white dark:text-white/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
               }`}
             >
               <UserIcon className="w-3.5 h-3.5" />
@@ -189,7 +189,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'password'
                   ? 'bg-surface-canvas dark:bg-night-surface text-slate-900 dark:text-night-ink shadow-sm dark:shadow-black/30'
-                  : 'text-white dark:text-night-ink/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
+                  : 'text-white dark:text-white/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
               }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
@@ -201,7 +201,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'security'
                   ? 'bg-surface-canvas dark:bg-night-surface text-slate-900 dark:text-night-ink shadow-sm dark:shadow-black/30'
-                  : 'text-white dark:text-night-ink/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
+                  : 'text-white dark:text-white/80 hover:bg-surface-canvas dark:bg-night-surface/10 hover:text-white '
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -311,7 +311,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <button
                   type="submit"
                   disabled={isSavingProfile}
-                  className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-night-ink font-bold text-sm rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                  className="px-5 py-2 bg-[#005daa] hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-white font-bold text-sm rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{isSavingProfile ? 'Enregistrement...' : 'Enregistrer les Modifications'}</span>
@@ -405,7 +405,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <button
                   type="submit"
                   disabled={isSavingPass}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white font-bold text-sm rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   <Check className="w-4 h-4" />
                   <span>{isSavingPass ? 'Modification...' : 'Confirmer le Changement'}</span>

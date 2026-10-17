@@ -366,7 +366,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
     } else if (isCorrectionWindowActive) {
       if (isClientExport) {
         badgeText = `Correction active (${correctionTimeFormatted} restantes)`;
-        badgeColor = 'bg-teal-50 dark:bg-night-sunken text-teal-800 dark:text-[#5EEAD4] border-teal-400 dark:border-[#2DD4BF]/30 font-extrabold';
+        badgeColor = 'bg-teal-50 dark:bg-night-sunken text-teal-800 dark:text-night-positive border-teal-400 dark:border-night-positive-line font-extrabold';
       } else {
         badgeText = `Attente Ok To Print (Reste ${correctionTimeFormatted})`;
         badgeColor = 'bg-amber-50 dark:bg-night-caution-soft text-amber-800 dark:text-night-caution border-amber-300 dark:border-night-caution-line font-bold';
@@ -1053,7 +1053,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
             <span aria-hidden="true" className="material-symbols-outlined text-lg">folder_shared</span>
             <span>Espace Client &amp; Historique</span>
             {displayedDrafts.length > 0 && (
-              <span className={`text-2xs font-mono px-1.5 py-0.5 rounded-full ${activeSubTab === 'ESPACE_CLIENT' ? 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-night-ink' : 'bg-zinc-200 text-text-primary dark:text-night-ink'
+              <span className={`text-2xs font-mono px-1.5 py-0.5 rounded-full ${activeSubTab === 'ESPACE_CLIENT' ? 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-white' : 'bg-zinc-200 text-text-primary dark:text-night-ink'
                 }`}>
                 {displayedDrafts.length}
               </span>
@@ -1087,7 +1087,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
               <span aria-hidden="true" className="material-symbols-outlined text-lg">inventory</span>
               <span>Manifeste Export (Consolidation)</span>
               {validatedDraftsForManifest.length > 0 && (
-                <span className={`text-2xs font-mono px-1.5 py-0.5 rounded-full ${activeSubTab === 'CONSOLIDATION' ? 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-night-ink' : 'bg-emerald-100 text-emerald-800 font-black'
+                <span className={`text-2xs font-mono px-1.5 py-0.5 rounded-full ${activeSubTab === 'CONSOLIDATION' ? 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-white' : 'bg-emerald-100 text-emerald-800 font-black'
                   }`}>
                   {validatedDraftsForManifest.length} BLs
                 </span>
@@ -1128,7 +1128,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
           </div>
           <button
             onClick={() => setActiveSubTab('ESPACE_CLIENT')}
-            className="px-3.5 py-1.5 bg-amber-600 dark:bg-night-caution hover:bg-amber-700 dark:hover:bg-night-caution text-white dark:text-night-ink font-bold text-sm rounded-md shadow-1 transition-all cursor-pointer"
+            className="px-3.5 py-1.5 bg-amber-600 dark:bg-night-caution hover:bg-amber-700 dark:hover:bg-night-caution text-white dark:text-white font-bold text-sm rounded-md shadow-1 transition-all cursor-pointer"
           >
             Examiner dans la liste
           </button>
@@ -1214,7 +1214,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                         setRefusalReason('');
                         setAgentApprovalModalOpen(true);
                       }}
-                      className="shrink-0 px-4 py-2 bg-amber-600 dark:bg-night-caution hover:bg-amber-700 dark:hover:bg-night-caution text-white dark:text-night-ink font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
+                      className="shrink-0 px-4 py-2 bg-amber-600 dark:bg-night-caution hover:bg-amber-700 dark:hover:bg-night-caution text-white dark:text-white font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
                     >
                       <ShieldCheck className="w-3.5 h-3.5" />
                       <span>Traiter la Demande</span>
@@ -1308,7 +1308,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                       : s === 'BROUILLON'
                         ? 'bg-surface-sunken dark:bg-night-sunken hover:bg-zinc-200 dark:hover:bg-night-raised border-zinc-300 dark:border-night-line-strong text-text-primary dark:text-night-ink-2'
                         : s === 'CORRECTION_AUTORISEE'
-                          ? 'bg-teal-50 dark:bg-night-sunken hover:bg-teal-100 dark:hover:bg-night-raised border-teal-300 dark:border-[#2DD4BF]/30 text-teal-800 dark:text-[#5EEAD4] font-extrabold'
+                          ? 'bg-teal-50 dark:bg-night-sunken hover:bg-teal-100 dark:hover:bg-night-raised border-teal-300 dark:border-night-positive-line text-teal-800 dark:text-night-positive font-extrabold'
                           : s === 'VERROUILLE'
                             ? 'bg-rose-50 dark:bg-night-critical-soft hover:bg-rose-100 dark:hover:bg-night-critical-line border-rose-300 dark:border-night-critical/30 text-rose-800 dark:text-night-critical'
                             : s === 'DEMANDE_CORRECTION'
@@ -1517,7 +1517,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                                 draft.statut === 'CORRECTION_AUTORISEE' ? (
                                   <button
                                     onClick={() => handleEditDraft(draft)}
-                                    className="px-3 py-1.5 bg-teal-50 dark:bg-night-sunken hover:bg-teal-100 dark:hover:bg-night-raised text-teal-800 dark:text-[#5EEAD4] border border-teal-300 dark:border-[#2DD4BF]/30 font-extrabold text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
+                                    className="px-3 py-1.5 bg-teal-50 dark:bg-night-sunken hover:bg-teal-100 dark:hover:bg-night-raised text-teal-800 dark:text-night-positive border border-teal-300 dark:border-night-positive-line font-extrabold text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
                                     title="Le draft a été déverrouillé. En attente de la soumission / Ok To Print du client exportateur (cliquez pour consulter/éditer)"
                                   >
                                     <Clock className="w-3.5 h-3.5 text-teal-700" />
@@ -1539,7 +1539,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                             {(userRole === 'AGENT_EXPORT' || userRole === 'ADMIN') && (draft.statut === 'SOUMIS' || draft.statut === 'BROUILLON') && (
                               <button
                                 onClick={() => handleValidateDraftByAgent(draft)}
-                                className="px-3 py-1.5 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
+                                className="px-3 py-1.5 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-white font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
                               >
                                 <CheckCircle className="w-3.5 h-3.5" />
                                 <span>Valider en BL</span>
@@ -1569,7 +1569,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                                   setTargetDraftForFeeAcceptance(draft);
                                   setClientFeeModalOpen(true);
                                 }}
-                                className="px-3 py-1.5 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
+                                className="px-3 py-1.5 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-white font-black text-sm rounded-md inline-flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
                                 title="L'agent a accordé la correction. Cliquez pour accepter les frais et débuter votre fenêtre de 2h."
                               >
                                 <DollarSign className="w-3.5 h-3.5" />
@@ -2282,7 +2282,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                     <button
                       type="button"
                       onClick={handleFinalSubmitDraft}
-                      className="px-6 py-3 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-base rounded-md transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
+                      className="px-6 py-3 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-white font-black text-base rounded-md transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
                     >
                       <Send className="w-4 h-4" />
                       <span>Transmettre le Draft</span>
@@ -2606,7 +2606,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 type="button"
                 onClick={handleSubmitCorrectionRequest}
                 disabled={!fraisAcceptes || !motifCorrection.trim()}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white dark:text-night-ink font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white dark:text-white font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Confirmer &amp; Transmettre la Demande</span>
@@ -2624,8 +2624,8 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
         <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setAgentApprovalModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-xl w-full shadow-2xl dark:shadow-black/70 border border-border-default dark:border-night-line overflow-hidden animate-scale-in">
 
-            <div className="bg-[#002B49] text-white dark:text-night-ink p-5 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/10 text-white dark:text-night-ink flex items-center justify-center shrink-0 font-black">
+            <div className="bg-[#002B49] text-white dark:text-white p-5 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/10 text-white dark:text-white flex items-center justify-center shrink-0 font-black">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
@@ -2759,7 +2759,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => handleApproveCorrection(false)}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white dark:text-night-ink font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white dark:text-white font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
                   title="Envoie l'accord au client — il devra accepter les frais pour activer ses 2h"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
@@ -2768,7 +2768,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => handleApproveCorrection(true)}
-                  className="px-4 py-2 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-white font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
                   title="Active immédiatement la fenêtre de 2h et émet la facture"
                 >
                   <Unlock className="w-3.5 h-3.5" />
@@ -2787,7 +2787,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       {refuseModalOpen && targetDraftForApproval && (
         <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setRefuseModalOpen(false))} className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-md w-full shadow-2xl dark:shadow-black/70 border border-rose-300 overflow-hidden animate-scale-in">
-            <div className="bg-rose-600 text-white dark:text-night-ink p-5 flex items-center gap-3">
+            <div className="bg-rose-600 text-white dark:text-white p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/15 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5" />
               </div>
@@ -2825,7 +2825,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                 type="button"
                 onClick={handleRefuseCorrection}
                 disabled={!refusalReason.trim()}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white dark:text-night-ink font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white dark:text-white font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
                 <span>Confirmer le Refus</span>
@@ -2842,7 +2842,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
         <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setClientFeeModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-lg w-full shadow-2xl dark:shadow-black/70 border border-emerald-300 overflow-hidden animate-scale-in">
 
-            <div className="bg-gradient-to-r from-emerald-700 to-teal-700 text-white dark:text-night-ink p-5 flex items-center gap-3">
+            <div className="bg-gradient-to-r from-emerald-700 to-teal-700 text-white dark:text-white p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/15 flex items-center justify-center shrink-0">
                 <DollarSign className="w-5 h-5" />
               </div>
@@ -2911,7 +2911,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
               <button
                 type="button"
                 onClick={() => handleClientAcceptFeesAndStartCorrection(targetDraftForFeeAcceptance)}
-                className="px-5 py-2 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-night-ink font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                className="px-5 py-2 bg-emerald-600 dark:bg-night-positive hover:bg-emerald-700 dark:hover:bg-night-positive text-white dark:text-white font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>Accepter les frais &amp; Activer ma fenêtre de 2h</span>
@@ -2928,7 +2928,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       {deleteDraftModalOpen && draftToDelete && (
         <div role="dialog" aria-modal="true" onClick={overlayClickClose(() => setDeleteDraftModalOpen(false))} className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface-canvas dark:bg-night-surface rounded-md max-w-md w-full shadow-2xl dark:shadow-black/70 border border-rose-300 overflow-hidden animate-scale-in">
-            <div className="bg-gradient-to-r from-rose-600 to-rose-700 text-white dark:text-night-ink p-5 flex items-center gap-3">
+            <div className="bg-gradient-to-r from-rose-600 to-rose-700 text-white dark:text-white p-5 flex items-center gap-3">
               <div className="w-10 h-10 rounded-md bg-surface-canvas dark:bg-night-surface/15 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5 text-white dark:text-night-ink" />
               </div>
@@ -2988,7 +2988,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmDeleteDraft}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-black text-sm rounded-md shadow-1 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Confirmer la suppression</span>
@@ -3039,7 +3039,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
               <button
                 type="button"
                 onClick={() => setValidationErrors([])}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-1 transition-all cursor-pointer"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold text-sm rounded-md shadow-1 transition-all cursor-pointer"
               >
                 Compris
               </button>

@@ -192,7 +192,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
             onClick={() => setActiveTab('general')}
             className={`px-4 sm:px-5 py-2.5 rounded-md font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'general'
-                ? 'bg-[#002B49] text-white dark:text-night-ink shadow-sm dark:shadow-black/30'
+                ? 'bg-[#002B49] text-white dark:text-white shadow-sm dark:shadow-black/30'
                 : 'text-text-secondary dark:text-night-ink hover:bg-surface-sunken dark:bg-night-sunken'
             }`}
           >
@@ -205,7 +205,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
             onClick={() => setActiveTab('parties')}
             className={`px-4 sm:px-5 py-2.5 rounded-md font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'parties'
-                ? 'bg-[#002B49] text-white dark:text-night-ink shadow-sm dark:shadow-black/30'
+                ? 'bg-[#002B49] text-white dark:text-white shadow-sm dark:shadow-black/30'
                 : 'text-text-secondary dark:text-night-ink hover:bg-surface-sunken dark:bg-night-sunken'
             }`}
           >
@@ -218,7 +218,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
             onClick={() => setActiveTab('goods')}
             className={`px-4 sm:px-5 py-2.5 rounded-md font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'goods'
-                ? 'bg-[#002B49] text-white dark:text-night-ink shadow-sm dark:shadow-black/30'
+                ? 'bg-[#002B49] text-white dark:text-white shadow-sm dark:shadow-black/30'
                 : 'text-text-secondary dark:text-night-ink hover:bg-surface-sunken dark:bg-night-sunken'
             }`}
           >
@@ -231,7 +231,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
             onClick={() => setActiveTab('containers')}
             className={`px-4 sm:px-5 py-2.5 rounded-md font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'containers'
-                ? 'bg-[#002B49] text-white dark:text-night-ink shadow-sm dark:shadow-black/30'
+                ? 'bg-[#002B49] text-white dark:text-white shadow-sm dark:shadow-black/30'
                 : 'text-text-secondary dark:text-night-ink hover:bg-surface-sunken dark:bg-night-sunken'
             }`}
           >
@@ -244,7 +244,7 @@ export const ExtractedBlEditModal: React.FC<ExtractedBlEditModalProps> = ({
             onClick={() => setActiveTab('customs')}
             className={`px-4 sm:px-5 py-2.5 rounded-md font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'customs'
-                ? 'bg-[#002B49] text-white dark:text-night-ink shadow-sm dark:shadow-black/30'
+                ? 'bg-[#002B49] text-white dark:text-white shadow-sm dark:shadow-black/30'
                 : 'text-text-secondary dark:text-night-ink hover:bg-surface-sunken dark:bg-night-sunken'
             }`}
           >

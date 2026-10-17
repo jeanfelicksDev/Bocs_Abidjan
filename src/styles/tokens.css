@@ -196,44 +196,57 @@
 
 
 /* ---------------------------------------------------------------------
-   12. NUIT — primitives du thème sombre « bleu BOCS ».
-       Triplets RGB pour que Tailwind garde les opacités
-       (`dark:bg-night-surface/60`). Dérivées du bleu nuit #002B49 du logo :
-       le thème sombre reste la même marque. Contrastes mesurés sur
-       --night-surface.
+   12. THÈME « EGLIN » — primitives du second thème (classe `.dark`).
+       Reprend l'apparence d'Eglin Operations : fond crème, cartes blanches,
+       encre vert-noir, action vert forêt, accent or.
+       Les noms `--night-*` sont conservés : ~4 000 classes `dark:` les
+       consomment. Triplets RGB pour que Tailwind garde les opacités
+       (`dark:bg-night-surface/60`). Contrastes mesurés sur --night-surface.
    --------------------------------------------------------------------- */
 :root {
-  --night-canvas:        11 22 34;   /* #0B1622 fond de l'application */
-  --night-sunken:         8 17 27;   /* #08111B puits, champs de saisie */
-  --night-surface:       17 31 46;   /* #111F2E panneaux, cartes */
-  --night-raised:        24 42 60;   /* #182A3C survol, puces, en-têtes de tableau */
-  --night-line:          35 56 77;   /* #23384D règle */
-  --night-line-strong:   49 73 95;   /* #31495F règle marquée, contour de contrôle */
-  --night-ink:          230 237 244; /* #E6EDF4 texte principal    14.9:1 */
-  --night-ink-2:        168 183 198; /* #A8B7C6 texte secondaire    8.4:1 */
-  --night-ink-3:        129 149 169; /* #8195A9 texte discret       5.2:1 */
-  --night-accent:        21 105 181; /* #1569B5 bleu BOCS d'action, texte blanc 5.6:1 */
-  --night-accent-strong: 26 120 204; /* #1A78CC survol d'action */
-  --night-accent-soft:   19 48 77;   /* #13304D fond teinté bleu */
-  --night-accent-line:   36 80 122;  /* #24507A filet teinté bleu */
-  --night-link:         125 185 245; /* #7DB9F5 lien, icône active   7.9:1 */
-  --night-positive:      92 207 155; /* #5CCF9B validé, encaissé    9.0:1 */
-  --night-positive-soft: 15 46 36;
-  --night-positive-line: 31 90 68;
-  --night-caution:      237 190 98;  /* #EDBE62 en attente          9.6:1 */
-  --night-caution-soft:  51 40 15;
-  --night-caution-line:  92 71 24;
-  --night-critical:     244 148 158; /* #F4949E écart, retard       7.6:1 */
-  --night-critical-soft: 58 24 32;
-  --night-critical-line: 106 42 54;
+  --night-canvas:        246 245 240; /* #F6F5F0 fond crème de l'application */
+  --night-sunken:        243 242 236; /* #F3F2EC puits, en-têtes discrets */
+  --night-surface:       255 255 255; /* #FFFFFF panneaux, cartes */
+  --night-raised:        236 235 228; /* #ECEBE4 survol, puces, en-têtes de tableau */
+  --night-line:          226 224 216; /* #E2E0D8 règle */
+  --night-line-strong:   214 212 202; /* #D6D4CA contour de contrôle */
+  --night-ink:            23  32  27; /* #17201B texte principal     16.4:1 */
+  --night-ink-2:          61  73  66; /* #3D4942 texte secondaire     9.8:1 */
+  --night-ink-3:          92 104  96; /* #5C6860 texte discret        5.9:1 */
+  --night-accent:         14  59  44; /* #0E3B2C vert forêt d'action, texte blanc 12:1 */
+  --night-accent-strong:  24  75  56; /* #184B38 survol d'action */
+  --night-accent-soft:   232 240 235; /* #E8F0EB fond teinté vert */
+  --night-accent-line:   190 214 201; /* #BED6C9 filet teinté vert */
+  --night-link:           31 106  72; /* #1F6A48 lien, icône active    6.5:1 */
+  --night-positive:       31 106  72; /* #1F6A48 validé, encaissé      6.5:1 */
+  --night-positive-soft: 232 242 236;
+  --night-positive-line: 186 216 199;
+  --night-caution:       130  88  15; /* #82580F en attente           6.0:1 */
+  --night-caution-soft:  250 242 222;
+  --night-caution-line:  234 208 152;
+  --night-critical:      154  51  34; /* #9A3322 écart, retard         7.2:1 */
+  --night-critical-soft: 248 233 229;
+  --night-critical-line: 234 190 180;
+
+  /* Propre à Eglin : l'or de marque (sélection de texte). */
+  --night-gold:          224 169  43; /* #E0A92B */
+  /* Texte posé sur un aplat vert forêt (bandeaux, en-têtes sombres). */
+  --night-on-accent:     214 226 218; /* #D6E2DA */
+  --night-on-accent-2:   169 191 178; /* #A9BFB2 */
 }
 
 /* ---------------------------------------------------------------------
-   THÈME SOMBRE — bleu BOCS. Les rôles sémantiques basculent ici ; un
+   THÈME EGLIN (classe `.dark`). Les rôles sémantiques basculent ici ; un
    composant qui consomme les rôles n'a rien à faire.
    --------------------------------------------------------------------- */
 .dark {
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* Typographie Eglin : Geist pour l'interface, Geist Mono pour les données. */
+  --font-sans: 'Geist', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --font-brand: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --font-data: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   --color-primary: rgb(var(--night-accent));
   --color-primary-dark: rgb(var(--night-ink)); /* encre des titres */
@@ -249,18 +262,24 @@
   --c-slate-100: rgb(var(--night-sunken));
   --c-slate-50:  rgb(var(--night-canvas));
   --c-blue-50:   rgb(var(--night-accent-soft));
+  --c-blue-100:  rgb(var(--night-accent-soft));
+  --c-blue-200:  rgb(var(--night-accent-line));
+  --c-blue-500:  rgb(var(--night-link));
+  --c-blue-600:  rgb(var(--night-accent));        /* l'action devient vert forêt */
+  --c-blue-700:  rgb(var(--night-accent-strong));
+  --c-green-600: rgb(var(--night-positive));
+  --c-green-700: rgb(var(--night-positive));
 
   --focus-ring-color: rgb(var(--night-link));
-  /* --c-white devient une surface en sombre : le texte sur accent reste blanc. */
   --text-on-accent: #ffffff;
-  --text-on-inverse: rgb(var(--night-ink));
+  --text-on-inverse: rgb(var(--night-canvas));
 
   --surface-canvas: rgb(var(--night-canvas));
   --surface-sunken: rgb(var(--night-sunken));
   --surface-base: rgb(var(--night-surface));
   --surface-raised: rgb(var(--night-surface));
-  --surface-overlay: rgb(var(--night-raised));
-  --surface-inverse: rgb(var(--night-sunken));
+  --surface-overlay: rgb(var(--night-surface));
+  --surface-inverse: rgb(var(--night-accent));
   --surface-accent-soft: rgb(var(--night-accent-soft));
   --surface-positive-soft: rgb(var(--night-positive-soft));
   --surface-caution-soft: rgb(var(--night-caution-soft));
@@ -279,13 +298,13 @@
   --border-default: rgb(var(--night-line));
   --border-strong: rgb(var(--night-line-strong));
   --border-accent: rgb(var(--night-link));
-  --border-inverse: rgb(var(--night-line-strong));
+  --border-inverse: rgb(var(--night-accent-strong));
 
-  /* Dans le noir, la profondeur vient de la surface ; l'ombre reste courte. */
-  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --elevation-2: 0 2px 4px rgba(0, 0, 0, 0.30), 0 8px 16px -6px rgba(0, 0, 0, 0.45);
-  --elevation-3: 0 4px 8px rgba(0, 0, 0, 0.32), 0 18px 34px -10px rgba(0, 0, 0, 0.55);
-  --elevation-4: 0 8px 16px rgba(0, 0, 0, 0.35), 0 32px 56px -16px rgba(0, 0, 0, 0.60);
+  /* Ombres Eglin : courtes, teintées de l'encre vert-noir. */
+  --elevation-1: 0 1px 2px rgba(23, 32, 27, 0.04), 0 4px 16px -8px rgba(23, 32, 27, 0.08);
+  --elevation-2: 0 2px 4px rgba(23, 32, 27, 0.05), 0 12px 32px -12px rgba(23, 32, 27, 0.18);
+  --elevation-3: 0 4px 8px rgba(23, 32, 27, 0.06), 0 18px 34px -10px rgba(23, 32, 27, 0.20);
+  --elevation-4: 0 8px 16px rgba(23, 32, 27, 0.08), 0 32px 56px -16px rgba(23, 32, 27, 0.26);
 
   --ink: rgb(var(--night-ink));
   --ink-muted: rgb(var(--night-ink-2));
@@ -305,5 +324,5 @@
 
 /* Sélection et barres de défilement : surfaces du navigateur, au thème aussi. */
 ::selection { background: rgb(0 93 170 / 0.22); color: inherit; }
-.dark ::selection { background: rgb(var(--night-link) / 0.30); color: rgb(var(--night-ink)); }
-.dark { scrollbar-color: rgb(var(--night-line-strong)) rgb(var(--night-canvas)); }
+.dark ::selection { background: rgb(var(--night-gold) / 0.35); color: rgb(var(--night-ink)); }
+.dark { scrollbar-color: rgb(var(--night-ink) / 0.18) transparent; }

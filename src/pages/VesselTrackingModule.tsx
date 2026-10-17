@@ -236,7 +236,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 premium-btn-primary text-white dark:text-night-ink font-extrabold text-sm rounded-md shadow-md transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
+            className="px-4 py-2.5 premium-btn-primary text-white dark:text-white font-extrabold text-sm rounded-md shadow-md transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
           >
             <span aria-hidden="true" className="material-symbols-outlined text-lg">add_location_alt</span>
             <span>Programmer une Escale</span>
@@ -736,7 +736,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 premium-btn-primary text-white dark:text-night-ink font-bold rounded-md shadow-md transition-all cursor-pointer"
+                  className="px-5 py-2 premium-btn-primary text-white dark:text-white font-bold rounded-md shadow-md transition-all cursor-pointer"
                 >
                   Enregistrer l'Escale
                 </button>
@@ -825,7 +825,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 premium-btn-primary text-white dark:text-night-ink font-bold rounded-md shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 premium-btn-primary text-white dark:text-white font-bold rounded-md shadow-md transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
                   <span>{editingVessel ? 'Enregistrer' : 'Créer le Navire'}</span>
@@ -1005,7 +1005,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                     }
                     setEscaleToDelete(null);
                   }}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-lg">delete_forever</span>
                   <span>Confirmer la Suppression Définitive</span>
@@ -1077,7 +1077,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
                     }
                     setVesselToDelete(null);
                   }}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold text-sm rounded-md shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-lg">delete_forever</span>
                   <span>Confirmer la suppression</span>

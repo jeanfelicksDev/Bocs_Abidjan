@@ -345,9 +345,9 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   // Helper labels
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
-      case 'ADMIN': return 'bg-purple-950/60 text-purple-300 border border-purple-700/50';
-      case 'AGENT_IMPORT': return 'bg-blue-950/60 text-blue-300 border border-blue-700/50';
-      case 'AGENT_EXPORT': return 'bg-indigo-950/60 text-indigo-300 border border-indigo-700/50';
+      case 'ADMIN': return 'bg-purple-950/60 dark:bg-night-caution-soft text-purple-300 dark:text-night-caution border border-purple-700/50 dark:border-night-caution-line';
+      case 'AGENT_IMPORT': return 'bg-blue-950/60 dark:bg-night-accent-soft text-blue-300 dark:text-night-link border border-blue-700/50 dark:border-night-accent-line';
+      case 'AGENT_EXPORT': return 'bg-indigo-950/60 dark:bg-night-raised text-indigo-300 dark:text-night-ink-2 border border-indigo-700/50 dark:border-night-line-strong';
       case 'COMPTABILITE': return 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 border border-emerald-200 dark:border-night-positive-line';
       case 'CLIENT_EXPORT': return 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 border border-slate-200 dark:border-night-line';
     }
@@ -892,7 +892,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'AGENT_IMPORT')}
                               className={`w-full py-2 px-3 rounded-md text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-1 active:scale-95 ${perm.roles.AGENT_IMPORT
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink border border-emerald-700 font-black'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white border border-emerald-700 font-black'
                                 : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
@@ -909,7 +909,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'AGENT_EXPORT')}
                               className={`w-full py-2 px-3 rounded-md text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-1 active:scale-95 ${perm.roles.AGENT_EXPORT
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink border border-emerald-700 font-black'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white border border-emerald-700 font-black'
                                 : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
@@ -926,7 +926,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'COMPTABILITE')}
                               className={`w-full py-2 px-3 rounded-md text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-1 active:scale-95 ${perm.roles.COMPTABILITE
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink border border-emerald-700 font-black'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white border border-emerald-700 font-black'
                                 : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
@@ -943,7 +943,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                               type="button"
                               onClick={() => handleTogglePermission(perm.id, 'CLIENT_EXPORT')}
                               className={`w-full py-2 px-3 rounded-md text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-1 active:scale-95 ${perm.roles.CLIENT_EXPORT
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink border border-emerald-700 font-black'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white border border-emerald-700 font-black'
                                 : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300 font-black'
                                 }`}
                             >
@@ -1059,7 +1059,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                                     type="button"
                                     onClick={() => handleToggleUserOverride(targetUser.id, perm.id, defaultRoleVal)}
                                     className={`px-4 py-2 rounded-md text-sm font-black transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-1 active:scale-95 ${effectiveVal
-                                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink border border-emerald-700'
+                                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white border border-emerald-700'
                                       : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-300'
                                       }`}
                                   >
@@ -1114,7 +1114,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   step="0.01"
                   value={exchangeRateUsd}
                   onChange={e => onUpdateExchangeRate(parseFloat(e.target.value) || 600)}
-                  className="w-28 px-3 py-1.5 bg-[#050e1a] border border-slate-200 dark:border-night-line rounded-lg font-mono font-black text-blue-600 dark:text-night-link text-base focus:outline-none focus:border-[#005DAA] text-right"
+                  className="w-28 px-3 py-1.5 bg-[#050e1a] dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg font-mono font-black text-blue-600 dark:text-night-link text-base focus:outline-none focus:border-[#005DAA] text-right"
                 />
                 <span className="text-base font-black text-blue-600 dark:text-night-link">FCFA</span>
               </div>
@@ -1150,7 +1150,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                         onUpdateFneParam(param.cle, e.target.value);
                         onLogAudit('PARAMETRE_FNE_MODIFIE', 'FneParam', `Mise à jour de la clé ${param.cle}`);
                       }}
-                      className="px-3 py-2 bg-[#071322] border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-white dark:text-night-ink w-full sm:w-80 focus:border-[#005DAA] focus:outline-none"
+                      className="px-3 py-2 bg-[#071322] dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg text-sm font-mono font-bold text-white dark:text-night-ink w-full sm:w-80 focus:border-[#005DAA] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1552,7 +1552,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white dark:text-night-ink font-bold text-sm rounded-md transition-all cursor-pointer active:scale-95"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white dark:text-white font-bold text-sm rounded-md transition-all cursor-pointer active:scale-95"
               >
                 Supprimer le compte
               </button>

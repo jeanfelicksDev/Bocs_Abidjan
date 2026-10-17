@@ -346,7 +346,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
               onClick={() => setFilterMode(key as typeof filterMode)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-2xs font-bold shadow-md  transition-all cursor-pointer border ${
                 filterMode === key
-                  ? 'bg-[#1a73e8] text-white dark:text-night-ink border-[#1a73e8] shadow-blue-200'
+                  ? 'bg-[#1a73e8] text-white dark:text-white border-[#1a73e8] shadow-blue-200'
                   : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink border-white/60 hover:bg-surface-base '
               }`}
             >
@@ -362,7 +362,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
         {selectedEscale && (
           <div className="h-full bg-surface-canvas dark:bg-night-surface shadow-2xl dark:shadow-black/70 flex flex-col">
             {/* Header panneau */}
-            <div className="bg-[#1a73e8] px-5 py-5 text-white dark:text-night-ink">
+            <div className="bg-[#1a73e8] px-5 py-5 text-white dark:text-white">
               <div className="flex items-center justify-between mb-3">
                 <button aria-label="Fermer"
                   type="button"
@@ -386,7 +386,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
                 </div>
                 <div>
                   <h3 className="font-black text-base leading-tight">{selectedEscale.nomNavire}</h3>
-                  <p className="text-2xs text-white dark:text-night-ink/70 font-mono mt-0.5">V.{selectedEscale.numeroVoyage}</p>
+                  <p className="text-2xs text-white dark:text-white/70 font-mono mt-0.5">V.{selectedEscale.numeroVoyage}</p>
                 </div>
               </div>
             </div>
@@ -445,7 +445,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
               <button
                 type="button"
                 onClick={handleOpenDetails}
-                className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white dark:text-night-ink font-black text-sm py-3 rounded-md transition-colors cursor-pointer shadow-lg dark:shadow-black/50 shadow-blue-200"
+                className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white dark:text-white font-black text-sm py-3 rounded-md transition-colors cursor-pointer shadow-lg dark:shadow-black/50 shadow-blue-200"
               >
                 Ouvrir le dossier escale
                 <ChevronRight className="w-4 h-4" />

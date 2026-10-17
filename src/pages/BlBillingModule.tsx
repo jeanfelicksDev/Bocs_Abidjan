@@ -1206,9 +1206,9 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   setActiveBlId(bl.id);
                   if (onSelectBl) onSelectBl(bl.id);
                 }}
-                className="shrink-0 min-w-max bg-cyan-50 dark:bg-[#1C2C35] border-2 border-cyan-600 dark:border-[#338192] shadow-sm dark:shadow-black/30 px-4 py-2 rounded-md whitespace-nowrap font-black text-sm text-cyan-950 dark:text-night-ink flex items-center gap-2.5 relative overflow-hidden cursor-pointer select-none active:scale-95 transition-all"
+                className="shrink-0 min-w-max bg-cyan-50 dark:bg-night-accent-soft border-2 border-cyan-600 dark:border-night-accent-line shadow-sm dark:shadow-black/30 px-4 py-2 rounded-md whitespace-nowrap font-black text-sm text-cyan-950 dark:text-night-ink flex items-center gap-2.5 relative overflow-hidden cursor-pointer select-none active:scale-95 transition-all"
               >
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-cyan-600 dark:bg-[#338192]" />
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-cyan-600 dark:bg-night-link" />
                 <span className="font-mono font-black tracking-tight whitespace-nowrap pl-1">{bl.numeroBL}</span>
                 <span className={`px-1.5 py-0.5 rounded-md text-2xs font-black tracking-wider ${bl.typeOperation === 'IMPORT' ? 'bg-blue-100 dark:bg-night-accent-soft text-blue-800 dark:text-night-link' : 'bg-violet-100 dark:bg-night-accent-soft text-violet-800 dark:text-night-link'}`}>
                   {bl.typeOperation === 'IMPORT' ? 'IMP' : 'EXP'}
@@ -1619,7 +1619,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                                     onValidateInvoice(existingInvoice.id);
                                     toastSuccess(`Facture validée sous le numéro officiel.`);
                                   }}
-                                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink rounded-md text-sm font-black flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
+                                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white rounded-md text-sm font-black flex items-center gap-1.5 shadow-1 transition-all cursor-pointer active:scale-95"
                                   title="Valider cette proforma — attribue un numéro fiscal définitif FA-"
                                 >
                                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -1648,7 +1648,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                                       setPaymentMontant(existingInvoice.soldeDuFcfa);
                                       setShowPaymentModal(true);
                                     }}
-                                    className="px-4 py-1.5 bg-[#0F172A] hover:bg-[#1E293B] text-white dark:text-night-ink rounded-md text-sm font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-1"
+                                    className="px-4 py-1.5 bg-[#0F172A] hover:bg-[#1E293B] text-white dark:text-white rounded-md text-sm font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-1"
                                     title="Enregistrer un règlement sur cette facture validée"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
@@ -1817,7 +1817,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   disabled={!isBadDeliverable}
                   className={`px-6 py-3 rounded-md flex items-center gap-2 font-black text-sm transition-all active:scale-95 border ${
                     isBadDeliverable 
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink border-transparent cursor-pointer shadow-sm dark:shadow-black/30' 
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white border-transparent cursor-pointer shadow-sm dark:shadow-black/30' 
                       : 'bg-surface-sunken dark:bg-night-sunken text-text-muted dark:text-night-ink-3 border-border-default dark:border-night-line cursor-not-allowed select-none'
                   }`}
                 >
@@ -1845,7 +1845,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
           <button
             type="button"
             onClick={() => setSearchQuery('')}
-            className="px-3.5 py-2 bg-[#005daa] text-white dark:text-night-ink rounded-md text-sm font-bold hover:bg-blue-700 dark:hover:bg-night-accent-strong transition-all cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-[#005daa] text-white dark:text-white rounded-md text-sm font-bold hover:bg-blue-700 dark:hover:bg-night-accent-strong transition-all cursor-pointer inline-flex items-center gap-1.5"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Réinitialiser</span>
@@ -2072,7 +2072,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
               <button
                 type="submit"
-                className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-bold text-sm uppercase tracking-wider rounded-md transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm dark:shadow-black/30 active:scale-98 mt-2"
+                className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white font-bold text-sm uppercase tracking-wider rounded-md transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm dark:shadow-black/30 active:scale-98 mt-2"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Valider le Règlement</span>
@@ -2254,7 +2254,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     toastSuccess('Calculs dégressifs validés et enregistrés pour ce BL !');
                     setCalculationModalData(null);
                   }}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white dark:text-night-ink rounded-md text-sm font-bold cursor-pointer shadow-1"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white dark:text-white rounded-md text-sm font-bold cursor-pointer shadow-1"
                 >
                   Valider les Calculs
                 </button>
@@ -2279,7 +2279,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   <div className="flex justify-between items-start border-b border-slate-300 dark:border-night-line-strong pb-4">
                     <div className="flex flex-col">
                       <div className="text-[#209641] font-black text-4xl italic tracking-tight font-sans">BOCS</div>
-                      <div className="bg-[#051424] text-white dark:text-night-ink font-extrabold px-3 py-1 text-2xs tracking-wider uppercase mt-1 self-start rounded-xs">ABIDJAN</div>
+                      <div className="bg-[#051424] text-white dark:text-white font-extrabold px-3 py-1 text-2xs tracking-wider uppercase mt-1 self-start rounded-xs">ABIDJAN</div>
                     </div>
                     <div className="text-right text-2xs text-slate-500 dark:text-night-ink-2 font-mono">
                       <div>{new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
@@ -2475,7 +2475,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                     <select
                       value={printReglement}
                       onChange={e => setPrintReglement(e.target.value as (typeof MODES_REGLEMENT)[number])}
-                      className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-night-ink focus:outline-none focus:border-sky-500 cursor-pointer"
+                      className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-white focus:outline-none focus:border-sky-500 cursor-pointer"
                     >
                       {MODES_REGLEMENT.map(m => (
                         <option key={m} value={m}>{getModeReglementLabel(m)}</option>
@@ -2487,7 +2487,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   {/* Destination */}
                   <div className="space-y-1">
                     <label className="block text-2xs font-black uppercase tracking-wider text-neutral-500">Destination</label>
-                    <select className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-night-ink focus:outline-none focus:border-sky-500 cursor-pointer">
+                    <select className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-white focus:outline-none focus:border-sky-500 cursor-pointer">
                       <option>Microsoft Print to PDF</option>
                       <option>Imprimante Réseau BOCS</option>
                       <option>Sauvegarder au format PDF</option>
@@ -2497,7 +2497,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   {/* Pages */}
                   <div className="space-y-1">
                     <label className="block text-2xs font-black uppercase tracking-wider text-neutral-500">Pages</label>
-                    <select className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-night-ink focus:outline-none focus:border-sky-500 cursor-pointer">
+                    <select className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-white focus:outline-none focus:border-sky-500 cursor-pointer">
                       <option>Toutes</option>
                       <option>Page active (1)</option>
                     </select>
@@ -2506,7 +2506,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                   {/* Couleur */}
                   <div className="space-y-1">
                     <label className="block text-2xs font-black uppercase tracking-wider text-neutral-500">Couleur</label>
-                    <select className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-night-ink focus:outline-none focus:border-sky-500 cursor-pointer">
+                    <select className="w-full bg-[#2a2a2a] border border-neutral-700 rounded-sm px-2.5 py-1.5 text-sm font-semibold text-white dark:text-white focus:outline-none focus:border-sky-500 cursor-pointer">
                       <option>Couleur</option>
                       <option>Noir et blanc</option>
                     </select>
@@ -2526,7 +2526,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setPrintPreviewData(null)}
-                  className="px-4 py-2 bg-[#2a2a2a] hover:bg-[#333] text-white dark:text-night-ink border border-neutral-700 rounded-sm font-bold text-sm cursor-pointer active:scale-95 transition-all"
+                  className="px-4 py-2 bg-[#2a2a2a] hover:bg-[#333] text-white dark:text-white border border-neutral-700 rounded-sm font-bold text-sm cursor-pointer active:scale-95 transition-all"
                 >
                   Annuler
                 </button>
@@ -2558,7 +2558,7 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
 
                     setPrintPreviewData(null);
                   }}
-                  className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white dark:text-night-ink rounded-sm font-bold text-sm cursor-pointer active:scale-95 transition-all shadow-md "
+                  className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white dark:text-white rounded-sm font-bold text-sm cursor-pointer active:scale-95 transition-all shadow-md "
                 >
                   Imprimer
                 </button>

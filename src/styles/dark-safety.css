@@ -1,9 +1,9 @@
 /* ==========================================================================
-   BOCS — FILET DE SÉCURITÉ DARK MODE (bleu BOCS)
+   BOCS — FILET DE SÉCURITÉ DU THÈME EGLIN (classe `.dark`)
    --------------------------------------------------------------------------
    Les modules contiennent ~3 000 classes Tailwind « light » codées en dur
    (bg-white, text-zinc-900, bg-emerald-50, text-[#005DAA]...). Ce fichier
-   les remappe vers la palette sombre bleu BOCS quand `.dark` est actif.
+   les remappe vers la palette Eglin (tokens.css §12) quand `.dark` est actif.
 
    Spécificité : `.dark .x` = (0,2,0). Ce fichier est importé AVANT
    `@tailwind utilities`, donc toute variante explicite `dark:xxx`
@@ -129,12 +129,6 @@
   background-color: var(--ds-purple-bg);
 }
 
-/* Bouton marine quasi invisible sur fond sombre */
-.dark .bg-\[\#002B49\], .dark .bg-\[\#00182f\], .dark .bg-\[\#0f172a\] {
-  background-color: var(--ds-strong);
-  border-color: var(--ds-border-strong);
-}
-
 /* ---------- TEXTES NEUTRES ---------- */
 .dark .text-black, .dark .text-zinc-950, .dark .text-zinc-900, .dark .text-zinc-800,
 .dark .text-slate-950, .dark .text-slate-900, .dark .text-slate-800,
@@ -257,7 +251,7 @@
 .dark select,
 .dark textarea {
   color: var(--ds-text);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .dark input::placeholder,
@@ -276,4 +270,81 @@
 .dark thead th, 
 .dark table th {
   color: var(--ds-text-2) !important;
+}
+
+/* ==========================================================================
+   THÈME EGLIN — rattrapages d'un fond clair
+   ========================================================================== */
+
+/* Boutons marine codés en dur → vert forêt d'action. */
+.dark .bg-\[\#002B49\], .dark .bg-\[\#00182f\], .dark .bg-\[\#0f172a\],
+.dark .bg-\[\#005DAA\], .dark .bg-\[\#005daa\] {
+  background-color: rgb(var(--night-accent));
+  border-color: rgb(var(--night-accent));
+}
+.dark .hover\:bg-\[\#004580\]:hover, .dark .hover\:bg-\[\#004A88\]:hover,
+.dark .hover\:bg-\[\#001D33\]:hover {
+  background-color: rgb(var(--night-accent-strong));
+}
+
+/* Ombres et voiles pensés pour le noir : adoucis sur fond crème. */
+html.dark .dark\:shadow-black\/30, html.dark .dark\:shadow-black\/50,
+html.dark .dark\:shadow-black\/60, html.dark .dark\:shadow-black\/70 {
+  --tw-shadow-color: rgb(23 32 27 / 0.10);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+html.dark .dark\:bg-black\/70 { background-color: rgb(23 32 27 / 0.45); }
+
+/* Champs Eglin : blancs, contour marqué, case à cocher verte. */
+html.dark input.dark\:bg-night-sunken:not([type='checkbox']):not([type='radio']),
+html.dark select.dark\:bg-night-sunken,
+html.dark textarea.dark\:bg-night-sunken {
+  background-color: rgb(var(--night-surface));
+  border-color: rgb(var(--night-line-strong));
+}
+html.dark input[type='checkbox'], html.dark input[type='radio'] {
+  accent-color: rgb(var(--night-link));
+}
+
+/* Bandeaux et en-têtes marine codés en dur → aplat vert forêt, comme le
+   panneau d'Eglin. Leur texte « dark: » visait l'ancien fond nuit : on le
+   ramène au clair, sauf sur les éléments qui posent leur propre fond. */
+html.dark :is(.bg-\[\#061528\]\/90, .bg-\[\#051120\]\/80, .bg-\[\#030914\],
+  .bg-\[\#051424\], .bg-\[\#0F172A\], .bg-zinc-800, .bg-zinc-900, .bg-zinc-950) {
+  background-color: rgb(var(--night-accent));
+  border-color: rgb(var(--night-accent-strong));
+  color: rgb(var(--night-on-accent)) !important;
+}
+html.dark .bg-\[\#040e1b\] {
+  background-color: rgb(10 44 33);
+  border-color: rgb(var(--night-accent-strong));
+}
+html.dark .hover\:bg-\[\#1E293B\]:hover, html.dark .hover\:bg-zinc-800:hover {
+  background-color: rgb(var(--night-accent-strong));
+}
+html.dark :is(.bg-\[\#061528\]\/90, .bg-\[\#051120\]\/80, .bg-\[\#030914\],
+  .bg-\[\#051424\], .bg-\[\#040e1b\], .bg-zinc-900, .bg-zinc-950)
+  :is([class*="dark:text-night-ink"], [class*="text-slate-"], [class*="text-zinc-"]):not([class*="bg-"]) {
+  color: rgb(var(--night-on-accent)) !important;
+}
+html.dark :is(.bg-\[\#061528\]\/90, .bg-\[\#051120\]\/80, .bg-\[\#030914\],
+  .bg-\[\#051424\], .bg-\[\#040e1b\], .bg-zinc-900, .bg-zinc-950)
+  :is([class*="dark:text-night-ink-"], .text-slate-400, .text-slate-500, .text-zinc-400, .text-zinc-500):not([class*="bg-"]) {
+  color: rgb(var(--night-on-accent-2)) !important;
+}
+
+/* Lignes d'en-tête de tableau marine : les `th` posent déjà un fond clair,
+   la ligne suit la même règle que les autres tableaux. */
+html.dark tr:is(.bg-\[\#030914\], .bg-\[\#051424\]) {
+  background-color: rgb(var(--night-sunken));
+  color: rgb(var(--night-ink-2)) !important;
+}
+
+/* Texte posé dans un aplat vert forêt (onglet actif, bouton d'action) :
+   l'encre « dark: » de l'enfant visait l'ancien fond nuit, elle repasse au blanc. */
+html.dark :is(.dark\:bg-night-accent, .dark\:bg-night-accent-strong,
+  .bg-\[\#005DAA\]:not([class*="dark:bg-"]), .bg-\[\#005daa\]:not([class*="dark:bg-"]),
+  .bg-\[\#002B49\]:not([class*="dark:bg-"]))
+  [class*="dark:text-night-ink"]:not([class*="bg-"]) {
+  color: #ffffff !important;
 }

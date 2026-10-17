@@ -179,7 +179,7 @@ export const BlBillingModal: React.FC<BlBillingModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white dark:text-night-ink font-black text-sm transition-all cursor-pointer shadow-sm dark:shadow-black/30 active:scale-95"
+            className="px-6 py-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white dark:text-white font-black text-sm transition-all cursor-pointer shadow-sm dark:shadow-black/30 active:scale-95"
           >
             Fermer la fenêtre
           </button>

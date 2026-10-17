@@ -1286,7 +1286,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               <button
                 onClick={() => exportInvoicesCsv(invoices)}
                 title="Exporter en CSV (Excel)"
-                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white dark:text-night-ink text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white dark:text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md cursor-pointer"
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-base">download</span>
                 <span>Exporter CSV</span>
@@ -1325,7 +1325,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   type="button"
                   onClick={() => setStatusFilter('ANNULEE')}
                   className={`px-2 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    statusFilter === 'ANNULEE' ? 'bg-rose-600 text-white dark:text-night-ink shadow-1 font-extrabold' : 'text-slate-600 dark:text-night-ink hover:text-slate-900 '
+                    statusFilter === 'ANNULEE' ? 'bg-rose-600 text-white dark:text-white shadow-1 font-extrabold' : 'text-slate-600 dark:text-night-ink hover:text-slate-900 '
                   }`}
                 >
                   Annulées ({invoices.filter(i => i.statutFacture === 'ANNULEE').length})
@@ -1346,7 +1346,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-270px)] min-h-[400px] bocs-scrollbar relative">
               <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
-                <thead className="sticky top-0 z-10 bg-slate-700 text-white dark:text-night-ink shadow-1">
+                <thead className="sticky top-0 z-10 bg-slate-700 text-white dark:text-white shadow-1">
                   <tr className="text-2xs font-extrabold uppercase border-b border-slate-600">
                     <th className="py-2.5 px-3 min-w-[130px]">Numéro BL</th>
                     <th className="py-2.5 px-3 min-w-[140px]">Consignee</th>
@@ -1422,7 +1422,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                         </td>
                         <td className="py-2.5 px-3">
                           <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
-                            g.statutPaiement === 'PAYE' ? 'bg-emerald-600 text-white dark:text-night-ink font-black' : 'bg-rose-100 text-rose-800 dark:text-night-critical'
+                            g.statutPaiement === 'PAYE' ? 'bg-emerald-600 text-white dark:text-white font-black' : 'bg-rose-100 text-rose-800 dark:text-night-critical'
                           }`}>
                             {g.statutPaiement === 'PAYE' ? 'SOLDÉ' : 'NON RÉGLÉ'} {g.statutLabel ? `(${g.statutLabel})` : ''}
                           </span>
@@ -1456,17 +1456,17 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                       <span className="text-2xs font-bold text-slate-800 dark:text-night-ink flex items-center gap-1 leading-tight">
                                         {typeName}
                                         {isCancelled && (
-                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-rose-600 text-white dark:text-night-ink">
+                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-rose-600 text-white dark:text-white">
                                             Annulée
                                           </span>
                                         )}
                                         {isValidated && !isCancelled && !isPaid && (
-                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-emerald-600 text-white dark:text-night-ink">
+                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-emerald-600 text-white dark:text-white">
                                             Validée
                                           </span>
                                         )}
                                         {!isValidated && !isCancelled && !isPaid && (
-                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-amber-500 text-white dark:text-night-ink">
+                                          <span className="px-1 py-0.2 rounded text-2xs font-extrabold uppercase bg-amber-500 text-white dark:text-white">
                                             Attente Règlt
                                           </span>
                                         )}
@@ -1598,7 +1598,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                             setInvoiceToDelete(inv);
                                             setShowDeleteInvoiceModal(true);
                                           }}
-                                          className="p-1 text-rose-500 hover:text-white dark:text-night-ink hover:bg-rose-600 rounded transition-all cursor-pointer shrink-0"
+                                          className="p-1 text-rose-500 hover:text-white dark:text-white hover:bg-rose-600 rounded transition-all cursor-pointer shrink-0"
                                           title="Supprimer cette proforma"
                                         >
                                           <span aria-hidden="true" className="material-symbols-outlined text-sm">delete</span>
@@ -1671,7 +1671,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                     const matchedEscale = escales.find(e => e.id === blToPrint.escaleId);
                                     generateDoBadPdf(blToPrint, matchedEscale);
                                   }}
-                                  className="px-2.5 py-1 bg-emerald-600 text-white dark:text-night-ink hover:bg-emerald-700 font-extrabold rounded-lg text-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer shadow-sm dark:shadow-black/30 border border-emerald-500"
+                                  className="px-2.5 py-1 bg-emerald-600 text-white dark:text-white hover:bg-emerald-700 font-extrabold rounded-lg text-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer shadow-sm dark:shadow-black/30 border border-emerald-500"
                                   title="Générer et imprimer le Bon à Délivrer (DO / BAD)"
                                 >
                                   <span aria-hidden="true" className="material-symbols-outlined text-sm">verified</span>
@@ -1774,7 +1774,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
 
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-270px)] min-h-[500px] bocs-scrollbar relative">
               <table className="w-full text-left border-collapse text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-700 text-white dark:text-night-ink shadow-1">
+                <thead className="sticky top-0 z-10 bg-slate-700 text-white dark:text-white shadow-1">
                   <tr className="text-xs font-extrabold uppercase border-b border-slate-600">
                     <th className="p-3">N° Avoir</th>
                     <th className="p-3">Date Émission</th>
@@ -1838,7 +1838,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                           <td className="p-3 text-right">
                             <button
                               onClick={() => generateCreditNotePdf(cn, originalInv, matchedBl)}
-                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg text-sm transition-all inline-flex items-center gap-1 cursor-pointer shadow-1"
+                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold rounded-lg text-sm transition-all inline-flex items-center gap-1 cursor-pointer shadow-1"
                               title="Télécharger / Imprimer la Note d'Avoir PDF"
                             >
                               <span aria-hidden="true" className="material-symbols-outlined text-sm">picture_as_pdf</span>
@@ -2027,7 +2027,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   onClick={() => setTariffFilterRegime('SURESTARIE')}
                   className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                     tariffFilterRegime === 'SURESTARIE' 
-                      ? 'bg-secondary text-white dark:text-night-ink' 
+                      ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white' 
                       : (tariffFilterOpType === 'EXPORT' 
                           ? 'text-slate-300 cursor-not-allowed opacity-50' 
                           : 'text-slate-600 dark:text-night-ink-2 hover:bg-[#f4f4f5] dark:hover:bg-night-raised/50')
@@ -2041,7 +2041,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   onClick={() => setTariffFilterRegime('DETENTION')}
                   className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                     tariffFilterRegime === 'DETENTION' 
-                      ? 'bg-secondary text-white dark:text-night-ink' 
+                      ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white' 
                       : 'text-slate-600 dark:text-night-ink-2 hover:bg-[#f4f4f5] dark:hover:bg-night-raised/50'
                   }`}
                 >
@@ -2117,7 +2117,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => handleDeleteTarifClick(t)}
-                              className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg text-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                              className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold rounded-lg text-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                             >
                               Confirmer ?
                             </button>
@@ -2238,7 +2238,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white dark:text-night-ink font-bold rounded hover:bg-emerald-700 transition-all shadow"
+                  className="px-5 py-2 bg-emerald-600 text-white dark:text-white font-bold rounded hover:bg-emerald-700 transition-all shadow"
                 >
                   Valider le Règlement
                 </button>
@@ -2480,7 +2480,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white dark:text-night-ink font-bold rounded-md hover:bg-emerald-700 shadow transition-all active:scale-95 cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 text-white dark:text-white font-bold rounded-md hover:bg-emerald-700 shadow transition-all active:scale-95 cursor-pointer"
                 >
                   Enregistrer
                 </button>
@@ -2568,7 +2568,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   {tab.key === 'TIMBRE' && (
                     <span className={`text-2xs font-black px-2 py-0.5 rounded-full border ${
                       isActive
-                        ? (timbreDraft.some(b => b.estActif) ? 'bg-emerald-500/20 text-white dark:text-night-ink border-white/30' : 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-night-ink border-white/30')
+                        ? (timbreDraft.some(b => b.estActif) ? 'bg-emerald-500/20 text-white dark:text-white border-white/30' : 'bg-surface-canvas dark:bg-night-surface/20 text-white dark:text-white border-white/30')
                         : (timbreDraft.some(b => b.estActif) ? 'bg-emerald-50 dark:bg-night-positive-soft text-emerald-700 dark:text-night-positive border-emerald-200 dark:border-night-positive-line' : 'bg-[#f4f4f5] dark:bg-night-sunken text-slate-500 dark:text-night-ink-2 border-slate-200 dark:border-night-line')
                     }`}>
                       {timbreDraft.some(b => b.estActif) ? 'PARAMÉTRÉ' : 'INACTIF'}
@@ -3028,7 +3028,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                             <p className={`text-sm font-bold ${isSelected ? 'text-white dark:text-night-ink' : 'text-slate-900 dark:text-night-ink'}`}>
                               {t.name}
                             </p>
-                            <p className={`text-2xs ${isSelected ? 'text-blue-100 dark:text-night-ink-3' : 'text-slate-500 dark:text-night-ink-2'}`}>
+                            <p className={`text-2xs ${isSelected ? 'text-blue-100 dark:text-white/80' : 'text-slate-500 dark:text-night-ink-2'}`}>
                               {t.description}
                             </p>
                           </div>
@@ -3054,7 +3054,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                                   e.stopPropagation();
                                   handleDeleteInvoiceTypeClick(t);
                                 }}
-                                className="p-1 hover:bg-rose-500/30 rounded text-rose-200 hover:text-white dark:text-night-ink transition-all cursor-pointer"
+                                className="p-1 hover:bg-rose-500/30 rounded text-rose-200 hover:text-white dark:text-white transition-all cursor-pointer"
                                 title="Supprimer ce type"
                               >
                                 <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">delete</span>
@@ -3520,7 +3520,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               </button>
               <button
                 onClick={confirmDeleteInvoiceType}
-                className="px-5 py-2 bg-rose-600 text-white dark:text-night-ink font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
+                className="px-5 py-2 bg-rose-600 text-white dark:text-white font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
               >
                 Supprimer Définitivement
               </button>
@@ -3680,7 +3680,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
               </button>
               <button
                 onClick={confirmDeleteRubrique}
-                className="px-5 py-2 bg-rose-600 text-white dark:text-night-ink font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
+                className="px-5 py-2 bg-rose-600 text-white dark:text-white font-bold rounded-lg hover:bg-rose-700 transition-all shadow cursor-pointer"
               >
                 Supprimer
               </button>
@@ -4113,7 +4113,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                       }}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         creditNoteMotif === m
-                          ? 'bg-rose-600 text-white dark:text-night-ink shadow-1'
+                          ? 'bg-rose-600 text-white dark:text-white shadow-1'
                           : 'bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink'
                       }`}
                     >
@@ -4125,7 +4125,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                     onClick={() => setCreditNoteMotif('AUTRE')}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       creditNoteMotif === 'AUTRE'
-                        ? 'bg-rose-600 text-white dark:text-night-ink shadow-1'
+                        ? 'bg-rose-600 text-white dark:text-white shadow-1'
                         : 'bg-[#f4f4f5] dark:bg-night-sunken hover:bg-slate-200 text-slate-700 dark:text-night-ink'
                     }`}
                   >
@@ -4162,7 +4162,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-base">assignment_turned_in</span>
                   <span>Confirmer & Émettre l'Avoir</span>
@@ -4215,7 +4215,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmValidateInvoice}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-base">lock</span>
                   <span>Valider Définitivement</span>
@@ -4265,7 +4265,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmDuplicateInvoice}
-                  className="px-5 py-2 bg-blue-600 dark:bg-night-accent hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-blue-600 dark:bg-night-accent hover:bg-blue-700 dark:hover:bg-night-accent-strong text-white dark:text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-base">add_box</span>
                   <span>Créer le Nouveau Brouillon</span>
@@ -4319,7 +4319,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmDeleteDraft}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-night-ink font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white dark:text-white font-bold rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
                   <span>Supprimer Définitivement</span>
