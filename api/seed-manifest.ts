@@ -1,7 +1,11 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, ADMIN_ONLY } from './_auth.js';
 import { BOCS_BREMEN_25586_ESCALE, BOCS_BREMEN_25586_BLS_DATA } from '../src/utils/manifestParser.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, ADMIN_ONLY);
+  if (!session) return;
+
   try {
     const escaleId = BOCS_BREMEN_25586_ESCALE.id;
 
@@ -102,6 +106,6 @@ export default async function handler(req: any, res: any) {
       message: `Escale BOCS BREMEN (Voyage 25586) et ses ${BOCS_BREMEN_25586_BLS_DATA.length} Connaissements (BLs) ont été synchronisés avec succès dans la base de données.`
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, error: error.message });
+    return sendServerError(res, error, 'seed-manifest');
   }
 }

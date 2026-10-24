@@ -1,6 +1,10 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, ALL_ROLES, STAFF_ROLES } from './_auth.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, req.method === "GET" ? ALL_ROLES : STAFF_ROLES);
+  if (!session) return;
+
   if (req.method === 'GET') {
     try {
       const escales = await sql`
@@ -26,7 +30,7 @@ export default async function handler(req: any, res: any) {
       }));
       return res.status(200).json({ success: true, escales: mappedEscales });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'escales');
     }
   } else if (req.method === 'POST') {
     try {
@@ -55,13 +59,16 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, message: "Escale saved successfully." });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'escales');
     }
   } else if (req.method === 'DELETE') {
     try {
       const rawId = req.query.id || req.body?.id;
       
       if (rawId === 'ALL') {
+        if (session.role !== 'ADMIN') {
+          return res.status(403).json({ success: false, error: "Suppression globale réservée à l'administrateur." });
+        }
         await sql`DELETE FROM payments;`;
         await sql`DELETE FROM credit_note_items;`;
         await sql`DELETE FROM credit_notes;`;
@@ -130,7 +137,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ success: true, message: "Escale and associated data deleted successfully." });
     } catch (error: any) {
       console.error("Erreur suppression escale:", error);
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'escales');
     }
   } else {
     return res.status(405).json({ success: false, error: "Method not allowed." });

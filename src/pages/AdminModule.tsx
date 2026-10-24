@@ -308,7 +308,9 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   // Handlers for Reset Password
   const handleOpenResetPass = (user: User) => {
     setResetPasswordUser(user);
-    const temp = 'BOCS-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '!';
+    // Générateur cryptographique (Math.random n'est pas adapté aux secrets)
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    const temp = 'BOCS-' + Array.from(bytes, b => b.toString(36).padStart(2, '0')).join('').toUpperCase().slice(0, 10) + '!';
     setGeneratedTempPass(temp);
     setCopiedPass(false);
   };

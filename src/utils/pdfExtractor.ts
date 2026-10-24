@@ -71,7 +71,6 @@ export async function extractRawTextFromPdf(file: File): Promise<{ text: string;
     const loadingTask = pdfjsLib.getDocument({
       data: arrayBuffer,
       useSystemFonts: true,
-      isEvalSupported: false,
     });
     pdfDoc = await loadingTask.promise;
 

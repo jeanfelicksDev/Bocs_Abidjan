@@ -1,20 +1,24 @@
 version: '3.8'
 
+# Identifiants lus depuis un fichier .env local (non versionné), ex. :
+#   POSTGRES_USER=bocs_admin
+#   POSTGRES_PASSWORD=<mot de passe fort>
+#   POSTGRES_DB=bocs_db
 services:
   bocs-postgres:
     image: postgres:16-alpine
     container_name: bocs-postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: bocs_admin
-      POSTGRES_PASSWORD: bocs_secure_password_2026
-      POSTGRES_DB: bocs_db
+      POSTGRES_USER: ${POSTGRES_USER:-bocs_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit être défini dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bocs_db}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bocs_admin -d bocs_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -1,6 +1,10 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, ALL_ROLES, FINANCE_ADMIN_ROLES } from './_auth.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, req.method === "GET" ? ALL_ROLES : FINANCE_ADMIN_ROLES);
+  if (!session) return;
+
   // Safe Body Parsing
   let body = req.body;
   if (typeof body === 'string') {
@@ -60,7 +64,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, types: mappedTypes, rubriques: mappedRubriques });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'configs');
     }
   } else if (req.method === 'POST') {
     try {
@@ -127,7 +131,7 @@ export default async function handler(req: any, res: any) {
         message: "Configuration des types et rubriques enregistrée avec succès." 
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'configs');
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -157,7 +161,7 @@ export default async function handler(req: any, res: any) {
         error: "Paramètre 'typeId' ou 'rubriqueId' requis pour la suppression." 
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'configs');
     }
   } else {
     return res.status(405).json({ success: false, error: "Méthode non autorisée." });

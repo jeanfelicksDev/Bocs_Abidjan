@@ -38,3 +38,4 @@ ehthumbs.db
 .vercel
 .env*
 pgdata/
+!.env.example
