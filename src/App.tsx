@@ -358,11 +358,15 @@ export function App() {
   }, [auditLogs]);
 
   // Initialisation et chargement des données depuis Neon Postgres
+  // Les API exigent une session : le chargement n'a lieu qu'après authentification.
   useEffect(() => {
+    if (!isAuthenticated) return;
     const initAndLoad = async () => {
       try {
-        // 1. Initialise les tables si nécessaire
-        await fetch('/api/init-db');
+        // 1. Initialise les tables si nécessaire (réservé à l'administrateur côté serveur)
+        if (currentUser.role === 'ADMIN') {
+          await fetch('/api/init-db');
+        }
 
         // 2. Charge les factures, avoirs, utilisateurs et données
         const [invoicesRes, creditNotesRes, paymentsRes, auditRes, configsRes, escalesRes, blsRes, usersRes] = await Promise.all([
@@ -470,7 +474,8 @@ export function App() {
       }
     };
     initAndLoad();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rechargement uniquement à la connexion
+  }, [isAuthenticated]);
 
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
@@ -524,8 +529,14 @@ export function App() {
   };
 
   // Logout handler
-  const handleLogout = () => {
-    logAuditAction('DECONNEXION', 'Session', `Déconnexion de l'utilisateur ${currentUser.nomComplet}`);
+  const handleLogout = async () => {
+    await logAuditAction('DECONNEXION', 'Session', `Déconnexion de l'utilisateur ${currentUser.nomComplet}`);
+    // Invalide le cookie de session HttpOnly côté serveur
+    fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'logout' })
+    }).catch(e => console.error('Erreur lors de la déconnexion serveur', e));
     setIsAuthenticated(false);
     setShowWelcome(false); // Retour à l'écran de connexion
     localStorage.removeItem('bocs_session_user');
@@ -599,12 +610,7 @@ export function App() {
     } catch (e) {
       console.error('Erreur changement mot de passe sur Neon:', e);
     }
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, motDePasse: newPass } : u));
-    if (currentUser.id === userId) {
-      const updated = { ...currentUser, motDePasse: newPass };
-      setCurrentUser(updated);
-      localStorage.setItem('bocs_session_user', JSON.stringify(updated));
-    }
+    // Le mot de passe n'est jamais conservé côté navigateur (haché et stocké uniquement côté serveur).
     logAuditAction('CHANGEMENT_MOT_DE_PASSE', 'User', `Mot de passe modifié pour utilisateur #${userId}`);
     return true;
   };
@@ -613,11 +619,18 @@ export function App() {
   const handleAddUser = async (newUser: User) => {
     setAllUsers(prev => [newUser, ...prev]);
     try {
-      await fetch('/api/users', {
+      const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser)
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        toastError(data.error || 'Erreur lors de la création du compte.');
+      } else if (data.temporaryPassword) {
+        // Affiché une seule fois : le serveur ne conserve que le hachage.
+        window.alert(`Compte créé pour ${newUser.email}.\n\nMot de passe temporaire (à transmettre de façon sécurisée) :\n${data.temporaryPassword}`);
+      }
     } catch (e) {
       console.error('Erreur création utilisateur sur Neon:', e);
     }
@@ -676,7 +689,6 @@ export function App() {
 
   // Reset User Password
   const handleResetUserPassword = async (userId: number, tempPass: string) => {
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, motDePasse: tempPass } : u));
     const target = allUsers.find(u => u.id === userId);
     try {
       await fetch('/api/users', {

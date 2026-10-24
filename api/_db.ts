@@ -1,42 +1,21 @@
 import { neon } from '@neondatabase/serverless';
 
-let sqlFunc: any;
+// Liste explicite des variables acceptées (plus de balayage de tout process.env).
+const DB_URL_ENV_KEYS = [
+  'BOCS_DATABASE_URL',
+  'BOCS_POSTGRES_URL',
+  'BOCS_DATABASE_URL_UNPOOLED',
+  'NEON_DATABASE_URL',
+  'NEON_POSTGRES_URL',
+  'POSTGRES_URL',
+  'DATABASE_URL'
+];
 
-try {
-  let dbUrl: string | null = null;
+const dbUrl = DB_URL_ENV_KEYS.map(key => process.env[key]).find(Boolean) || null;
 
-  if (typeof process !== 'undefined' && process.env) {
-    // 1. Priorité absolue aux variables de la base active BOCS / Neon
-    dbUrl = process.env.BOCS_DATABASE_URL
-      || process.env.BOCS_POSTGRES_URL
-      || process.env.BOCS_DATABASE_URL_UNPOOLED
-      || process.env.NEON_DATABASE_URL
-      || process.env.NEON_POSTGRES_URL
-      || process.env.POSTGRES_URL
-      || process.env.DATABASE_URL
-      || null;
+// Échec explicite si la base n'est pas configurée (au lieu de renvoyer silencieusement des listes vides).
+const missingDatabase = (async () => {
+  throw new Error(`Base de données non configurée : définir l'une des variables ${DB_URL_ENV_KEYS.join(', ')}.`);
+}) as any;
 
-    // 2. Recherche automatique de toute variable contenant une URL postgresql
-    if (!dbUrl) {
-      for (const [key, val] of Object.entries(process.env)) {
-        if (typeof val === 'string' && (val.startsWith('postgres://') || val.startsWith('postgresql://'))) {
-          dbUrl = val;
-          break;
-        }
-      }
-    }
-  }
-
-  if (dbUrl) {
-    sqlFunc = neon(dbUrl);
-  } else {
-    sqlFunc = (async () => []) as any;
-  }
-} catch (e) {
-  console.error("Database connection error in api/db.ts:", e);
-  sqlFunc = (async () => []) as any;
-}
-
-export const sql = sqlFunc;
-
-
+export const sql: any = dbUrl ? neon(dbUrl) : missingDatabase;

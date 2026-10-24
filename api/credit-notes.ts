@@ -1,6 +1,10 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, STAFF_ROLES } from './_auth.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, STAFF_ROLES);
+  if (!session) return;
+
   if (req.method === 'GET') {
     try {
       const creditNotes = await sql`
@@ -59,7 +63,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, creditNotes: mappedCreditNotes });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'credit-notes');
     }
   } else if (req.method === 'POST') {
     try {
@@ -113,7 +117,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, message: "Avoir émis avec succès et facture d'origine annulée." });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'credit-notes');
     }
   } else if (req.method === 'DELETE') {
     // Interdiction stricte de suppression d'avoir pour respecter les normes fiscales

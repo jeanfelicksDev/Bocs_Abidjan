@@ -1,6 +1,10 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, STAFF_ROLES } from './_auth.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, STAFF_ROLES);
+  if (!session) return;
+
   if (req.method === 'GET') {
     try {
       const bls = await sql`
@@ -88,7 +92,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, bls: mappedBls });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'bls');
     }
   } else if (req.method === 'POST') {
     try {
@@ -212,7 +216,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ success: true, message: "BLs and containers saved successfully." });
     } catch (error: any) {
       console.error("Erreur bulk insert BLs:", error);
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'bls');
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -267,7 +271,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ success: true, message: "BL and associated containers, invoices deleted successfully." });
     } catch (error: any) {
       console.error("Erreur suppression BL:", error);
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'bls');
     }
   } else {
     return res.status(405).json({ success: false, error: "Method not allowed." });

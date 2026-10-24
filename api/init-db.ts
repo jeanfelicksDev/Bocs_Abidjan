@@ -1,7 +1,19 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, hashPassword, isPasswordHash, validatePasswordStrength, ADMIN_ONLY } from './_auth.js';
+
+/** Amorçage : tant que la table users n'existe pas, l'initialisation est autorisée sans session. */
+async function isFreshDatabase(): Promise<boolean> {
+  const rows = await sql`SELECT to_regclass('public.users') IS NULL AS fresh;`;
+  return Boolean(rows[0]?.fresh);
+}
 
 export default async function handler(req: any, res: any) {
   try {
+    if (!(await isFreshDatabase())) {
+      const session = await requireAuth(req, res, ADMIN_ONLY);
+      if (!session) return;
+    }
+
     // Create users table
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -265,14 +277,26 @@ export default async function handler(req: any, res: any) {
     // Populate initial users data if table is empty
     const userCountRes = await sql`SELECT COUNT(*)::int as count FROM users;`;
     const userCount = userCountRes && userCountRes[0] ? Number(userCountRes[0].count) : 0;
-    if (userCount === 0) {
+    // Aucun compte de démonstration à mot de passe connu : seul l'administrateur initial est créé,
+    // avec le mot de passe fourni par BOCS_ADMIN_INITIAL_PASSWORD (haché).
+    const initialAdminPassword = process.env.BOCS_ADMIN_INITIAL_PASSWORD || '';
+    if (userCount === 0 && !validatePasswordStrength(initialAdminPassword)) {
+      const adminEmail = (process.env.BOCS_ADMIN_EMAIL || 'admin@bocs.ci').toLowerCase();
       await sql`
-        INSERT INTO users (id, nom_complet, email, role, telephone, nom_societe, pays, est_actif, mot_de_passe, date_creation, dernier_acces) VALUES
-        (1, 'Jean-Marc KOFFI', 'admin@bocs.ci', 'ADMIN', '+225 07 08 09 10 11', 'BOCS CI Agency', 'Côte d''Ivoire', true, 'admin123', '2026-01-01', '2026-04-01'),
-        (2, 'Marie-Claire ADOU', 'import@bocs.ci', 'AGENT_IMPORT', '+225 05 06 07 08 09', 'BOCS CI Agency', 'Côte d''Ivoire', true, 'import123', '2026-01-01', '2026-04-01'),
-        (3, 'Kouassi PATRICE', 'export@bocs.ci', 'AGENT_EXPORT', '+225 01 02 03 04 05', 'BOCS CI Agency', 'Côte d''Ivoire', true, 'export123', '2026-01-01', '2026-04-01'),
-        (4, 'Awa DIABATE', 'compta@bocs.ci', 'COMPTABILITE', '+225 07 11 22 33 44', 'BOCS CI Agency', 'Côte d''Ivoire', true, 'compta123', '2026-01-01', '2026-04-01');
+        INSERT INTO users (id, nom_complet, email, role, telephone, nom_societe, pays, est_actif, mot_de_passe, date_creation, dernier_acces)
+        VALUES (1, 'Administrateur BOCS', ${adminEmail}, 'ADMIN', NULL, 'BOCS CI Agency', 'Côte d''Ivoire', true,
+          ${await hashPassword(initialAdminPassword)}, ${new Date().toISOString().split('T')[0]}, NULL);
       `;
+    } else if (userCount === 0) {
+      console.warn('[api:init-db] Aucun compte créé : définir BOCS_ADMIN_INITIAL_PASSWORD (≥ 8 caractères) pour amorcer l\'administrateur.');
+    }
+
+    // Migration : hachage des mots de passe encore stockés en clair.
+    const storedPasswords = await sql`SELECT id, mot_de_passe FROM users WHERE mot_de_passe IS NOT NULL;`;
+    for (const row of storedPasswords) {
+      if (!isPasswordHash(row.mot_de_passe)) {
+        await sql`UPDATE users SET mot_de_passe = ${await hashPassword(row.mot_de_passe)} WHERE id = ${row.id};`;
+      }
     }
 
     // Populate initial configuration data if tables are empty
@@ -340,8 +364,7 @@ export default async function handler(req: any, res: any) {
       `;
       return res.status(200).json({ success: true, message: "Database tables initialized and deduplicated." });
     } catch (e: any) {
-      console.log('Database initialization error:', e);
-      return res.status(500).json({ success: false, error: e.message });
+      return sendServerError(res, e, 'init-db');
     }
 }
 

@@ -1,6 +1,10 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, ADMIN_ONLY } from './_auth.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, ADMIN_ONLY);
+  if (!session) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
@@ -33,7 +37,7 @@ export default async function handler(req: any, res: any) {
         report[key] = Array.isArray(result) ? result.length : (typeof result?.count === 'number' ? result.count : 0);
       } catch (err: any) {
         console.error(`Error during cleanup step [${key}]:`, err);
-        report[key + '_error'] = err.message || 1;
+        report[key + '_error'] = 1;
       }
     };
 
@@ -149,7 +153,7 @@ export default async function handler(req: any, res: any) {
 
   } catch (error: any) {
     console.error('DB cleanup general error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return sendServerError(res, error, 'clear-db');
   }
 }
 

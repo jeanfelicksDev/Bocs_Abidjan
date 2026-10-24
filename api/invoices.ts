@@ -1,6 +1,10 @@
 import { sql } from './_db.js';
+import { requireAuth, sendServerError, STAFF_ROLES } from './_auth.js';
 
 export default async function handler(req: any, res: any) {
+  const session = await requireAuth(req, res, STAFF_ROLES);
+  if (!session) return;
+
   if (req.method === 'GET') {
     try {
       const invoices = await sql`
@@ -88,7 +92,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, invoices: mappedInvoices });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'invoices');
     }
   } else if (req.method === 'POST') {
     try {
@@ -152,7 +156,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, message: "Invoice saved successfully." });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'invoices');
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -198,7 +202,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({ success: true, message: "Facture proforma et toutes les pièces rattachées supprimées avec succès." });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      return sendServerError(res, error, 'invoices');
     }
   } else {
     return res.status(405).json({ success: false, error: "Method not allowed." });

@@ -374,7 +374,7 @@ export const INITIAL_PAYMENTS: Payment[] = [];
 
 export const INITIAL_FNE_PARAMS: FneParam[] = [
   { id: 1, cle: 'api_url', valeur: 'https://api.fne.dgi.gouv.ci/v1', description: 'URL de base de l\'API FNE de la DGI Côte d\'Ivoire', updatedAt: '2026-04-01' },
-  { id: 2, cle: 'api_key', valeur: 'bocs_live_key_98a7b6c5d4e3f210', description: 'Clé d\'API sécurisée attribuée à l\'agence BOCS', updatedAt: '2026-04-01' },
+  { id: 2, cle: 'api_key', valeur: '', description: 'Clé d\'API FNE de l\'agence BOCS — à configurer côté serveur (variable d\'environnement), jamais dans le bundle client', updatedAt: '2026-04-01' },
   { id: 3, cle: 'endpoint_soumission', valeur: '/factures/normaliser', description: 'Point de terminaison pour la soumission des factures', updatedAt: '2026-04-01' },
   { id: 4, cle: 'environment', valeur: 'SANDBOX_TEST', description: 'Environnement FNE actuel (SANDBOX_TEST / PRODUCTION)', updatedAt: '2026-04-01' },
   { id: 5, cle: 'auto_submit', valeur: 'TRUE', description: 'Transmission automatique des factures définitives à la DGI', updatedAt: '2026-04-01' }

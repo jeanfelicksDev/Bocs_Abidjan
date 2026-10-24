@@ -78,52 +78,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         })
       }).catch(() => null);
 
-      if (res && res.ok) {
-        const data = await res.json();
-        if (data.success && data.user) {
-          toastSuccess(`Bienvenue, ${data.user.nomComplet} !`);
-          onLoginSuccess(data.user);
-          return;
-        }
-      }
-
-      // 2. Local fallback matching from allUsers state
-      const localUser = allUsers.find(u => u.email.toLowerCase() === loginEmail.trim().toLowerCase());
-      if (localUser) {
-        if (!localUser.estActif) {
-          toastError('Ce compte a été désactivé par l\'administrateur.');
-          return;
-        }
-        if (localUser.motDePasse && localUser.motDePasse !== loginPassword.trim()) {
-          toastError('Mot de passe incorrect.');
-          return;
-        }
-        toastSuccess(`Bienvenue, ${localUser.nomComplet} !`);
-        onLoginSuccess(localUser);
+      if (!res) {
+        toastError('Serveur injoignable. Vérifiez votre connexion.');
         return;
       }
 
-      toastError('Identifiants incorrects ou compte inexistant.');
+      // Authentification exclusivement côté serveur (aucun repli local).
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.user) {
+        toastSuccess(`Bienvenue, ${data.user.nomComplet} !`);
+        onLoginSuccess(data.user);
+        return;
+      }
+
+      toastError(data.error || 'Identifiants incorrects ou compte inexistant.');
     } catch (err: any) {
       toastError(err.message || 'Erreur lors de la connexion.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Quick 1-Click Demo Login
-  const handleQuickLogin = (roleOrId: UserRole | number) => {
-    let target: User | undefined;
-    if (typeof roleOrId === 'number') {
-      target = allUsers.find(u => u.id === roleOrId);
-    } else {
-      target = allUsers.find(u => u.role === roleOrId);
-    }
-    if (target) {
-      toastSuccess(`Connecté en tant que ${target.nomComplet} (${target.nomSociete || getRoleLabel(target.role)})`);
-      onLoginSuccess(target);
-    } else {
-      toastWarning(`Aucun utilisateur trouvé.`);
     }
   };
 
@@ -134,8 +106,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       toastError('Les mots de passe ne correspondent pas.');
       return;
     }
-    if (regPassword.length < 6) {
-      toastWarning('Le mot de passe doit comporter au moins 6 caractères.');
+    if (regPassword.length < 8) {
+      toastWarning('Le mot de passe doit comporter au moins 8 caractères.');
       return;
     }
 
@@ -189,7 +161,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         if (data.success) {
           setDemoResetCode(data.demoResetCode || null);
           setForgotStep('verify');
-          toastSuccess(`Un code de sécurité à 6 chiffres a été préparé pour ${forgotEmail}.`);
+          toastSuccess(data.message || 'Si un compte actif correspond à cette adresse, un code de sécurité a été émis.');
           return;
         } else {
           toastError(data.error || 'Impossible de réinitialiser ce compte.');
@@ -197,16 +169,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         }
       }
 
-      // Local fallback if offline
-      const exists = allUsers.find(u => u.email.toLowerCase() === forgotEmail.trim().toLowerCase());
-      if (exists) {
-        const localCode = '123456';
-        setDemoResetCode(localCode);
-        setForgotStep('verify');
-        toastSuccess(`Code de sécurité généré pour ${forgotEmail}.`);
-      } else {
-        toastError('Aucun compte associé à cette adresse email.');
-      }
+      toastError('Service de réinitialisation indisponible. Réessayez plus tard.');
     } catch (err: any) {
       toastError(err.message || 'Erreur lors de la demande de réinitialisation.');
     } finally {
@@ -221,8 +184,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       toastWarning('Veuillez saisir le code de sécurité reçu.');
       return;
     }
-    if (newPassword.length < 6) {
-      toastWarning('Le mot de passe doit comporter au moins 6 caractères.');
+    if (newPassword.length < 8) {
+      toastWarning('Le mot de passe doit comporter au moins 8 caractères.');
       return;
     }
     if (newPassword !== confirmNewPassword) {
@@ -417,88 +380,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   )}
                 </button>
               </form>
-
-              {/* DEMO QUICK ACCESS CHIPS */}
-              <div className="pt-5 border-t border-slate-100 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Comptes de test (1-clic)
-                  </span>
-                  <span className="text-[10px] text-slate-400">Mode démo</span>
-                </div>
-
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('ADMIN')}
-                    className="px-1 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-slate-300 active:scale-95"
-                    title="Se connecter en tant qu'Administrateur"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    <span className="text-[9px] font-bold">Admin</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('AGENT_IMPORT')}
-                    className="px-1 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-slate-300 active:scale-95"
-                    title="Se connecter en tant qu'Agent Import"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-blue-600" />
-                    <span className="text-[9px] font-bold">Import</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('AGENT_EXPORT')}
-                    className="px-1 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-slate-300 active:scale-95"
-                    title="Se connecter en tant qu'Agent Export"
-                  >
-                    <Anchor className="w-3.5 h-3.5 text-amber-600" />
-                    <span className="text-[9px] font-bold">Export</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('COMPTABILITE')}
-                    className="px-1 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-slate-300 active:scale-95"
-                    title="Se connecter en tant que Comptabilité"
-                  >
-                    <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[9px] font-bold">Compta</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin(5)}
-                    className="px-1 py-1.5 bg-indigo-50/70 hover:bg-indigo-100/70 border border-indigo-200 rounded-lg text-indigo-900 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-indigo-300 active:scale-95"
-                    title="Client Agro Export SA (Moussa TRAORE)"
-                  >
-                    <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                    <span className="text-[9px] font-extrabold truncate max-w-full">Agro</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin(6)}
-                    className="px-1 py-1.5 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 rounded-lg text-emerald-900 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-emerald-300 active:scale-95"
-                    title="Client SIFCA Cacao SA (ZIAGOUE Jean-Félix)"
-                  >
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[9px] font-extrabold truncate max-w-full">SIFCA</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin(7)}
-                    className="px-1 py-1.5 bg-teal-50/70 hover:bg-teal-100/70 border border-teal-200 rounded-lg text-teal-900 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-teal-300 active:scale-95"
-                    title="Client Tropica Trading CI (Fatoumata KONE)"
-                  >
-                    <UserCheck className="w-3.5 h-3.5 text-teal-600" />
-                    <span className="text-[9px] font-extrabold truncate max-w-full">Tropica</span>
-                  </button>
-                </div>
-              </div>
 
               {/* Registration link */}
               <div className="pt-2 text-center">

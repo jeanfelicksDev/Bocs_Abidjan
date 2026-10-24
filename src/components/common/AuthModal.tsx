@@ -43,34 +43,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  // Authentification exclusivement côté serveur (vérification du mot de passe + cookie de session).
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
 
-    const foundUser = allUsers.find(u => u.email.toLowerCase() === loginEmail.toLowerCase());
-    if (foundUser) {
-      if (!foundUser.estActif) {
-        setLoginError('Ce compte a été désactivé par l\'administrateur. Veuillez contacter le support BOCS.');
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email: loginEmail.trim(), password: loginPassword })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.user) {
+        if (onLoginSuccess) onLoginSuccess(data.user);
+        onClose();
         return;
       }
-      if (onLoginSuccess) onLoginSuccess(foundUser);
-      onClose();
-    } else {
-      if (allUsers.length > 0 && onLoginSuccess) {
-        // Fallback demo user
-        onLoginSuccess(allUsers[0]);
-        onClose();
-      } else {
-        setLoginError('Identifiants incorrects ou compte introuvable.');
-      }
-    }
-  };
-
-  const handleQuickLogin = (role: string) => {
-    const matched = allUsers.find(u => u.role === role);
-    if (matched && onLoginSuccess) {
-      onLoginSuccess(matched);
-      onClose();
+      setLoginError(data.error || 'Identifiants incorrects ou compte introuvable.');
+    } catch {
+      setLoginError('Serveur injoignable. Vérifiez votre connexion.');
     }
   };
 
@@ -224,60 +216,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span className="material-symbols-outlined text-base">login</span>
                 </button>
               </form>
-
-              {/* DEMO ACCOUNTS QUICK ACCESS */}
-              <div className="pt-4 border-t border-outline-variant space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-outline uppercase tracking-wider">Accès Rapide Démo par Rôle:</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('ADMIN')}
-                    className="p-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded text-purple-900 font-bold text-left flex items-center gap-1.5 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-sm">shield_person</span>
-                    <span>Admin</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('AGENT_IMPORT')}
-                    className="p-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded text-blue-900 font-bold text-left flex items-center gap-1.5 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-sm">input</span>
-                    <span>Import</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('AGENT_EXPORT')}
-                    className="p-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded text-amber-900 font-bold text-left flex items-center gap-1.5 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-sm">anchor</span>
-                    <span>Export</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('COMPTABILITE')}
-                    className="p-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded text-emerald-900 font-bold text-left flex items-center gap-1.5 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-sm">credit_card</span>
-                    <span>Comptabilité</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('CLIENT_EXPORT')}
-                    className="p-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded text-slate-900 font-bold text-left flex items-center gap-1.5 transition-all col-span-2 sm:col-span-2"
-                  >
-                    <span className="material-symbols-outlined text-sm">domain</span>
-                    <span>Client Exporteur</span>
-                  </button>
-                </div>
-              </div>
 
               <div className="pt-2 text-center">
                 <p className="text-xs text-on-surface-variant">

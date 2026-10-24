@@ -104,8 +104,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       toastWarning('Veuillez saisir un nouveau mot de passe.');
       return;
     }
-    if (newPassword.length < 6) {
-      toastWarning('Le nouveau mot de passe doit comporter au moins 6 caractères.');
+    if (newPassword.length < 8) {
+      toastWarning('Le nouveau mot de passe doit comporter au moins 8 caractères.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -325,7 +325,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-start gap-2">
                 <Lock className="w-4 h-4 text-[#005daa] shrink-0 mt-0.5" />
-                <span>Pour des raisons de sécurité, choisissez un mot de passe d'au moins 6 caractères comprenant lettres et chiffres.</span>
+                <span>Pour des raisons de sécurité, choisissez un mot de passe d'au moins 8 caractères comprenant lettres et chiffres.</span>
               </div>
 
               <div>
