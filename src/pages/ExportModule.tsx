@@ -69,6 +69,8 @@ const PAYS_ONU = [
 
 interface ExportModuleProps {
   initialSubTab?: 'CONSOLIDATION' | 'SAISIE_DRAFT' | 'ESPACE_CLIENT';
+  /** Le sous-onglet affiché change : l'application met à jour l'adresse et le menu. */
+  onSubTabChange?: (tab: 'CONSOLIDATION' | 'SAISIE_DRAFT' | 'ESPACE_CLIENT') => void;
   currentUser: User;
   onAddDraft: (draft: DraftExport) => void;
   onUpdateDraft?: (updatedDraft: DraftExport) => void;
@@ -81,6 +83,7 @@ interface ExportModuleProps {
 
 export const ExportModule: React.FC<ExportModuleProps> = ({
   initialSubTab,
+  onSubTabChange,
   currentUser,
   onAddDraft,
   onUpdateDraft,
@@ -1032,6 +1035,12 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
       }
     }
   }, [initialSubTab, userRole]);
+
+  // Chaque sous-onglet a son adresse : Précédent y ramène, F5 le conserve.
+  useEffect(() => {
+    onSubTabChange?.(activeSubTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSubTab]);
 
   useEffect(() => {
     if (isClientExport && activeSubTab === 'CONSOLIDATION') {

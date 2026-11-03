@@ -26,6 +26,8 @@ import {
 
 interface FacturationModuleProps {
   initialSubTab?: 'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG';
+  /** Le sous-onglet affiché change : l'application met à jour l'adresse et le menu. */
+  onSubTabChange?: (tab: 'FACTURATION_BL' | 'PROFORMA' | 'AVOIRS' | 'TARIFS' | 'BALANCE_AGEE' | 'CONFIG') => void;
   /** Onglet du paramétrage des factures ouvert depuis la page Paramétrage. */
   initialConfigSubTab?: 'TYPES' | 'TAXE' | 'TIMBRE';
   selectedBlId?: number | null;
@@ -146,6 +148,7 @@ function getPlannedTypeIdsForBl(bl: BL | undefined, invoiceTypeConfigs: InvoiceT
 
 export const FacturationModule: React.FC<FacturationModuleProps> = ({
   initialSubTab = 'FACTURATION_BL',
+  onSubTabChange,
   initialConfigSubTab,
   selectedBlId = null,
   onSelectBl,
@@ -187,6 +190,12 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
   React.useEffect(() => {
     if (initialSubTab) setActiveTab(initialSubTab);
   }, [initialSubTab]);
+
+  // Chaque sous-onglet a son adresse : Précédent y ramène, F5 le conserve.
+  React.useEffect(() => {
+    onSubTabChange?.(activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // ── Sous-onglets internes du panneau de paramétrage : un bouton par panneau ──
   // TYPES  : types de factures + rubriques tarifaires

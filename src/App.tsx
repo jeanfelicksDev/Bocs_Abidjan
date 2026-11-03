@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { useSharedList, useVessels, revalidateLists } from './hooks/useData';
+import { useSharedList, useVessels, useEscales, useBls, useInvoices, revalidateLists } from './hooks/useData';
+import { currentRoute, routeToUrl, routeTitle, isSamePage } from './navigation/routes';
+import { ConnectionBanner } from './components/common/ConnectionBanner';
 import { ArrowLeft } from 'lucide-react';
 import { ToastContainer, toastError, toastWarning } from './components/common/Toast';
 import {
@@ -81,18 +83,67 @@ export function App() {
     return INITIAL_USERS[0];
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Au rechargement (F5), la session enregistrée est revérifiée auprès du serveur
+  // avant d'afficher quoi que ce soit : pas de passage par l'écran de connexion.
+  const [sessionChecking, setSessionChecking] = useState<boolean>(() => {
+    try { return !!localStorage.getItem('bocs_session_user'); } catch { return false; }
+  });
+  // Page demandée par l'adresse à l'ouverture (lien, favori, F5) : rejointe après connexion.
+  const requestedRouteRef = useRef(currentRoute());
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [profileTab, setProfileTab] = useState<'profile' | 'password' | 'security'>('profile');
   // Onglet du paramétrage des factures demandé depuis la page Paramétrage.
   const [invoiceConfigTab, setInvoiceConfigTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE' | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<NavTab>(() => currentRoute().tab);
   // La demande ne vaut que pour l'ouverture : en quittant l'écran, il reprend son onglet par défaut.
   useEffect(() => {
     if (activeTab !== 'facturation_config') setInvoiceConfigTab(undefined);
   }, [activeTab]);
-  const [showWelcome, setShowWelcome] = useState<boolean>(true);
+  const [showWelcome, setShowWelcome] = useState<boolean>(() => currentRoute().home);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
-  const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(null);
+  const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(() => currentRoute().blId ?? null);
+
+  // ── Adresse du navigateur ⇄ page affichée ────────────────────────────────
+  // Chaque navigation écrit son adresse (Précédent / Suivant, F5, favoris, liens) ;
+  // Précédent / Suivant relisent l'adresse et réaffichent la page correspondante.
+  useEffect(() => {
+    if (!isAuthenticated) return; // l'adresse demandée est conservée jusqu'à la connexion
+    const route = { home: showWelcome || activeTab === 'dashboard', tab: activeTab, blId: selectedBlIdForBilling ?? undefined };
+    const url = routeToUrl(route);
+    document.title = routeTitle(route);
+    const here = window.location.pathname + window.location.search;
+    if (url === here) return;
+    // Même page écrite autrement (ex. /export → /export/drafts) : on corrige sans ajouter d'étape.
+    if (routeToUrl(currentRoute()) === url) window.history.replaceState(null, '', url);
+    else {
+      window.history.pushState(null, '', url);
+      window.scrollTo(0, 0);
+    }
+  }, [isAuthenticated, showWelcome, activeTab, selectedBlIdForBilling]);
+
+  useEffect(() => {
+    const onHistory = () => {
+      const route = currentRoute();
+      setShowWelcome(route.home);
+      setActiveTab(route.home ? 'dashboard' : route.tab);
+      setSelectedBlIdForBilling(route.blId ?? null);
+    };
+    window.addEventListener('popstate', onHistory);
+    return () => window.removeEventListener('popstate', onHistory);
+  }, []);
+
+  // Un sous-onglet choisi dans un module devient la page courante (adresse, menu actif).
+  const handleSubPageChange = (tab: NavTab) => setActiveTab(prev => (isSamePage(prev, tab) ? prev : tab));
+
+  // Serveur injoignable : on le dit, plutôt que d'afficher des listes vides.
+  const { isError: escalesLoadError } = useEscales();
+  const { isError: blsLoadError } = useBls();
+  const { isError: invoicesLoadError } = useInvoices();
+  const serverUnreachable = isAuthenticated && [escalesLoadError, blsLoadError, invoicesLoadError]
+    .some(err => err && err.status !== 401 && err.status !== 403);
+  const retryLoading = () => {
+    void revalidateLists('/api/vessels', '/api/escales', '/api/bls', '/api/invoices', '/api/payments', '/api/drafts', '/api/credit-notes');
+  };
 
   // RBAC : force le re-rendu lorsque la matrice des droits est sauvegardée/réinitialisée
   usePermissionsSync();
@@ -300,6 +351,58 @@ export function App() {
 
   // --- USER & AUTHENTICATION HANDLERS ---
 
+  // Après connexion (ou reprise de session) : la page demandée par l'adresse si le
+  // profil y a droit, sinon le Plan du jour.
+  const openRequestedPage = (user: User) => {
+    const requested = requestedRouteRef.current;
+    requestedRouteRef.current = { home: true, tab: 'dashboard' };
+    if (!requested.home && isTabAllowed(user, requested.tab)) {
+      setActiveTab(requested.tab);
+      setSelectedBlIdForBilling(requested.blId ?? null);
+      setShowWelcome(false);
+      return;
+    }
+    setActiveTab('dashboard');
+    setShowWelcome(true);
+  };
+
+  // Reprise de la session au rechargement : le cookie serveur fait foi.
+  useEffect(() => {
+    if (!sessionChecking) return;
+    let cancelled = false;
+    const resume = (user: User) => {
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('bocs_session_user', JSON.stringify(user));
+      openRequestedPage(user);
+    };
+    const resumeLocalInDev = () => {
+      // Développement avec vite seul (pas d'API) : la session enregistrée suffit.
+      if (!import.meta.env.DEV) return;
+      try {
+        const saved = localStorage.getItem('bocs_session_user');
+        if (saved) resume(JSON.parse(saved));
+      } catch { /* session illisible : écran de connexion */ }
+    };
+    (async () => {
+      try {
+        const res = await fetch('/api/users?session');
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (res.ok && data?.success && data.user) resume(data.user);
+        else if (res.status === 401) localStorage.removeItem('bocs_session_user');
+        else resumeLocalInDev();
+      } catch {
+        if (!cancelled) resumeLocalInDev();
+      } finally {
+        if (!cancelled) setSessionChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // Une seule vérification, au chargement de l'application.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Login handler
   const handleLoginSuccess = (user: User) => {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -307,11 +410,7 @@ export function App() {
     setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
     setCurrentUser(updatedUser);
     setIsAuthenticated(true);
-    // RBAC : si l'onglet courant n'est pas permis pour cet utilisateur, retour au cockpit
-    if (!isTabAllowed(user, activeTab)) {
-      setActiveTab('dashboard');
-    }
-    setShowWelcome(true); // Redirige vers la Plateforme Intégrée après connexion
+    openRequestedPage(user);
     setAuthModalOpen(false);
     localStorage.setItem('bocs_session_user', JSON.stringify(updatedUser));
     logAuditAction('CONNEXION_REUSSIE', 'Session', `Connexion de ${user.nomComplet} (${user.role})`);
@@ -323,6 +422,9 @@ export function App() {
     setIsAuthenticated(false);
     setShowWelcome(false); // Retour à l'écran de connexion
     localStorage.removeItem('bocs_session_user');
+    // La personne suivante démarre sur le Plan du jour, pas sur la dernière page ouverte.
+    window.history.replaceState(null, '', '/');
+    document.title = 'BOCS';
     void logoutOnServer();
   };
 
@@ -331,6 +433,8 @@ export function App() {
     const onExpired = () => {
       if (!localStorage.getItem('bocs_session_user')) return;
       localStorage.removeItem('bocs_session_user');
+      // Après reconnexion, on revient sur la page où l'on travaillait.
+      requestedRouteRef.current = currentRoute();
       setIsAuthenticated(false);
       setShowWelcome(false);
       toastWarning('Votre session a expiré : reconnectez-vous.');
@@ -1124,6 +1228,14 @@ export function App() {
   };
 
   // ─── Porte 1 : Authentification requise ───────────────────────────────
+  if (sessionChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--deck-ground)]">
+        <p role="status" className="text-sm font-medium text-text-muted">Reprise de votre session…</p>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <>
@@ -1144,6 +1256,7 @@ export function App() {
   if (showWelcome || activeTab === 'dashboard') {
     return (
       <>
+        {serverUnreachable && <ConnectionBanner onRetry={retryLoading} />}
         <WelcomeScreen
         escales={escales}
         bls={bls}
@@ -1197,6 +1310,8 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#eaeff4] dark:bg-night-canvas flex flex-col font-sans text-slate-900 dark:text-night-ink antialiased">
+
+      {serverUnreachable && <ConnectionBanner onRetry={retryLoading} />}
 
       {/* Unified Premium Header Navigation */}
       <Header
@@ -1295,6 +1410,9 @@ export function App() {
 
 
               currentUser={currentUser}
+              onSubTabChange={sub => handleSubPageChange(({
+                SAISIE_DRAFT: 'export_saisie', ESPACE_CLIENT: 'export_list', CONSOLIDATION: 'export_consolidation',
+              } as const)[sub])}
               onAddDraft={handleAddDraft}
               onUpdateDraft={handleUpdateDraft}
               onUpdateDraftStatus={handleUpdateDraftStatus}
@@ -1323,6 +1441,10 @@ export function App() {
 
               selectedBlId={selectedBlIdForBilling}
               onSelectBl={setSelectedBlIdForBilling}
+              onSubTabChange={sub => handleSubPageChange(({
+                FACTURATION_BL: 'facturation', PROFORMA: 'facturation_journal', AVOIRS: 'facturation_avoirs',
+                TARIFS: 'facturation_tarifs', BALANCE_AGEE: 'facturation_balance', CONFIG: 'facturation_config',
+              } as const)[sub])}
               onNavigateToImport={() => setActiveTab('import')}
               onAddPayment={handleAddPayment}
               onValidateInvoice={handleValidateInvoice}
