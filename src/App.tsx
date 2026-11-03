@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useSharedList, useVessels, useEscales, useBls, useInvoices, revalidateLists } from './hooks/useData';
 import { currentRoute, routeToUrl, routeTitle, isSamePage } from './navigation/routes';
 import { ConnectionBanner } from './components/common/ConnectionBanner';
-import { ArrowLeft } from 'lucide-react';
 import { ToastContainer, toastError, toastWarning } from './components/common/Toast';
 import {
   INITIAL_USERS,
@@ -1324,7 +1323,6 @@ export function App() {
         onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onReturnToWelcome={() => setShowWelcome(true)}
         counts={{
           escalesCount: escales.length,
           blsCount: bls.length,
@@ -1558,28 +1556,6 @@ export function App() {
         onLoginSuccess={handleLoginSuccess}
         onAddUser={handleAddUser}
       />
-
-      {/* Floating Action Button : Retour immédiat à la plateforme intégrée de gestion et facturation maritime (seulement dans les sous-modules) */}
-      {!showWelcome && (
-        <button
-          type="button"
-          onClick={() => {
-            setShowWelcome(true);
-            setActiveTab('dashboard');
-          }}
-          className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/95 hover:bg-white dark:bg-night-surface dark:hover:bg-night-raised text-[#002B49] hover:text-[#005DAA] dark:text-night-link shadow-xl dark:shadow-black/60 border border-zinc-200 dark:border-night-line hover:border-[#005DAA] transition-all cursor-pointer active:scale-95 group font-bold text-sm"
-          title="Retour à la plateforme intégrée de gestion et facturation maritime"
-          aria-label="Retour à la plateforme intégrée de gestion et facturation maritime"
-        >
-          <span className="w-7 h-7 rounded-xl bg-[#F0F7FF] dark:bg-night-raised text-[#005DAA] dark:text-night-ink flex items-center justify-center group-hover:bg-[#005DAA] group-hover:text-white transition-colors shadow-2xs shrink-0">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          </span>
-          <div className="text-left hidden md:block">
-            <div className="text-2xs uppercase font-black text-[#00875A] tracking-wider leading-none">Accueil</div>
-            <div className="text-sm font-black text-[#002B49] dark:text-night-ink group-hover:text-[#005DAA] dark:group-hover:text-white leading-tight mt-0.5 whitespace-nowrap">Plateforme Intégrée</div>
-          </div>
-        </button>
-      )}
 
       {/* Global Toast Notifications */}
       <ToastContainer />

@@ -124,7 +124,7 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
           >
             <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${activeTab === 'dashboard' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
               }`}>grid_view</span>
-            <span>Cockpit</span>
+            <span>Plan du jour</span>
           </button>
         )}
 

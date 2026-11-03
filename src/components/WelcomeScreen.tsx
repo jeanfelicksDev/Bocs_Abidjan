@@ -48,6 +48,7 @@ import {
   UserRound,
   Download,
   Bell,
+  Menu,
   Anchor,
   ArrowRight as ArrowRightIcon
 } from 'lucide-react';
@@ -71,6 +72,8 @@ import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { RubriqueConfig, Payment } from '../types';
 import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
 import { MainNav } from './layout/MainNav';
+import { MobileNav } from './layout/MobileNav';
+import { NavTab } from './layout/Sidebar';
 
 
 interface WelcomeScreenProps {
@@ -172,6 +175,17 @@ escales,
   };
 
   const [viewState, setViewState] = useState<ViewState>('welcome');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Navigation principale (barre des grands écrans et menu mobile) : même destination.
+  const handleNavigate = (tab: NavTab) => {
+    if (tab === 'dashboard') {
+      setViewState('welcome');
+      setSelectedEscaleId(null);
+      return;
+    }
+    onEnter(tab);
+  };
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | null>(null);
   const [selectedBlForBillingModal, setSelectedBlForBillingModal] = useState<BL | null>(null);
 
@@ -739,7 +753,18 @@ escales,
         <div className="max-w-[2465px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
 
           {/* Brand Identity */}
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            {connectedUser && (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="xl:hidden p-2 text-zinc-700 hover:text-primary transition-colors cursor-pointer flex items-center justify-center rounded-lg hover:bg-zinc-500/10"
+                title="Ouvrir le menu"
+                aria-label="Ouvrir le menu"
+              >
+                <Menu className="w-5 h-5" aria-hidden="true" />
+              </button>
+            )}
             <BocsLogo className="h-9 sm:h-11 w-auto shrink-0" />
             <div className="hidden md:block min-w-0">
               <div className="flex items-center gap-2.5">
@@ -770,7 +795,8 @@ escales,
             </div>
 
             <ThemeSwitcher className="hidden min-[1680px]:inline-flex shrink-0" />
-            <ThemeSwitcher compact className="min-[1680px]:hidden shrink-0" />
+            {/* Sous 640 px, le choix du thème est dans le menu. */}
+            <ThemeSwitcher compact className="hidden sm:flex min-[1680px]:hidden shrink-0" />
 
             {/* Notifications (cloche) */}
             <button
@@ -849,10 +875,10 @@ escales,
                   setSelectedEscaleId(null);
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-black text-zinc-800 transition-all cursor-pointer shadow-1 active:scale-95 group"
-                title="Retour à la plateforme intégrée de gestion et facturation maritime"
+                title="Retour au Plan du jour"
               >
                 <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-1 transition-transform" />
-                <span>Retour Plateforme Intégrée</span>
+                <span>Plan du jour</span>
               </button>
             ) : null}
           </div>
@@ -861,18 +887,11 @@ escales,
 
         {/* Navigation principale : mêmes boutons que l'en-tête des modules. */}
         {connectedUser && (
-          <div className="max-w-[2465px] mx-auto px-4 sm:px-8 pb-3">
+          <div className="hidden xl:block max-w-[2465px] mx-auto px-4 sm:px-8 pb-3">
             <MainNav
               currentUser={connectedUser}
               activeTab="dashboard"
-              onTabChange={tab => {
-                if (tab === 'dashboard') {
-                  setViewState('welcome');
-                  setSelectedEscaleId(null);
-                  return;
-                }
-                onEnter(tab);
-              }}
+              onTabChange={handleNavigate}
               counts={{
                 escalesCount: escales.length,
                 blsCount: bls.length,
@@ -882,6 +901,16 @@ escales,
               className="flex flex-wrap justify-center"
             />
           </div>
+        )}
+        {connectedUser && (
+          <MobileNav
+            open={mobileMenuOpen}
+            onClose={() => setMobileMenuOpen(false)}
+            currentUser={connectedUser}
+            activeTab="dashboard"
+            onNavigate={handleNavigate}
+            onLogout={onLogout}
+          />
         )}
       </header>
 
