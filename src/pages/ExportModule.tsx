@@ -1816,16 +1816,12 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
                       <span aria-hidden="true" className="material-symbols-outlined text-[#005DAA] dark:text-night-link">info</span>
                       <span>Informations Générales &amp; Parties au Connaissement</span>
                     </h3>
-                    <div className="flex items-center gap-2 bg-surface-base dark:bg-night-sunken px-3 py-1.5 rounded-md border border-border-default dark:border-night-line">
-                      <label className="text-sm font-bold text-text-secondary dark:text-night-ink whitespace-nowrap">N° Booking :</label>
-                      <input
-                        type="text"
-                        value={bookingRef}
-                        onChange={e => setBookingRef(e.target.value)}
-                        placeholder="Ex: BKG-ABJ-101-001"
-                        className="h-8 px-2.5 rounded-lg bg-surface-canvas dark:bg-night-surface border border-zinc-300 dark:border-night-line-strong font-mono font-bold text-sm text-[#005DAA] dark:text-night-link focus:outline-none focus:border-[#005DAA] uppercase"
-                      />
-                    </div>
+                    {/* Le N° Booking se saisit une seule fois, dans le bandeau d'escale ci-dessus : rappel ici. */}
+                    {bookingRef && (
+                      <p className="text-sm text-text-secondary dark:text-night-ink-2">
+                        N° Booking : <span className="font-mono font-bold text-[#005DAA] dark:text-night-link">{bookingRef}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

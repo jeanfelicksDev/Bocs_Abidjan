@@ -9,13 +9,28 @@ import { NavTab } from '../components/layout/Sidebar';
  * toute adresse sans extension : aucune configuration serveur n'est nécessaire.
  */
 
+/** Vues de l'espace Plan du jour : le plan, le registre des escales, la création d'escale. */
+export type HomeView = 'welcome' | 'escales' | 'create-escale';
+
 export interface AppRoute {
   /** Page « Plan du jour » (accueil). */
   home: boolean;
   tab: NavTab;
   /** BL ouvert dans la facturation (`?bl=`). */
   blId?: number;
+  /** Vue de l'espace Plan du jour (par défaut : le plan). */
+  homeView?: HomeView;
 }
+
+const HOME_VIEW_PATHS: Record<Exclude<HomeView, 'welcome'>, string> = {
+  escales: '/escales/registre',
+  'create-escale': '/escales/nouvelle',
+};
+const HOME_VIEW_TITLES: Record<HomeView, string> = {
+  welcome: 'Plan du jour',
+  escales: 'Registre des escales',
+  'create-escale': 'Nouvelle escale',
+};
 
 const TAB_PATHS: Record<NavTab, string> = {
   dashboard: '/',
@@ -83,6 +98,8 @@ const HOME: AppRoute = { home: true, tab: 'dashboard' };
 /** Lit une adresse ; une adresse inconnue mène au Plan du jour. */
 export function parseRoute(pathname: string, search: string): AppRoute {
   const clean = pathname.replace(/\/+$/, '') || '/';
+  const view = (Object.entries(HOME_VIEW_PATHS) as [HomeView, string][]).find(([, p]) => p === clean)?.[0];
+  if (view) return { ...HOME, homeView: view };
   const tab = PATH_TABS.get(clean);
   if (!tab || tab === 'dashboard') return HOME;
   const bl = Number(new URLSearchParams(search).get('bl'));
@@ -90,14 +107,16 @@ export function parseRoute(pathname: string, search: string): AppRoute {
 }
 
 export function routeToUrl(route: AppRoute): string {
-  if (route.home || route.tab === 'dashboard') return '/';
+  if (route.home || route.tab === 'dashboard') {
+    return route.homeView && route.homeView !== 'welcome' ? HOME_VIEW_PATHS[route.homeView] : '/';
+  }
   const path = TAB_PATHS[route.tab] ?? '/';
   const withBl = route.blId && route.tab.startsWith('facturation') ? `?bl=${route.blId}` : '';
   return path + withBl;
 }
 
 export function routeTitle(route: AppRoute): string {
-  const page = route.home ? TAB_TITLES.dashboard : TAB_TITLES[route.tab] ?? TAB_TITLES.dashboard;
+  const page = route.home ? HOME_VIEW_TITLES[route.homeView ?? 'welcome'] : TAB_TITLES[route.tab] ?? TAB_TITLES.dashboard;
   return `${page} · BOCS`;
 }
 

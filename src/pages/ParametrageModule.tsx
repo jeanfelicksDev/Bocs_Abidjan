@@ -50,7 +50,7 @@ const RUBRIQUES: Rubrique[] = [
       { icon: 'percent', titre: 'Taxe additionnelle', description: 'Activation, mode de calcul et libellé sur le TTC.', tab: 'facturation_config', configTab: 'TAXE' },
       { icon: 'approval', titre: 'Timbre fiscal', description: "Tranches du timbre d'État appliqué au net à payer.", tab: 'facturation_config', configTab: 'TIMBRE' },
       { icon: 'calculate', titre: 'Grille tarifaire DMDT', description: 'Tranches de surestaries et de détention par type de conteneur.', tab: 'facturation_tarifs' },
-      { icon: 'account_balance', titre: 'FNE DGI & devise', description: 'Certification fiscale, paramètres de facture et devise.', tab: 'admin_fne' }
+      { icon: 'account_balance', titre: 'FNE DGI', description: 'Certification fiscale et paramètres de facture (le taux USD se règle ci-dessous).', tab: 'admin_fne' }
     ]
   },
   {

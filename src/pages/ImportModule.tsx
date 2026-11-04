@@ -17,6 +17,8 @@ interface ImportModuleProps {
   onAddEscale: (escale: Escale) => void;
   onImportManifest: (escale: Escale, newBls: BL[]) => void;
   onDeleteEscaleIntegration?: (escaleId: number) => void;
+  /** Formulaire unique de création d'escale (Plan du jour › /escales/nouvelle). */
+  onRequestCreateEscale?: () => void;
   onGenerateInvoice: (invoice: Invoice) => void;
   onLogAudit: (action: string, entite: string, details: string) => void;
   userRole: UserRole;
@@ -33,6 +35,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
   onAddEscale,
   onImportManifest,
   onDeleteEscaleIntegration,
+  onRequestCreateEscale,
   onGenerateInvoice,
   onUpdateInvoice,
   onLogAudit,
@@ -417,10 +420,13 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
 
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Une seule porte pour créer une escale ; la fenêtre locale reste le repli.
+  const openCreateEscale = () => (onRequestCreateEscale ? onRequestCreateEscale() : setShowAddEscaleModal(true));
+
   const handleOpenMultiPdfModal = () => {
     if (escales.length === 0) {
       toastWarning("Veuillez d'abord créer une escale avant de charger les manifestes.");
-      setShowAddEscaleModal(true);
+      openCreateEscale();
       return;
     }
     setShowMultiPdfModal(true);
@@ -980,7 +986,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
           />
           {/* Étape 1 : L'utilisateur crée l'escale */}
           <button
-            onClick={() => setShowAddEscaleModal(true)}
+            onClick={openCreateEscale}
             className="px-3.5 py-2 bg-[#002B49] hover:bg-[#04182c] dark:bg-night-raised dark:hover:bg-night-line-strong text-white dark:text-night-ink font-bold text-sm rounded-md border border-[#002B49] dark:border-night-line-strong shadow-1 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             title="Créer une nouvelle escale maritime"
           >
@@ -3217,7 +3223,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
         activeEscaleId={selectedEscaleId}
         onCommitGroups={handleCommitMultiPdfGroups}
         initialFiles={multiPdfInitialFiles}
-        onRequestCreateEscale={() => setShowAddEscaleModal(true)}
+        onRequestCreateEscale={openCreateEscale}
       />
 
       {/* ─── MODAL ÉDITION / CORRECTION BL ─── */}

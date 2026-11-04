@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BocsLogo } from "../BocsLogo";
 import { User, UserRole } from '../../types';
 import { NavTab } from './Sidebar';
-import { LogOut, LogIn, Menu, DollarSign } from 'lucide-react';
+import { LogOut, LogIn, Menu, DollarSign, Search, Bell, Clock } from 'lucide-react';
 import { ThemeSwitcher } from '../common/ThemeSwitcher';
-import { canEditExchangeRate, usePermissionsSync } from '../../utils/permissions';
+import { isTabAllowed, usePermissionsSync } from '../../utils/permissions';
 import { MainNav } from './MainNav';
 import { MobileNav } from './MobileNav';
 
@@ -12,8 +12,11 @@ interface HeaderProps {
   currentUser: User;
   isAuthenticated: boolean;
   exchangeRateUsd: number;
-  onUpdateExchangeRate: (rate: number) => void;
   onLogout: () => void;
+  /** Recherche (BL, conteneur, navire) : ouvre le registre des escales. */
+  onSearch?: () => void;
+  /** Créances ouvertes : la cloche porte un point et mène à la balance client. */
+  hasOpenReceivables?: boolean;
   onOpenLogin: () => void;
   onOpenProfile?: () => void;
   activeTab: NavTab;
@@ -43,8 +46,9 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   isAuthenticated,
   exchangeRateUsd,
-  onUpdateExchangeRate,
   onLogout,
+  onSearch,
+  hasOpenReceivables = false,
   onOpenLogin,
   onOpenProfile,
   activeTab,
@@ -52,20 +56,20 @@ export const Header: React.FC<HeaderProps> = ({
   counts
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [editingRate, setEditingRate] = useState(false);
-  const [tempRate, setTempRate] = useState(exchangeRateUsd.toString());
+
+  // Horloge GMT, affichée en permanence (contexte portuaire).
+  const [gmt, setGmt] = useState('');
+  useEffect(() => {
+    const tick = () => setGmt(new Date().toLocaleTimeString('fr-FR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' GMT');
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Les droits effectifs proviennent de la matrice des habilitations.
   usePermissionsSync();
-
-  const handleRateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const val = parseFloat(tempRate);
-    if (canEditExchangeRate(currentUser) && !isNaN(val) && val > 0) {
-      onUpdateExchangeRate(val);
-    }
-    setEditingRate(false);
-  };
+  const canSeeBalance = isTabAllowed(currentUser, 'facturation_balance');
+  const canOpenSettings = isTabAllowed(currentUser, 'parametrage');
 
   const initials = currentUser.nomComplet.split(' ').map(n => n[0]).join('').slice(0, 2);
 
@@ -95,46 +99,58 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Thème, taux du jour, compte */}
+        {/* Recherche, thème, cloche, horloge, taux du jour, compte */}
         <div className="flex items-center gap-2.5 shrink-0">
+
+          {onSearch && (
+            <button
+              type="button"
+              onClick={onSearch}
+              className="flex items-center justify-center md:justify-start gap-2 w-9 md:w-56 xl:w-72 h-9 md:px-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-400 hover:border-[#005DAA]/50 hover:text-zinc-600 transition-colors cursor-pointer shrink-0"
+              aria-label="Rechercher un BL, un conteneur ou un navire"
+            >
+              <Search className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {/* Sur téléphone : icône seule, la recherche reste accessible. */}
+              <span className="hidden md:inline truncate">Recherche BL, conteneur, navire…</span>
+            </button>
+          )}
 
           <ThemeSwitcher compact className="hidden sm:flex shrink-0" />
 
-          {editingRate && canEditExchangeRate(currentUser) ? (
-            <form onSubmit={handleRateSubmit} className="flex items-center gap-1 bg-zinc-50 border border-[#005DAA]/40 rounded-xl px-2 py-1">
-              <span className="text-2xs text-[#005DAA] font-mono font-bold">$1=</span>
-              <input
-                type="number"
-                value={tempRate}
-                onChange={(e) => setTempRate(e.target.value)}
-                className="w-16 px-1 py-0.5 text-xs text-zinc-900 bg-white border border-zinc-300 rounded font-mono"
-                aria-label="Taux : francs CFA pour 1 dollar"
-                autoFocus
-                onBlur={handleRateSubmit}
-              />
-              <span className="text-2xs text-zinc-500">F</span>
-            </form>
+          {canSeeBalance && (
+            <button
+              type="button"
+              onClick={() => onTabChange('facturation_balance')}
+              className="relative p-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-600 hover:text-[#005DAA] transition-colors cursor-pointer shrink-0"
+              title={hasOpenReceivables ? 'Créances ouvertes : voir la balance client' : 'Balance client'}
+              aria-label={hasOpenReceivables ? 'Créances ouvertes : voir la balance client' : 'Balance client'}
+            >
+              <Bell className="w-4 h-4" aria-hidden="true" />
+              {hasOpenReceivables && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#005DAA] ring-2 ring-white" aria-hidden="true" />}
+            </button>
+          )}
+
+          <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-zinc-500/10 border border-zinc-500/20 text-2xs font-mono font-bold text-zinc-800 whitespace-nowrap" title="Heure universelle (GMT)">
+            <Clock className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
+            {gmt}
+          </span>
+
+          {/* Taux du jour : affiché ici, réglé dans Paramétrage (un seul endroit). */}
+          {canOpenSettings ? (
+            <button
+              type="button"
+              onClick={() => onTabChange('parametrage')}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 hover:text-[#005DAA] transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Taux USD / FCFA officiel — se règle dans Paramétrage"
+            >
+              <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
+              <span>1 USD = {exchangeRateUsd} FCFA</span>
+            </button>
           ) : (
-            canEditExchangeRate(currentUser) ? (
-              <button
-                type="button"
-                onClick={() => setEditingRate(true)}
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 hover:text-[#005DAA] transition-colors cursor-pointer shadow-2xs"
-                title="Taux USD / FCFA officiel - Cliquer pour modifier"
-              >
-                <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
-                <span>1 USD = {exchangeRateUsd} FCFA</span>
-              </button>
-            ) : (
-              // Lecture seule : seuls la comptabilité et l'administrateur modifient le taux.
-              <span
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 shadow-2xs"
-                title="Taux USD / FCFA officiel (modifiable par la comptabilité et l'administrateur)"
-              >
-                <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
-                <span>1 USD = {exchangeRateUsd} FCFA</span>
-              </span>
-            )
+            <span className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 shadow-2xs whitespace-nowrap" title="Taux USD / FCFA officiel">
+              <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
+              <span>1 USD = {exchangeRateUsd} FCFA</span>
+            </span>
           )}
 
           {isAuthenticated ? (

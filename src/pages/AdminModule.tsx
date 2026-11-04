@@ -30,7 +30,6 @@ interface AdminModuleProps {
   onUpdateFneParam: (cle: string, valeur: string) => void;
   auditLogs: AuditLog[];
   exchangeRateUsd: number;
-  onUpdateExchangeRate: (rate: number) => void;
   onLogAudit: (action: string, entite: string, details: string) => void;
   userRole: UserRole;
   /** Utilisateur connecté (permet d'appliquer les overrides individuels en plus de la matrice par rôle). */
@@ -51,7 +50,6 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   onUpdateFneParam,
   auditLogs,
   exchangeRateUsd,
-  onUpdateExchangeRate,
   onLogAudit,
   userRole,
   currentUser,
@@ -1098,24 +1096,19 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           <div className="bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line shadow-sm dark:shadow-black/30 rounded-md p-6 shadow-xl dark:shadow-black/60">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-white dark:text-night-ink flex items-center gap-2">
+                <h3 className="text-lg font-bold text-primaryDark flex items-center gap-2">
                   <span aria-hidden="true" className="material-symbols-outlined text-blue-600 dark:text-night-link">currency_exchange</span>
                   <span>Taux de Conversion Officiel BOCS (USD / FCFA)</span>
                 </h3>
                 <p className="text-sm text-slate-500 dark:text-night-ink-2 mt-1">
-                  Ce taux fixe permet la conversion instantanée des montants de fret et surestaries exprimés en Dollars USD lors de la facturation.
+                  Ce taux convertit les montants de fret et de surestaries exprimés en dollars lors de la facturation. Il se règle dans Paramétrage.
                 </p>
               </div>
 
+              {/* Lecture seule : le taux se règle à un seul endroit, la page Paramétrage. */}
               <div className="flex items-center gap-3 bg-surface-canvas dark:bg-night-surface p-3 rounded-md border border-slate-200 dark:border-night-line">
                 <span className="text-base font-bold text-slate-500 dark:text-night-ink-2">1 USD =</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={exchangeRateUsd}
-                  onChange={e => onUpdateExchangeRate(parseFloat(e.target.value) || 600)}
-                  className="w-28 px-3 py-1.5 bg-[#050e1a] dark:bg-night-surface border border-slate-200 dark:border-night-line rounded-lg font-mono font-black text-blue-600 dark:text-night-link text-base focus:outline-none focus:border-[#005DAA] text-right"
-                />
+                <span className="font-mono font-black text-blue-600 dark:text-night-link text-base bocs-num">{exchangeRateUsd}</span>
                 <span className="text-base font-black text-blue-600 dark:text-night-link">FCFA</span>
               </div>
             </div>

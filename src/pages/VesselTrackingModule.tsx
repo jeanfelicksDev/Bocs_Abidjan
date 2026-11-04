@@ -17,6 +17,8 @@ interface VesselTrackingModuleProps {
   onImportManifest?: (escale: Escale, bls: any[]) => void;
   onDeleteEscale?: (escaleId: number) => void;
   onNavigateTab?: (tab: NavTab) => void;
+  /** Formulaire unique de création d'escale (Plan du jour › /escales/nouvelle). */
+  onRequestCreateEscale?: () => void;
 }
 
 export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
@@ -27,8 +29,11 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
   onAddEscale,
   onImportManifest,
   onDeleteEscale,
-  onNavigateTab
+  onNavigateTab,
+  onRequestCreateEscale
 }) => {
+  // Une seule porte pour créer une escale ; la fenêtre locale reste le repli.
+  const openCreateEscale = () => (onRequestCreateEscale ? onRequestCreateEscale() : setShowAddModal(true));
   const { escales } = useEscales();
   const { bls } = useBls();
   const { invoices } = useInvoices();
@@ -237,7 +242,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
           </button>
 
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openCreateEscale}
             className="px-4 py-2.5 premium-btn-primary text-white dark:text-white font-extrabold text-sm rounded-md shadow-md transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
           >
             <span aria-hidden="true" className="material-symbols-outlined text-lg">add_location_alt</span>
@@ -1108,7 +1113,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
           setShowMultiPdfModal(false);
           setTargetUploadEscaleId(null);
         }}
-        onRequestCreateEscale={() => setShowAddModal(true)}
+        onRequestCreateEscale={openCreateEscale}
       />
 
     </div>

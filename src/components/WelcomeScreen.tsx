@@ -71,9 +71,6 @@ import { extractBlsFromPdf, ExtractedBlItem } from '../utils/pdfExtractor';
 import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { RubriqueConfig, Payment } from '../types';
 import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
-import { MainNav } from './layout/MainNav';
-import { MobileNav } from './layout/MobileNav';
-import { NavTab } from './layout/Sidebar';
 
 
 interface WelcomeScreenProps {
@@ -105,11 +102,16 @@ interface WelcomeScreenProps {
   /** Tranches de timbre fiscal d'État (assiette HT) — pour la facturation depuis l'accueil. */
   timbreBrackets?: TimbreBracket[];
   onDeleteEscale?: (id: number) => void;
+  /** Vue affichée (plan, registre, création) : pilotée par l'adresse dans l'application. */
+  view?: ViewState;
+  onViewChange?: (view: ViewState) => void;
 }
 
 type ViewState = 'welcome' | 'escales' | 'create-escale';
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
+  view,
+  onViewChange,
   vessels = [],
   onAddVessel,
   onUpdateVessel,
@@ -174,18 +176,11 @@ escales,
     }
   };
 
-  const [viewState, setViewState] = useState<ViewState>('welcome');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Vue courante : pilotée par l'application quand elle est fournie (adresse /escales/…).
+  const [localView, setLocalView] = useState<ViewState>('welcome');
+  const viewState = view ?? localView;
+  const setViewState = (next: ViewState) => (onViewChange ? onViewChange(next) : setLocalView(next));
 
-  // Navigation principale (barre des grands écrans et menu mobile) : même destination.
-  const handleNavigate = (tab: NavTab) => {
-    if (tab === 'dashboard') {
-      setViewState('welcome');
-      setSelectedEscaleId(null);
-      return;
-    }
-    onEnter(tab);
-  };
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | null>(null);
   const [selectedBlForBillingModal, setSelectedBlForBillingModal] = useState<BL | null>(null);
 
@@ -320,14 +315,6 @@ escales,
     }
   };
 
-  // Recherche globale de l'en-tête : bascule vers le registre des escales (VIEW 2) dont le
-  // champ de filtrage dédié (#welcome-search-input) reçoit le focus après le rendu.
-  const handleHeaderSearchFocus = () => {
-    setViewState('escales');
-    setTimeout(() => {
-      document.getElementById('welcome-search-input')?.focus();
-    }, 50);
-  };
 
   // Multi-PDF modal state
   const [showMultiPdfModal, setShowMultiPdfModal] = useState(false);
@@ -355,23 +342,6 @@ escales,
     e.target.value = '';
   };
 
-  // Real-time Abidjan Clock
-  const [currentTime, setCurrentTime] = useState<string>('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('fr-FR', {
-        timeZone: 'UTC',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }) + ' GMT');
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Search in Escales explorer
   const [searchTerm, setSearchTerm] = useState('');
@@ -748,171 +718,6 @@ escales,
         onChange={handleDirectEscalePdfSelect}
       />
 
-      {/* ─── 1. TOP EXECUTIVE CLEAN HEADER ─── */}
-      <header className="w-full border-b border-zinc-200 bg-white z-30 relative shrink-0 shadow-xs">
-        <div className="max-w-[2465px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
-
-          {/* Brand Identity */}
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            {connectedUser && (
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="xl:hidden p-2 text-zinc-700 hover:text-primary transition-colors cursor-pointer flex items-center justify-center rounded-lg hover:bg-zinc-500/10"
-                title="Ouvrir le menu"
-                aria-label="Ouvrir le menu"
-              >
-                <Menu className="w-5 h-5" aria-hidden="true" />
-              </button>
-            )}
-            <BocsLogo className="h-9 sm:h-11 w-auto shrink-0" />
-            <div className="hidden md:block min-w-0">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl font-black tracking-wider text-zinc-900 font-sans">BOCS CI</span>
-              </div>
-              <p className="text-xs text-zinc-500 font-black uppercase tracking-wide mt-0.5 leading-tight">
-                Bremen Overseas Chartering Shipping
-              </p>
-              <p className="text-xs text-zinc-500 font-semibold leading-tight">
-                Agence Consignataire &amp; Manutention Portuaire • Port d'Abidjan
-              </p>
-            </div>
-          </div>
-
-          {/* Right Authority & Actions */}
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Recherche globale (BL, Conteneur, Navire) — focalise l'input du registre */}
-            <div className="hidden md:flex items-center relative">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <input
-                id="welcome-header-search-input"
-                type="text"
-                placeholder="Recherche BL, Conteneur, Navire... (⌘K)"
-                onFocus={handleHeaderSearchFocus}
-                className="w-56 xl:w-72 h-10 pl-10 pr-14 text-xs font-semibold rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-primary focus:bg-white transition-all"
-              />
-              <span className="absolute right-3 text-2xs font-mono font-black text-zinc-400 bg-white border border-zinc-200 rounded-md px-1.5 py-0.5 pointer-events-none">⌘K</span>
-            </div>
-
-            <ThemeSwitcher className="hidden min-[1680px]:inline-flex shrink-0" />
-            {/* Sous 640 px, le choix du thème est dans le menu. */}
-            <ThemeSwitcher compact className="hidden sm:flex min-[1680px]:hidden shrink-0" />
-
-            {/* Notifications (cloche) */}
-            <button
-              type="button"
-              onClick={() => { if (canViewBalance) onEnter('facturation_balance'); }}
-              className="relative p-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-600 hover:text-primary transition-all cursor-pointer active:scale-95 shrink-0"
-              title="Notifications & créances à surveiller"
-            >
-              <Bell className="w-4 h-4" />
-              {canViewBalance && totalSoldeDuFcfa > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-white"></span>
-              )}
-            </button>
-
-            <div className="hidden lg:flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-2 whitespace-nowrap font-mono text-primary bg-primaryLight px-3.5 py-1.5 rounded-xl border border-primary/25 font-black">
-                <Clock className="w-4 h-4 text-primary" />
-                <span>{currentTime || '00:00:00 GMT'}</span>
-              </div>
-            </div>
-
-            {/* Personne connectée : nom + rôle, sélecteur de compte, profil, déconnexion */}
-            {connectedUser ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onOpenProfile}
-                  className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 pl-1.5 pr-3 py-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 shadow-1 transition-all cursor-pointer group active:scale-95 text-zinc-900"
-                  title="Mon Profil — Paramètres & mot de passe"
-                >
-                  <div className="w-7 h-7 rounded-full bg-primary text-white font-black text-xs flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
-                    {userInitials}
-                  </div>
-                  <div className="text-left hidden sm:block max-w-[150px]">
-                    <span className="text-xs font-extrabold text-zinc-900 block leading-none truncate group-hover:text-primary transition-colors">{connectedUser.nomComplet}</span>
-                    <span className="text-xs text-primary font-mono font-bold leading-none mt-1 block truncate">{getConnectedRoleLabel(connectedUser.role)}</span>
-                  </div>
-                </button>
-
-                {onLogout && (
-                  <button
-                    type="button"
-                    onClick={onLogout}
-                    className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-200 transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                    title={`Se déconnecter (${connectedUser.nomComplet})`}
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-200 text-text-secondary" title="Aucun utilisateur connecté">
-                <div className="w-7 h-7 rounded-full bg-zinc-300 text-zinc-600 flex items-center justify-center shrink-0">
-                  <UserRound className="w-4 h-4" />
-                </div>
-                <div className="text-left hidden sm:block">
-                  <span className="text-xs font-extrabold block leading-none">Non connecté</span>
-                  <span className="text-xs font-mono font-bold leading-none mt-1 block">{getConnectedRoleLabel(undefined)}</span>
-                </div>
-              </div>
-            )}
-
-            {viewState === 'create-escale' ? (
-              <button
-                onClick={() => setViewState('escales')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-black text-zinc-800 transition-all cursor-pointer shadow-1 active:scale-95 group"
-                title="Retour à la liste des escales"
-              >
-                <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-1 transition-transform" />
-                <span>Retour aux Escales</span>
-              </button>
-            ) : viewState === 'escales' ? (
-              <button
-                onClick={() => {
-                  setViewState('welcome');
-                  setSelectedEscaleId(null);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-black text-zinc-800 transition-all cursor-pointer shadow-1 active:scale-95 group"
-                title="Retour au Plan du jour"
-              >
-                <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-1 transition-transform" />
-                <span>Plan du jour</span>
-              </button>
-            ) : null}
-          </div>
-
-        </div>
-
-        {/* Navigation principale : mêmes boutons que l'en-tête des modules. */}
-        {connectedUser && (
-          <div className="hidden xl:block max-w-[2465px] mx-auto px-4 sm:px-8 pb-3">
-            <MainNav
-              currentUser={connectedUser}
-              activeTab="dashboard"
-              onTabChange={handleNavigate}
-              counts={{
-                escalesCount: escales.length,
-                blsCount: bls.length,
-                draftsCount: drafts.length,
-                facturesCount: invoices.length
-              }}
-              className="flex flex-wrap justify-center"
-            />
-          </div>
-        )}
-        {connectedUser && (
-          <MobileNav
-            open={mobileMenuOpen}
-            onClose={() => setMobileMenuOpen(false)}
-            currentUser={connectedUser}
-            activeTab="dashboard"
-            onNavigate={handleNavigate}
-            onLogout={onLogout}
-          />
-        )}
-      </header>
 
       {/* ─── 2. MAIN EXECUTIVE WORKSPACE ─── */}
       <main className="w-full max-w-[2465px] mx-auto px-6 sm:px-8 pt-6 sm:pt-8 pb-12 flex-1 flex flex-col justify-start z-20 relative">
@@ -946,6 +751,14 @@ escales,
         ══════════════════════════════════════════════════════════════════ */}
         {viewState === 'escales' && (
           <div className="w-full max-w-[2054px] space-y-8 animate-fade-in mx-auto">
+            <button
+              type="button"
+              onClick={() => { setViewState('welcome'); setSelectedEscaleId(null); }}
+              className="inline-flex items-center gap-2 text-sm font-bold text-zinc-600 hover:text-primary transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 text-primary" aria-hidden="true" />
+              Plan du jour
+            </button>
 
             {/* Header bar */}
             <div className="ocean-glass-banner rounded-xl p-8 sm:p-10 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useSharedList, useVessels, useEscales, useBls, useInvoices, revalidateLists } from './hooks/useData';
-import { currentRoute, routeToUrl, routeTitle, isSamePage } from './navigation/routes';
+import { currentRoute, routeToUrl, routeTitle, isSamePage, HomeView } from './navigation/routes';
 import { ConnectionBanner } from './components/common/ConnectionBanner';
 import { ToastContainer, toastError, toastWarning } from './components/common/Toast';
 import {
@@ -101,13 +101,27 @@ export function App() {
   const [showWelcome, setShowWelcome] = useState<boolean>(() => currentRoute().home);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(() => currentRoute().blId ?? null);
+  // Vue de l'espace Plan du jour : le plan, le registre des escales ou la création d'escale.
+  const [homeView, setHomeView] = useState<HomeView>(() => currentRoute().homeView ?? 'welcome');
+
+  // Une seule porte pour créer une escale, et une seule pour la recherche : de partout.
+  const goHome = (view: HomeView) => {
+    setActiveTab('dashboard');
+    setShowWelcome(true);
+    setHomeView(view);
+  };
+  const openCreateEscale = () => goHome('create-escale');
+  const openSearch = () => {
+    goHome('escales');
+    window.setTimeout(() => document.getElementById('welcome-search-input')?.focus(), 80);
+  };
 
   // ── Adresse du navigateur ⇄ page affichée ────────────────────────────────
   // Chaque navigation écrit son adresse (Précédent / Suivant, F5, favoris, liens) ;
   // Précédent / Suivant relisent l'adresse et réaffichent la page correspondante.
   useEffect(() => {
     if (!isAuthenticated) return; // l'adresse demandée est conservée jusqu'à la connexion
-    const route = { home: showWelcome || activeTab === 'dashboard', tab: activeTab, blId: selectedBlIdForBilling ?? undefined };
+    const route = { home: showWelcome || activeTab === 'dashboard', tab: activeTab, blId: selectedBlIdForBilling ?? undefined, homeView };
     const url = routeToUrl(route);
     document.title = routeTitle(route);
     const here = window.location.pathname + window.location.search;
@@ -118,7 +132,12 @@ export function App() {
       window.history.pushState(null, '', url);
       window.scrollTo(0, 0);
     }
-  }, [isAuthenticated, showWelcome, activeTab, selectedBlIdForBilling]);
+  }, [isAuthenticated, showWelcome, activeTab, selectedBlIdForBilling, homeView]);
+
+  // Quitter l'espace Plan du jour remet sa vue par défaut (le plan).
+  useEffect(() => {
+    if (!showWelcome && activeTab !== 'dashboard') setHomeView('welcome');
+  }, [showWelcome, activeTab]);
 
   useEffect(() => {
     const onHistory = () => {
@@ -126,6 +145,7 @@ export function App() {
       setShowWelcome(route.home);
       setActiveTab(route.home ? 'dashboard' : route.tab);
       setSelectedBlIdForBilling(route.blId ?? null);
+      setHomeView(route.homeView ?? 'welcome');
     };
     window.addEventListener('popstate', onHistory);
     return () => window.removeEventListener('popstate', onHistory);
@@ -363,6 +383,7 @@ export function App() {
     }
     setActiveTab('dashboard');
     setShowWelcome(true);
+    setHomeView(requested.home ? requested.homeView ?? 'welcome' : 'welcome');
   };
 
   // Reprise de la session au rechargement : le cookie serveur fait foi.
@@ -1248,15 +1269,46 @@ export function App() {
     );
   }
 
-  // ─── Porte 2 : Écran d'accueil / Plateforme intégrée (après connexion) ─
-  // Le nom de la personne connectée s'affiche dans l'en-tête (nom + rôle,
-  // sélecteur de compte, accès profil, déconnexion) ; les autres pages
-  // l'affichent via le Header unifié (avatar + nom + rôle).
+  // ─── Un seul en-tête, sur le Plan du jour comme dans les modules ─
+  const navigateFromHeader = (tab: NavTab) => {
+    if (tab === 'dashboard') { goHome('welcome'); return; }
+    if (!isTabAllowed(currentUser, tab)) {
+      toastError('Accès refusé : votre profil ne dispose pas de l\'habilitation requise pour ce module.');
+      return;
+    }
+    setShowWelcome(false);
+    setActiveTab(tab);
+  };
+  const appHeader = (
+    <Header
+      currentUser={currentUser}
+      isAuthenticated={isAuthenticated}
+      exchangeRateUsd={exchangeRateUsd}
+      onLogout={handleLogout}
+      onSearch={openSearch}
+      hasOpenReceivables={invoices.some(inv => (inv.soldeDuFcfa || 0) > 0)}
+      onOpenLogin={() => handleOpenAuthModal('login')}
+      onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
+      activeTab={showWelcome ? 'dashboard' : activeTab}
+      onTabChange={navigateFromHeader}
+      counts={{
+        escalesCount: escales.length,
+        blsCount: bls.length,
+        draftsCount: drafts.length,
+        facturesCount: invoices.length
+      }}
+    />
+  );
+
+  // ─── Porte 2 : Plan du jour (après connexion) ─
   if (showWelcome || activeTab === 'dashboard') {
     return (
       <>
         {serverUnreachable && <ConnectionBanner onRetry={retryLoading} />}
+        {appHeader}
         <WelcomeScreen
+        view={homeView}
+        onViewChange={setHomeView}
         escales={escales}
         bls={bls}
         invoices={invoices}
@@ -1312,24 +1364,7 @@ export function App() {
 
       {serverUnreachable && <ConnectionBanner onRetry={retryLoading} />}
 
-      {/* Unified Premium Header Navigation */}
-      <Header
-        currentUser={currentUser}
-        isAuthenticated={isAuthenticated}
-        exchangeRateUsd={exchangeRateUsd}
-        onUpdateExchangeRate={setExchangeRateUsd}
-        onLogout={handleLogout}
-        onOpenLogin={() => handleOpenAuthModal('login')}
-        onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        counts={{
-          escalesCount: escales.length,
-          blsCount: bls.length,
-          draftsCount: drafts.length,
-          facturesCount: invoices.length
-        }}
-      />
+      {appHeader}
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex flex-col overflow-hidden max-w-[1996px] mx-auto w-full">
@@ -1365,6 +1400,7 @@ export function App() {
               onImportManifest={handleImportManifest}
               onDeleteEscale={handleDeleteEscaleIntegration}
               onNavigateTab={setActiveTab}
+              onRequestCreateEscale={openCreateEscale}
             />
           )}
 
@@ -1383,6 +1419,7 @@ export function App() {
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
               onDeleteEscaleIntegration={handleDeleteEscaleIntegration}
+              onRequestCreateEscale={openCreateEscale}
               onGenerateInvoice={handleGenerateInvoice}
               onUpdateInvoice={handleUpdateInvoice}
               onLogAudit={logAuditAction}
@@ -1522,7 +1559,6 @@ export function App() {
               onUpdateFneParam={handleUpdateFneParam}
               auditLogs={auditLogs}
               exchangeRateUsd={exchangeRateUsd}
-              onUpdateExchangeRate={setExchangeRateUsd}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
               currentUser={currentUser}
