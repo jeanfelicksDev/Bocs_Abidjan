@@ -1352,7 +1352,7 @@ export const ExportModule: React.FC<ExportModuleProps> = ({
 
             {/* Astuce ergonomique double-clic */}
             <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F0F7FF] dark:bg-night-sunken text-[#005DAA] dark:text-night-ink border border-[#005DAA] dark:border-night-line/25 text-xs font-bold shadow-1">
-              <span>💡</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">lightbulb</span>
               <span>Double-cliquez sur une ligne pour ouvrir le draft en modification</span>
             </div>
           </div>

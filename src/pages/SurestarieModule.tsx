@@ -437,7 +437,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
           {(['SURESTARIE', 'DETENTION'] as const).map(r => (
             <button key={r} type="button" onClick={() => setRegimeFilter(r)}
               className={`px-3 py-1.5 text-sm font-black transition-all cursor-pointer ${regimeFilter === r ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white' : 'bg-surface-canvas dark:bg-night-surface text-text-secondary dark:text-night-ink hover:bg-surface-base '}`}>
-              {r === 'SURESTARIE' ? '⏳ Surestaries' : '🔒 Détentions'}
+              {r === 'SURESTARIE' ? 'Surestaries' : 'Détentions'}
             </button>
           ))}
         </div>
@@ -595,7 +595,7 @@ export const SurestarieModule: React.FC<SurestarieModuleProps> = ({
             ) : (
               <>
                 <div className="text-sm text-text-muted dark:text-night-ink-2 font-bold px-1">
-                  {filtered.length} conteneur(s) · {regimeFilter === 'DETENTION' ? 'DÉTENTION' : 'SURESTARIE'} · {opFilter === 'ALL' ? 'Import &amp; Export' : opFilter}
+                  {filtered.length} conteneur(s) · {regimeFilter === 'DETENTION' ? 'DÉTENTION' : 'SURESTARIE'} · {opFilter === 'ALL' ? 'Import & Export' : opFilter}
                 </div>
                 {/* Table avec Ascenseur Vertical & Horizontal (Scrollbar) */}
                 <div className="bg-surface-canvas dark:bg-night-surface rounded-md border border-border-default dark:border-night-line shadow-1 overflow-hidden">

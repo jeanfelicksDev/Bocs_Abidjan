@@ -421,7 +421,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
                     <div className="w-8 h-8 rounded-full bg-[#e8f0fe] text-[#1a73e8] flex items-center justify-center mx-auto mb-1">
                       <Anchor className="w-3.5 h-3.5" />
                     </div>
-                    <div className="text-2xs font-bold text-text-secondary dark:text-night-ink truncate">{selectedEscale.portChargement?.split(' ')[0] || '—'}</div>
+                    <div className="text-2xs font-bold text-text-secondary dark:text-night-ink truncate">{selectedEscale.portChargement?.replace(/\s*\(.*\)\s*$/, '') || '—'}</div>
                     <div className="text-2xs text-text-muted dark:text-night-ink-3">Départ</div>
                   </div>
                   <div className="flex-1 flex items-center gap-1">
@@ -433,7 +433,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
                     <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-night-positive-soft text-emerald-600 dark:text-night-positive flex items-center justify-center mx-auto mb-1">
                       <MapPin className="w-3.5 h-3.5" />
                     </div>
-                    <div className="text-2xs font-bold text-text-secondary dark:text-night-ink truncate">{selectedEscale.portDechargement?.split(' ')[0] || 'Abidjan'}</div>
+                    <div className="text-2xs font-bold text-text-secondary dark:text-night-ink truncate">{selectedEscale.portDechargement?.replace(/\s*\(.*\)\s*$/, '') || 'Abidjan'}</div>
                     <div className="text-2xs text-text-muted dark:text-night-ink-3">Arrivée</div>
                   </div>
                 </div>

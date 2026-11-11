@@ -327,7 +327,7 @@ export const CockpitPlan: React.FC<CockpitPlanProps> = ({
               </p>
               <div className="mt-7 flex items-end gap-5">
                 <span className="bocs-bridge__count bocs-num" aria-hidden>{two(decisions)}</span>
-                <p className="pb-1.5 max-w-xs">
+                <p className="pb-1.5 max-w-md">
                   <span className="block text-lg font-bold leading-snug">
                     {decisions > 0
                       ? `dossier${decisions > 1 ? 's' : ''} attend${decisions > 1 ? 'ent' : ''} une décision`

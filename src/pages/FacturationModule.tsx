@@ -1211,24 +1211,19 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
     <div className="space-y-6 animate-fade-in font-sans">
       
       {/* Header & Sélecteur d'onglets — bloc entier figé au défilement (sticky) sous le Header principal */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-surface-canvas dark:bg-night-surface p-6 rounded-md shadow-sm dark:shadow-black/30 mb-6 border border-blue-100 dark:border-night-line">
+      <div className="flex flex-col gap-4 bg-surface-canvas dark:bg-night-surface px-6 pt-5 pb-4 rounded-md shadow-sm dark:shadow-black/30 border border-blue-100 dark:border-night-line">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span aria-hidden="true" className="material-symbols-outlined text-success dark:text-night-positive text-xl">payments</span>
-            <p className="font-black text-xs text-success dark:text-night-positive uppercase tracking-widest font-mono">
-              Finance, Facturation &amp; Surestaries DGI
-            </p>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-black text-primaryDark font-heading tracking-tight">
-            Facturation Maritime &amp; Règlements
+          <h1 className="text-2xl font-black text-primaryDark font-heading tracking-tight flex items-center gap-2.5">
+            <span aria-hidden="true" className="material-symbols-outlined text-success dark:text-night-positive text-2xl">payments</span>
+            Facturation maritime &amp; règlements
           </h1>
-          <p className="text-sm text-text-secondary font-medium mt-1 max-w-xl leading-relaxed">
+          <p className="text-sm text-text-secondary font-medium mt-1 leading-relaxed">
             Émission des factures par connaissement (BL) et calcul DMDT automatique.
           </p>
         </div>
 
         {/* Tab Switchers */}
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        <div role="group" aria-label="Sections de la facturation" className="flex flex-wrap items-center gap-1.5 w-full pt-4 border-t border-slate-200 dark:border-night-line">
           {[
             { key: 'FACTURATION_BL', label: 'Facturation BL', icon: 'receipt' },
             { key: 'PROFORMA', label: 'Journal Factures', icon: 'book' },
@@ -1241,17 +1236,19 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
             return (
               <button
                 key={tab.key}
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`px-4 py-2 rounded-md flex items-center gap-2 font-extrabold text-sm transition-all active:scale-95 cursor-pointer shadow-sm dark:shadow-black/30 ${
+                className={`h-9 px-3 rounded-md flex items-center gap-1.5 font-bold text-sm whitespace-nowrap transition-colors active:scale-[0.98] cursor-pointer border ${
                   isActive
-                    ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white shadow-[0_0_12px_rgba(0,93,170,0.3)]'
-                    : 'bg-surface-canvas hover:bg-[#F0F7FF] dark:hover:bg-night-raised text-slate-700 dark:text-night-ink hover:text-[#005DAA] border border-slate-200 dark:border-night-line/90 hover:border-[#005DAA] '
+                    ? 'bg-[#005DAA] dark:bg-night-accent text-white dark:text-white border-transparent'
+                    : 'bg-transparent hover:bg-[#F0F7FF] dark:hover:bg-night-raised text-slate-700 dark:text-night-ink hover:text-[#005DAA] border-slate-200 dark:border-night-line/90 hover:border-[#005DAA]'
                 }`}
               >
-                <span aria-hidden="true" className={`material-symbols-outlined text-xl ${isActive ? 'text-white dark:text-night-ink' : 'text-[#005DAA] dark:text-night-link'}`}>
+                <span aria-hidden="true" className={`material-symbols-outlined text-lg ${isActive ? 'text-white dark:text-night-ink' : 'text-[#005DAA] dark:text-night-link'}`}>
                   {tab.icon}
                 </span>
-                <span className={`font-black tracking-wide ${isActive ? 'text-white dark:text-night-ink' : 'text-slate-800 dark:text-night-ink'}`}>{tab.label}</span>
+                <span className={isActive ? 'text-white dark:text-night-ink' : 'text-slate-800 dark:text-night-ink'}>{tab.label}</span>
               </button>
             );
           })}
@@ -1437,7 +1434,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                           })()}
                         </td>
                         <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
+                          <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded text-2xs font-bold ${
                             g.statutPaiement === 'PAYE' ? 'bg-emerald-600 text-white dark:text-white font-black' : 'bg-rose-100 text-rose-800 dark:text-night-critical'
                           }`}>
                             {g.statutPaiement === 'PAYE' ? 'SOLDÉ' : 'NON RÉGLÉ'} {g.statutLabel ? `(${g.statutLabel})` : ''}
@@ -2050,7 +2047,7 @@ export const FacturationModule: React.FC<FacturationModuleProps> = ({
                   }`}
                   title={tariffFilterOpType === 'EXPORT' ? "Pas de surestaries à l'export" : "Surestaries (DMDT)"}
                 >
-                  SURESTARISE {tariffFilterOpType === 'EXPORT' && '🔒'}
+                  SURESTARIE
                 </button>
                 <button
                   type="button"

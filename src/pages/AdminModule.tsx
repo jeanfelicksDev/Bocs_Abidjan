@@ -791,11 +791,11 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                     className="h-9 px-3 bg-surface-canvas dark:bg-night-surface border border-slate-200 dark:border-night-line text-slate-900 dark:text-night-ink rounded-md text-sm font-bold cursor-pointer outline-none focus:border-[#005DAA] "
                   >
                     <option value="ALL">Toutes les Catégories</option>
-                    <option value="MARITIME">🚢 Maritime &amp; Escales</option>
-                    <option value="EXPORT">⚓ Export &amp; Draft BL</option>
-                    <option value="FINANCE">💳 Finance &amp; Facturation</option>
-                    <option value="DMDT">⏱️ Surestaries &amp; DMDT</option>
-                    <option value="ADMIN">🔒 Administration</option>
+                    <option value="MARITIME">Maritime &amp; Escales</option>
+                    <option value="EXPORT">Export &amp; Draft BL</option>
+                    <option value="FINANCE">Finance &amp; Facturation</option>
+                    <option value="DMDT">Surestaries &amp; DMDT</option>
+                    <option value="ADMIN">Administration</option>
                   </select>
                 </div>
               )}
@@ -831,7 +831,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   <span>Matrice Interactive d'Attribution des Droits selon le Profil ({permissionsMatrix.filter(p => rightsCategoryFilter === 'ALL' || p.category === rightsCategoryFilter).length} habilitations)</span>
                 </h3>
                 <span className="text-xs text-slate-600 dark:text-night-ink font-semibold italic">
-                  💡 Cliquez sur les cases pour accorder ou retirer un droit pour un profil
+                  Cliquez sur les cases pour accorder ou retirer un droit pour un profil
                 </span>
               </div>
 

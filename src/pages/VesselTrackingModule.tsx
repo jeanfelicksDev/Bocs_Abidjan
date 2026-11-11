@@ -213,7 +213,7 @@ export const VesselTrackingModule: React.FC<VesselTrackingModuleProps> = ({
           <div className="flex items-center gap-2.5">
             <span aria-hidden="true" className="material-symbols-outlined text-[#00875A] text-2xl font-black">radar</span>
             <h1 className="text-2xl font-black text-primaryDark tracking-tight">
-              Suivi Flotte &amp; <span className="font-serif italic font-semibold text-[#005DAA] dark:text-night-ink">Radar Portuaire AIS</span>
+              Suivi flotte &amp; radar portuaire AIS
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-2xs font-extrabold bg-[#ECFDF5] text-[#00875A] border border-[#00875A]/30">
               PAA Abidjan

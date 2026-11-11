@@ -130,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-zinc-500/10 border border-zinc-500/20 text-2xs font-mono font-bold text-zinc-800 whitespace-nowrap" title="Heure universelle (GMT)">
+          <span className="hidden lg:inline-flex items-center gap-1.5 pl-3 ml-0.5 border-l border-zinc-500/20 h-6 text-2xs font-mono font-semibold text-zinc-800 whitespace-nowrap" title="Heure universelle (GMT)">
             <Clock className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
             {gmt}
           </span>
@@ -140,14 +140,14 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => onTabChange('parametrage')}
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 hover:text-[#005DAA] transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+              className="hidden md:flex items-center gap-1.5 pl-3 pr-1 border-l border-zinc-500/20 h-6 text-2xs font-mono font-semibold text-zinc-800 hover:text-[#005DAA] transition-colors cursor-pointer whitespace-nowrap"
               title="Taux USD / FCFA officiel — se règle dans Paramétrage"
             >
               <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
               <span>1 USD = {exchangeRateUsd} FCFA</span>
             </button>
           ) : (
-            <span className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-zinc-500/10 border border-zinc-500/20 rounded-xl text-2xs font-mono font-bold text-zinc-800 shadow-2xs whitespace-nowrap" title="Taux USD / FCFA officiel">
+            <span className="hidden md:flex items-center gap-1.5 pl-3 pr-1 border-l border-zinc-500/20 h-6 text-2xs font-mono font-semibold text-zinc-800 whitespace-nowrap" title="Taux USD / FCFA officiel">
               <DollarSign className="w-3.5 h-3.5 text-[#005DAA]" aria-hidden="true" />
               <span>1 USD = {exchangeRateUsd} FCFA</span>
             </span>
@@ -195,13 +195,13 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Navigation principale (grands écrans), sur sa propre ligne : rien ne se chevauche */}
-      <div className="hidden xl:block border-t border-zinc-100 px-4 md:px-6 py-2">
+      <div className="hidden xl:block border-t border-zinc-100 px-4 md:px-6 py-1.5">
         <MainNav
           currentUser={currentUser}
           activeTab={activeTab}
           onTabChange={onTabChange}
           counts={counts}
-          className="flex flex-wrap justify-center"
+          className="flex flex-wrap justify-start"
         />
       </div>
 

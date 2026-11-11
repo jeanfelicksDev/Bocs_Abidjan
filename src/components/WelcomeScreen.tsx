@@ -109,6 +109,9 @@ interface WelcomeScreenProps {
 
 type ViewState = 'welcome' | 'escales' | 'create-escale';
 
+/** Nom du port sans son code entre parenthèses : « ABIDJAN (CIABJ) » → « ABIDJAN », « LE HAVRE » reste entier. */
+const portName = (port: string): string => port.replace(/\s*\(.*\)\s*$/, '').trim();
+
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   view,
   onViewChange,
@@ -761,14 +764,11 @@ escales,
             </button>
 
             {/* Header bar */}
-            <div className="ocean-glass-banner rounded-xl p-8 sm:p-10 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
+            <div className="ocean-glass-banner rounded-lg p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
               <div>
-                <div className="inline-flex items-center gap-2 text-xs font-black text-success uppercase tracking-widest mb-1.5">
-                  <Ship className="w-4 h-4" />
-                  <span>Registre Officiel des Navires & Manifestes</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-primary font-display">
-                  Escales Portuaires & <span className="font-serif italic font-normal text-success">Manifestes Douaniers</span>
+                <h2 className="text-2xl font-black text-primary font-display tracking-tight flex items-center gap-2.5">
+                  <Ship className="w-6 h-6 text-success shrink-0" aria-hidden="true" />
+                  Registre des escales &amp; manifestes
                 </h2>
                 <p className="text-sm text-zinc-600 font-medium mt-1">
                   Consultez les navires en cours, dépliez les BLs ou importez un nouveau manifeste XML GUCE ou PDF ALIS.
@@ -837,15 +837,15 @@ escales,
               <div className="overflow-x-auto">
                 <table className="welcome-table w-full text-left border-collapse text-xs sm:text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 bg-zinc-50 text-text-secondary font-mono font-black uppercase tracking-wider text-xs">
-                      <th className="px-8 py-5">Navire</th>
-                      <th className="px-8 py-5">Voyage</th>
-                      <th className="px-8 py-5">Indicatif</th>
-                      <th className="px-8 py-5">Route Maritime</th>
-                      <th className="px-8 py-5">Arrivée (ETA)</th>
-                      <th className="px-8 py-5 text-center">Statut</th>
-                      <th className="px-8 py-5 text-center">BLs Associés</th>
-                      <th className="px-8 py-5 text-right">Manifeste PDF</th>
+                    <tr className="border-b border-zinc-200 bg-zinc-50 text-text-secondary">
+                      <th className="px-4 py-3.5 whitespace-nowrap">Navire</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Voyage</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Indicatif</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Route Maritime</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Arrivée (ETA)</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap text-center">Statut</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap text-center">BLs Associés</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap text-right">Manifeste PDF</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 text-zinc-800 font-medium">
@@ -867,7 +867,7 @@ escales,
                               className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${isExpanded ? 'bg-primaryLight/60' : ''
                                 }`}
                             >
-                              <td className="px-8 py-5 font-black text-zinc-950">
+                              <td className="px-4 py-3.5 whitespace-nowrap font-black text-zinc-950">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -893,20 +893,20 @@ escales,
                                   </div>
                                 </button>
                               </td>
-                              <td className="px-8 py-5 font-mono font-black text-primary">{esc.numeroVoyage}</td>
-                              <td className="px-8 py-5 font-mono text-zinc-600 font-bold">{esc.callsign || 'N/A'}</td>
-                              <td className="px-8 py-5 text-text-secondary font-bold">
-                                <span className="text-zinc-600">{esc.portChargement.split(' ')[0]}</span>
+                              <td className="px-4 py-3.5 whitespace-nowrap font-mono font-black text-primary">{esc.numeroVoyage}</td>
+                              <td className="px-4 py-3.5 whitespace-nowrap font-mono text-zinc-600 font-bold">{esc.callsign || 'N/A'}</td>
+                              <td className="px-4 py-3.5 whitespace-nowrap text-text-secondary font-bold">
+                                <span className="text-zinc-600">{portName(esc.portChargement)}</span>
                                 <span className="mx-2 text-primary font-black">→</span>
-                                <span className="font-black text-zinc-950">{esc.portDechargement.split(' ')[0]}</span>
+                                <span className="font-black text-zinc-950">{portName(esc.portDechargement)}</span>
                               </td>
-                              <td className="px-8 py-5 text-zinc-900 font-mono font-black">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-zinc-900 font-mono font-black">
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="w-4 h-4 text-primary" />
                                   <span>{esc.dateArrivee}</span>
                                 </div>
                               </td>
-                              <td className="px-8 py-5 text-center">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-center">
                                 {esc.statut === 'EN_COURS' ? (
                                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -918,7 +918,7 @@ escales,
                                   </span>
                                 )}
                               </td>
-                              <td className="px-8 py-5 text-center">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-center">
                                 <div className="flex justify-center items-center gap-1.5 text-sm font-black text-zinc-900">
                                   <span>{escBls.length} BLs</span>
                                   {isExpanded ? (
@@ -928,7 +928,7 @@ escales,
                                   )}
                                 </div>
                               </td>
-                              <td className="px-8 py-5 text-right">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-right">
                                 <div className="flex items-center justify-end gap-2">
                                   {escBls.length === 0 ? (
                                     <>
@@ -980,7 +980,7 @@ escales,
                                         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primaryLight hover:bg-[#E1EFFF] text-primary border border-primary/30 font-black text-xs transition-all cursor-pointer active:scale-95 shrink-0"
                                       >
                                         <Upload className="w-3.5 h-3.5 text-primary" />
-                                        <span>+ Charger PDF</span>
+                                        <span>Ajouter</span>
                                       </button>
                                     </>
                                   )}
@@ -1001,7 +1001,7 @@ escales,
                                           <span>Route : {esc.portChargement} → {esc.portDechargement}</span>
                                         </div>
                                         <span className="text-xs font-bold text-amber-900 bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-1">
-                                          <span>💡</span>
+                                          <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">lightbulb</span>
                                           <span>Cliquez sur une ligne pour modifier le BL ou sur "Factures &amp; Règlements" pour accéder à sa facturation</span>
                                         </span>
                                       </div>
@@ -1224,14 +1224,11 @@ escales,
                   className="inline-flex items-center gap-2 text-xs font-black text-zinc-600 hover:text-primary transition-colors cursor-pointer mb-2"
                 >
                   <ArrowLeft className="w-4 h-4 text-primary" />
-                  <span>← Retour au Registre des Escales</span>
+                  <span>Retour au registre des escales</span>
                 </button>
-                <div className="inline-flex items-center gap-2 text-xs font-black text-success uppercase tracking-widest mb-1.5 ml-3">
-                  <Ship className="w-4 h-4" />
-                  <span>Nouvelle Entrée Navire</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 font-display">
-                  Création d'Escale Portuaire & <span className="font-serif italic font-normal text-success">Importation Manifestes PDF</span>
+                <h2 className="text-2xl font-black text-zinc-950 font-display tracking-tight flex items-center gap-2.5">
+                  <Ship className="w-6 h-6 text-success shrink-0" aria-hidden="true" />
+                  Nouvelle escale &amp; import des manifestes PDF
                 </h2>
                 <p className="text-sm text-zinc-600 font-medium mt-1">
                   Créez l'escale maritime pour votre navire à quai ou en rade, puis chargez les manifestes PDF dont les connaissements seront automatiquement rattachés.
@@ -1303,9 +1300,9 @@ escales,
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, statut: e.target.value as any })}
                       className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary cursor-pointer"
                     >
-                      <option value="EN_COURS">🟢 EN COURS</option>
-                      <option value="CLOTUREE">⚪ CLÔTURÉE</option>
-                      <option value="ANNULEE">🔴 ANNULÉE</option>
+                      <option value="EN_COURS">EN COURS</option>
+                      <option value="CLOTUREE">CLÔTURÉE</option>
+                      <option value="ANNULEE">ANNULÉE</option>
                     </select>
                   </div>
 
@@ -1466,7 +1463,7 @@ escales,
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-amber-800 font-bold bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
-                          <span>💡</span>
+                          <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">lightbulb</span>
                           <span>Cliquez sur une ligne pour ouvrir et faire des corrections</span>
                         </span>
                         <span className="text-xs font-bold text-zinc-500 font-mono whitespace-nowrap">

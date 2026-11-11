@@ -53,6 +53,8 @@ Tous les textes sont ≥ 4,5:1 sur leur surface. Le sombre dérive du bleu nuit 
 3. `src/styles/dark-safety.css` remappe en sombre les utilitaires clairs hérités
    (`bg-white`, `text-zinc-900`…). C'est un filet de transition, pas un modèle à suivre.
 4. **Tableaux** : séparateurs 1px pleins ; état actif = changement de surface, pas de néon.
+   Le contenu se lit dans la fonte d'interface (réglé une fois dans `base.css`) ; seules les
+   cellules d'identifiant demandent la fonte de données par `font-mono`.
 5. **Logo** : composant `BocsLogo` uniquement — son soulignement bleu nuit passe en encre
    claire en thème sombre pour rester lisible.
 

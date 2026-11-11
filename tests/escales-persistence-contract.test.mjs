@@ -33,7 +33,18 @@ test('failed escale or manifest writes cannot delete data outside a transaction'
 });
 
 test('application bootstrap does not delete operational escales or BLs', async () => {
-  const initDb = await read('api/init-db.ts');
-  assert.doesNotMatch(initDb, /DELETE FROM escales/i);
-  assert.doesNotMatch(initDb, /DELETE FROM bls/i);
+  // L'endpoint d'initialisation (api/init-db.ts) a été retiré. S'il revient un jour,
+  // il ne doit toujours rien supprimer ; et l'application ne doit plus l'appeler au démarrage.
+  const initDb = await read('api/init-db.ts').catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (initDb !== null) {
+    assert.doesNotMatch(initDb, /DELETE FROM escales/i);
+    assert.doesNotMatch(initDb, /DELETE FROM bls/i);
+  }
+
+  const app = await read('src/App.tsx');
+  // Toute mention hors commentaire compte : appel direct, chaîné ou affecté à une variable.
+  assert.doesNotMatch(app, /^(?!\s*\/\/).*init-db/m);
 });

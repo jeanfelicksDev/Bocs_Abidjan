@@ -3298,10 +3298,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({
               <div className="flex items-center gap-2 px-7 pt-4 pb-3 border-b border-border-default bg-surface-canvas dark:bg-night-surface overflow-x-auto shrink-0">
                 {(['general', 'parties', 'cargo', 'containers'] as const).map(tab => (
                   <button key={tab} type="button" onClick={() => setEditBlTab(tab)} className={tabCls(tab)}>
-                    {tab === 'general' && '📄 Général'}
-                    {tab === 'parties' && '🏢 Parties'}
-                    {tab === 'cargo' && '📦 Marchandise'}
-                    {tab === 'containers' && `🚢 Conteneurs (${editBlForm.conteneurs?.length || 0})`}
+                    {tab === 'general' && 'Général'}
+                    {tab === 'parties' && 'Parties'}
+                    {tab === 'cargo' && 'Marchandise'}
+                    {tab === 'containers' && `Conteneurs (${editBlForm.conteneurs?.length || 0})`}
                   </button>
                 ))}
               </div>

@@ -79,14 +79,15 @@ strong, b { font-weight: 700; }
 
 small { font-size: var(--text-xs); }
 
-/* Les chiffres financiers s'alignent colonne par colonne : c'est la
-   fonction du mono en chiffres tabulaires, pas un costume « technique ». */
+/* Les chiffres financiers s'alignent colonne par colonne : chiffres
+   tabulaires, dans la fonte d'interface. Le zéro barré reste propre aux
+   identifiants (fonte de données), il n'a rien à faire dans un montant. */
 table,
 .tabular-nums,
 .currency-display,
 .metric-value {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1, 'zero' 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
 }
 
 code, kbd, pre, .font-mono {
@@ -307,12 +308,16 @@ td, th, input[type="number"], .font-mono {
 /* -------------------------------------------------------------------------
    Tableaux — la grille de données de l'application. En-tête posé une fois.
    ------------------------------------------------------------------------- */
+/* Le tableau se lit dans la fonte d'interface : noms, libellés et montants.
+   La fonte de données est réservée aux identifiants (n° de BL, conteneur,
+   référence de facture), qui la demandent par `.font-mono` — DESIGN.md §4. */
 table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--text-sm);
-  font-family: var(--font-data);
+  font-family: var(--font-sans);
+  line-height: var(--leading-snug);
   text-align: left;
 }
 
@@ -321,10 +326,11 @@ thead th {
   top: 0;
   z-index: 1;
   padding: var(--space-3) var(--space-4);
-  font-size: var(--text-2xs);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.07em;
   color: var(--text-secondary);
   background-color: var(--surface-sunken);
   border-bottom: 1px solid var(--border-default);

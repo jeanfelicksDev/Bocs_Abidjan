@@ -113,14 +113,14 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
   const isSettingsActive = ['parametrage', 'admin', 'admin_users', 'admin_rights', 'admin_fne', 'admin_audit', 'facturation_config', 'facturation_tarifs'].includes(activeTab);
 
   return (
-    <nav ref={navRef} aria-label="Navigation principale" className={`items-center gap-1.5 2xl:gap-2.5 ${className}`}>
+    <nav ref={navRef} aria-label="Navigation principale" className={`items-center gap-1 ${className}`}>
         {/* 1. Cockpit / Tableau de Bord */}
         {isAllowed('dashboard') && (
           <button
             onClick={() => onTabChange('dashboard')}
-            className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'dashboard'
-                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
-                : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+            className={`group whitespace-nowrap h-9 px-3 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'dashboard'
+                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40'
+                : 'text-zinc-700 hover:text-black bg-transparent hover:bg-zinc-500/10 border border-transparent'
               }`}
           >
             <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${activeTab === 'dashboard' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
@@ -133,9 +133,9 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
         {isAllowed('vessels') && (
           <button
             onClick={() => onTabChange('vessels')}
-            className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'vessels'
-                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
-                : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+            className={`group whitespace-nowrap h-9 px-3 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'vessels'
+                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40'
+                : 'text-zinc-700 hover:text-black bg-transparent hover:bg-zinc-500/10 border border-transparent'
               }`}
           >
             <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${activeTab === 'vessels' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
@@ -156,9 +156,9 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
         {isAllowed('navires') && (
           <button
             onClick={() => onTabChange('navires')}
-            className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'navires'
-                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
-                : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+            className={`group whitespace-nowrap h-9 px-3 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98] ${activeTab === 'navires'
+                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40'
+                : 'text-zinc-700 hover:text-black bg-transparent hover:bg-zinc-500/10 border border-transparent'
               }`}
           >
             <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${activeTab === 'navires' ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
@@ -175,9 +175,9 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
           >
             <button
               {...triggerProps('facturation')}
-              className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isFacturationActive
-                  ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
-                  : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+              className={`group whitespace-nowrap h-9 px-3 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isFacturationActive
+                  ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40'
+                  : 'text-zinc-700 hover:text-black bg-transparent hover:bg-zinc-500/10 border border-transparent'
                 }`}
             >
               <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${isFacturationActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
@@ -272,9 +272,9 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
           >
             <button
               {...triggerProps('export')}
-              className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isExportActive
-                  ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
-                  : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+              className={`group whitespace-nowrap h-9 px-3 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5 cursor-pointer active:scale-[0.98] ${isExportActive
+                  ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40'
+                  : 'text-zinc-700 hover:text-black bg-transparent hover:bg-zinc-500/10 border border-transparent'
                 }`}
             >
               <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${isExportActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'
@@ -339,9 +339,9 @@ export const MainNav: React.FC<MainNavProps> = ({ currentUser, activeTab, onTabC
         {isAllowed('parametrage') && (
           <button
             onClick={() => onTabChange('parametrage')}
-            className={`group whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98] ${isSettingsActive
-                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40 shadow-xs font-black'
-                : 'text-zinc-700 hover:text-black bg-zinc-500/10 hover:bg-zinc-500/20 border border-zinc-500/10 hover:border-zinc-500/30'
+            className={`group whitespace-nowrap h-9 px-3 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98] ${isSettingsActive
+                ? 'bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/40'
+                : 'text-zinc-700 hover:text-black bg-transparent hover:bg-zinc-500/10 border border-transparent'
               }`}
           >
             <span aria-hidden="true" className={`material-symbols-outlined text-lg transition-colors ${isSettingsActive ? 'text-[#005DAA]' : 'text-zinc-400 group-hover:text-black'

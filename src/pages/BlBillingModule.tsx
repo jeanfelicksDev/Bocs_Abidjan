@@ -1395,20 +1395,20 @@ export const BlBillingModule: React.FC<BlBillingModuleProps> = ({
               </div>
 
               {/* Total Financier du BL */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-right bg-surface-base dark:bg-night-sunken p-5 rounded-md border border-border-default dark:border-night-line shadow-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 text-right bg-surface-base dark:bg-night-sunken px-5 py-4 rounded-md border border-border-default dark:border-night-line shadow-1 shrink-0">
                 <div>
-                  <span className="font-black text-xs text-text-secondary dark:text-night-ink uppercase tracking-wider mb-1 block font-mono">Total BL</span>
-                  <span className="text-2xl md:text-3xl text-zinc-950 dark:text-night-ink font-black tracking-tight font-mono">
+                  <span className="font-bold text-2xs text-text-secondary dark:text-night-ink uppercase tracking-wider mb-1 block whitespace-nowrap">Total BL</span>
+                  <span className="block whitespace-nowrap text-2xl text-zinc-950 dark:text-night-ink font-bold tracking-tight font-mono">
                     {blInvoices.reduce((sum, inv) => sum + (inv.montantTtcFcfa || 0), 0).toLocaleString('fr-FR')}{' '}
                     <span className="text-sm font-bold text-text-muted dark:text-night-ink-2 ml-0.5">FCFA</span>
                   </span>
                 </div>
-                <div className="w-px bg-zinc-200 my-1 hidden sm:block"></div>
+                <div className="w-px self-stretch bg-zinc-200 hidden sm:block"></div>
                 <div>
-                  <span className="font-black text-xs text-rose-600 dark:text-night-critical uppercase tracking-wider mb-1 flex items-center justify-end gap-1 font-mono">
-                    <span aria-hidden="true" className="material-symbols-outlined text-lg">warning</span> Solde Dû
+                  <span className="font-bold text-2xs text-rose-600 dark:text-night-critical uppercase tracking-wider mb-1 flex items-center justify-end gap-1 whitespace-nowrap">
+                    <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">warning</span> Solde dû
                   </span>
-                  <span className="text-2xl md:text-3xl text-rose-600 dark:text-night-critical font-black tracking-tight font-mono">
+                  <span className="block whitespace-nowrap text-2xl text-rose-600 dark:text-night-critical font-bold tracking-tight font-mono">
                     {blInvoices.reduce((sum, inv) => sum + (inv.soldeDuFcfa || 0), 0).toLocaleString('fr-FR')}{' '}
                     <span className="text-sm font-bold text-rose-400 dark:text-night-critical ml-0.5">FCFA</span>
                   </span>

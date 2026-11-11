@@ -28,17 +28,22 @@ interface ProfileModalProps {
   initialTab?: 'profile' | 'password' | 'security';
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({
-  isOpen,
+/**
+ * Enveloppe : le contenu n'est monté que fenêtre ouverte. Les hooks vivent dans
+ * `ProfileModalContent`, appelés à chaque rendu dans le même ordre ; le formulaire
+ * repart des données du compte à chaque ouverture.
+ */
+export const ProfileModal: React.FC<ProfileModalProps> = (props) =>
+  props.isOpen ? <ProfileModalContent {...props} /> : null;
+
+const ProfileModalContent: React.FC<ProfileModalProps> = ({
   onClose,
   currentUser,
   onUpdateProfile,
   onChangePassword,
   initialTab = 'profile'
 }) => {
-  if (!isOpen) return null;
   // Audit UX P1 : fermeture au clavier (Échap) + clic sur l'arrière-plan.
-  // (Modale montée conditionnellement : convention hooks du fichier conservée.)
   useEscapeClose(true, onClose);
 
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'security'>(initialTab);

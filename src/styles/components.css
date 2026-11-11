@@ -15,8 +15,6 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-1);
   color: var(--text-primary);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Alias historiques conservés : ils désignent la même primitive. */
@@ -28,17 +26,15 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-1);
   color: var(--text-primary);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
+/* Surfaces mates (DESIGN.md §1) : ces fonds sont opaques, un flou d'arrière-plan
+   n'y montrait rien et coûtait une couche de composition par carte. */
 .ocean-glass-banner {
   background-color: var(--surface-accent-soft);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Surface enfoncée : hiérarchiquement sous la carte, jamais une carte dans une carte */
