@@ -20,6 +20,17 @@ const STORAGE_KEY = 'theme';
 const EVENT = 'bocs:theme';
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 
+/** Couleur de l'en-tête de chaque thème : la barre de titre de l'application installée la reprend. */
+const THEME_COLOR: Record<ThemePreference, string> = {
+  eglin: '#ffffff',
+  bocs: '#ffffff',
+  night: '#111714',
+};
+
+export function themeColorFor(theme: ThemePreference): string {
+  return THEME_COLOR[theme];
+}
+
 export function getThemePreference(): ThemePreference {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'eglin' || stored === 'bocs' || stored === 'night') return stored;
@@ -35,6 +46,7 @@ function applyTheme(theme: ThemePreference): void {
   classes.toggle('dark', theme !== 'bocs');
   classes.toggle('night', theme === 'night');
   classes.toggle('light', theme === 'bocs');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColorFor(theme));
 }
 
 export function setThemePreference(theme: ThemePreference): void {

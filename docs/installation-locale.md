@@ -115,6 +115,22 @@ Même en interne, HTTPS évite que les mots de passe et les factures circulent e
   docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./bocs-racine.crt
   ```
 
+### Installer BOCS comme application (postes et téléphones)
+
+BOCS s'installe depuis le navigateur, sans magasin d'applications : il obtient son icône
+et sa propre fenêtre. L'application installée reste un accès au serveur ; elle ne
+fonctionne pas hors du réseau qui le joint.
+
+- **PC (Chrome, Edge)** : icône d'installation de la barre d'adresse, ou
+  Paramétrage › Application › « Installer l'application ».
+- **Android (Chrome)** : menu ⋮ › « Installer l'application », ou le même bouton.
+- **iPhone, iPad (Safari)** : Partager › « Sur l'écran d'accueil ».
+
+Le navigateur ne propose l'installation que si le certificat HTTPS est reconnu par
+l'appareil. Avec `BOCS_TLS=internal`, la racine de Caddy doit donc être installée aussi
+sur les téléphones, pas seulement sur les postes. Firefox sur PC n'installe pas
+d'application.
+
 ---
 
 ## 5. Reprise des données depuis Neon (une seule fois)

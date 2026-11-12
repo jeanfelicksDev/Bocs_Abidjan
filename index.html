@@ -2,11 +2,21 @@
 <html lang="fr" class="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BOCS Maritime — Plateforme de Gestion Import, Export & Facturation</title>
     <!-- Polices et icônes embarquées : voir src/styles/fonts.ts (aucun appel externe). -->
-  
+
+    <!-- Application installable (PC et téléphone) : manifeste, icônes, couleur de la barre
+         de titre. Icônes produites par scripts/generate-app-icons.mjs. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BOCS" />
+
     <script>
       // Même règle que src/utils/theme.ts : choix mémorisé (eglin, bocs ou night ;
       // les anciens "dark" et "light" valaient Eglin et bleu BOCS), sinon réglage du poste.
@@ -21,6 +31,9 @@
         classes.toggle("dark", theme !== "bocs");
         classes.toggle("night", theme === "night");
         classes.toggle("light", theme === "bocs");
+        // Barre de titre de l'application installée : la couleur de l'en-tête du thème.
+        var bar = document.querySelector('meta[name="theme-color"]');
+        if (bar) bar.setAttribute("content", theme === "night" ? "#111714" : "#ffffff");
       })();
     </script>
   </head>

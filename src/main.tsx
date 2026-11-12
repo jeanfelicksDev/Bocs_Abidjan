@@ -4,8 +4,10 @@ import { App } from './App'
 import './styles/fonts'
 import './index.css'
 import { installSessionGuard } from './utils/sessionGuard'
+import { watchInstallability } from './utils/installApp'
 
 installSessionGuard()
+watchInstallability()
 
 interface Props {
   children: ReactNode;

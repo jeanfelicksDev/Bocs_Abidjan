@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { User } from '../types';
 import { NavTab } from '../components/layout/Sidebar';
 import { ThemeSwitcher } from '../components/common/ThemeSwitcher';
+import { InstallAppCard } from '../components/common/InstallAppCard';
 import { canEditExchangeRate, isTabAllowed, usePermissionsSync } from '../utils/permissions';
 
 export type ProfileTab = 'profile' | 'password' | 'security';
@@ -149,7 +150,7 @@ export const ParametrageModule: React.FC<ParametrageModuleProps> = ({
 
       <section aria-labelledby="param-affichage" className="space-y-3">
         <div>
-          <h2 id="param-affichage" className="text-base font-black text-[#002B49] dark:text-night-ink">Affichage & devise</h2>
+          <h2 id="param-affichage" className="text-base font-black text-[#002B49] dark:text-night-ink">Affichage, devise & application</h2>
           <p className="text-xs text-text-muted dark:text-night-ink-3">Réglés ici directement.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -195,6 +196,8 @@ export const ParametrageModule: React.FC<ParametrageModuleProps> = ({
               {rateSaved && parsedRate === exchangeRateUsd ? 'Taux enregistré.' : ''}
             </p>
           </form>
+
+          <InstallAppCard />
         </div>
       </section>
     </div>
