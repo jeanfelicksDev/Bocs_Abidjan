@@ -17,18 +17,25 @@ export interface User {
   motDePasse?: string;
   dateCreation?: string;
   dernierAcces?: string;
+  deletedAt?: string;
 }
 
 export interface Vessel {
   id: number;
   nom: string;
   callsign: string;
+  /** Code court (4 caractères) du navire dans les numéros de facture (ex. `MANA`). */
+  codeNavire?: string;
   pavillon?: string;
+  /** Armateur / coque du navire (ex. BOCS Line). */
+  coque?: string;
   typeNavire?: string;
   armateur?: string;
   capaciteTeu?: number;
   dwt?: number;
   dateCreation?: string;
+  imoNumber?: string;
+  deletedAt?: string;
 }
 
 export interface Escale {
@@ -44,6 +51,9 @@ export interface Escale {
   quai?: string;
   statut: 'EN_COURS' | 'CLOTUREE' | 'ANNULEE';
   createdBy?: string;
+  vesselId?: number;
+  statusGeofencing?: string;
+  deletedAt?: string;
 }
 
 export type ContainerType = 
@@ -83,6 +93,12 @@ export interface Container {
   joursSurestarie?: number;
   montantSurestarieFcfa?: number;
   cautionRestitueeFcfa?: number;
+  // Anti-fraud
+  dmdtWaiverStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  dmdtWaiverDays?: number;
+  dmdtWaiverReason?: string;
+  dmdtWaiverApproverId?: number;
+  deletedAt?: string;
 }
 
 export interface BL {
@@ -119,6 +135,7 @@ export interface BL {
   cachetAgentAppose?: boolean;
   dateSignature?: string;
   hashSignature?: string;
+  deletedAt?: string;
 }
 
 export interface TarifSurestarie {
@@ -143,6 +160,7 @@ export type DraftStatus =
   | 'SOUMIS' 
   | 'VERROUILLE'
   | 'DEMANDE_CORRECTION'
+  | 'ACCORD_AGENT'
   | 'CORRECTION_AUTORISEE'
   | 'EN_REVUE' 
   | 'DEMANDE_MODIF' 
@@ -220,9 +238,11 @@ export interface DraftExport {
   dateCreation: string;
   dateValidation?: string;
   numeroBlGenere?: string;
-  // Règles spécifiques d'amendement & verrouillage ETD
-  dateLimiteTransmission?: string; // Échéance 24h avant ETD (fallback ETA)
+  // Règles spécifiques d'amendement & verrouillage ETA
+  dateLimiteTransmission?: string; // Échéance ETA
   estDeverrouille?: boolean;
+  dateLimiteCorrection?: string; // Délai de 2h après acceptation des frais
+  verrouilleApresCorrection?: boolean; // Verrouillé côté client dès soumission du draft corrigé
   okToPrint?: boolean; // Contenu confirmé par le client : bon pour impression BL & intégration manifeste
   // Instantané sérialisé du contenu au moment du déverrouillage (correction autorisée) :
   // base du diff coloré (ajouts en rouge, restants en vert) — affichage écran uniquement.
@@ -230,6 +250,7 @@ export interface DraftExport {
   demandeCorrection?: DemandeCorrectionDraft;
   fraisAmendementFactures?: boolean;
   factureFraisId?: number;
+  deletedAt?: string;
 }
 
 export interface InvoiceItem {
@@ -290,6 +311,7 @@ export interface Invoice {
   /** Valeur (taux % ou montant FCFA) appliquée à l'émission — historique. */
   taxeAdditionnelleValeur?: number;
   lignes: InvoiceItem[];
+  deletedAt?: string;
 }
 
 export interface TimbreBracket {

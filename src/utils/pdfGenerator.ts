@@ -1,5 +1,15 @@
 import { BL, DraftExport, Invoice, Escale, CreditNote, Container } from '../types';
 import { INITIAL_INVOICE_TYPE_CONFIGS } from '../data/initialData';
+import { formatInvoiceNumber } from './invoiceNumber';
+import { qrCodeDataUrl } from './qrCode';
+
+/**
+ * Polices des documents imprimés, servies par l'application elle-même
+ * (public/vendor/fonts, préparées par scripts/prepare-offline-assets.mjs) :
+ * l'impression ne contacte plus Google Fonts. L'iframe d'impression hérite de
+ * l'adresse de la page, le chemin absolu suffit.
+ */
+const PRINT_FONTS_CSS = '/vendor/fonts/print.css';
 
 /**
  * Renders HTML inside a hidden iframe and triggers the print dialog
@@ -76,7 +86,7 @@ export function triggerPrintDocument(elementId: string) {
         <meta charset="UTF-8" />
         <title>Document Maritime BOCS</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           body {
             font-family: 'Inter', sans-serif;
             margin: 0;
@@ -222,7 +232,8 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
     ? bl.conteneurs.map(c => `${c.typeConteneur} N° ${c.numeroConteneur} - Pb N° ${c.numeroScelle}`).join(' &nbsp;&nbsp; ')
     : (bl ? '' : '05x40\' HC COC, STC 48 REELS - KLB KRAFTLINER BROWN, WTKL ROYAL WHITE');
 
-  const titleText = isPaid ? 'FACTURE' : 'PROFORMA';
+  const isValidatedInvoice = invoice.statutFacture === 'VALIDEE';
+  const titleText = isValidatedInvoice ? 'FACTURE' : 'PROFORMA';
 
   // ── Taxe additionnelle exceptionnelle (assiette : montant TTC) ──
   // Bloc imprimé uniquement si la taxe a été appliquée à l'émission de la facture.
@@ -283,7 +294,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
         <title>${titleText} - ${invoice.numeroFacture}</title>
         <style>
           @page { size: A4; margin: 10mm; }
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           body { font-family: 'Inter', 'Arial', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; display: flex; flex-direction: column; min-height: 275mm; }
           .logo-container { width: 350px; margin-bottom: 25px; }
           
@@ -339,7 +350,7 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
         <div class="header-main">
           <div>
             <span class="title">${titleText} N° &nbsp;&nbsp;&nbsp;</span>
-            <span class="title">${invoice.numeroFacture.includes('/') ? invoice.numeroFacture.split('/')[0] : invoice.numeroFacture}</span>${invoice.numeroFacture.includes('/') ? `<span class="title-red">/${invoice.numeroFacture.split('/')[1] || '022'}</span>` : ''}
+            <span class="title">${invoice.numeroFacture.includes('/') ? invoice.numeroFacture.split('/')[0] : formatInvoiceNumber(invoice.numeroFacture)}</span>${invoice.numeroFacture.includes('/') ? `<span class="title-red">/${invoice.numeroFacture.split('/')[1] || '022'}</span>` : ''}
           </div>
           <div>
             <div class="type-fact">${(() => {
@@ -505,10 +516,9 @@ export function generateProformaPdf(invoice: Invoice, bl?: BL, agencyInfo: strin
           </div>
           <div style="text-align: center; flex: 0 0 auto; padding: 0 8px; border-right: none;">
             <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=70x70&color=00182f&bgcolor=ffffff&data=${encodeURIComponent(`BOCS|${invoice.numeroFacture}|${invoice.clientNom}|${invoice.montantTtcFcfa} FCFA|${invoice.dateFacture}`)}"
+              src="${qrCodeDataUrl(`BOCS|${invoice.numeroFacture}|${invoice.clientNom}|${invoice.montantTtcFcfa} FCFA|${invoice.dateFacture}`)}"
               alt="QR Authenticite"
               style="width: 70px; height: 70px; border: 1px solid #e2e8f0; border-radius: 4px;"
-              crossorigin="anonymous"
             />
             <div style="font-size: 6.5px; color: #94a3b8; margin-top: 2px;">Vérifier authenticité</div>
           </div>
@@ -554,7 +564,7 @@ export function generateOriginalBlPdf(
         <meta charset="UTF-8" />
         <title>${options.nonNegotiable ? 'Bill of Lading Non Négociable' : 'Bill of Lading Original'} - ${bl.numeroBL}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           body { font-family: 'Inter', sans-serif; margin: 0; padding: 24px; color: #1a1c1c; background: white; font-size: 11px; }
           .header { display: flex; justify-content: space-between; border-bottom: 3px double #00182f; padding-bottom: 12px; margin-bottom: 16px; }
           .title { font-size: 20px; font-weight: 900; color: #00182f; letter-spacing: -0.5px; }
@@ -713,7 +723,7 @@ export function generateDoBadPdf(bl: BL, escale?: Escale, agencyInfo: string = '
         <title>Bon à Délivrer (DO/BAD) - ${bl.numeroBL}</title>
         <style>
           @page { size: A4; margin: 10mm; }
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@800;900&family=JetBrains+Mono&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; display: flex; flex-direction: column; min-height: 275mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           
           .section-title {
@@ -974,7 +984,7 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
         <title>NOTE D'AVOIR - ${creditNote.numeroAvoir}</title>
         <style>
           @page { size: A4; margin: 10mm; }
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           body { font-family: 'Inter', 'Arial', sans-serif; margin: 0; padding: 0; color: #1e293b; background: white; font-size: 10px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; display: flex; flex-direction: column; min-height: 275mm; }
           .logo-container { width: 350px; margin-bottom: 25px; }
           
@@ -1027,13 +1037,13 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
         <div class="header-main">
           <div>
             <span class="title">NOTE D'AVOIR / CREDIT NOTE N° &nbsp;</span>
-            <span class="title" style="color: #0f172a;">${creditNote.numeroAvoir}</span>
+            <span class="title" style="color: #0f172a;">${formatInvoiceNumber(creditNote.numeroAvoir)}</span>
           </div>
           <div>
             <div class="type-fact">Avoir sur Facture</div>
             <div class="dates">
               Date d'émission : ${creditNote.dateEmission}<br />
-              Réf. Facture d'Origine : <strong>${creditNote.numeroFactureOrigine}</strong>
+              Réf. Facture d'Origine : <strong>${formatInvoiceNumber(creditNote.numeroFactureOrigine)}</strong>
             </div>
           </div>
         </div>
@@ -1051,7 +1061,7 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
               <tr><td>Voy :</td><td>${blVoy}</td></tr>
               <tr><td>Pol/Pod :</td><td>${blPolPod}</td></tr>
               <tr><td>B/L N° :</td><td>${bl?.numeroBL || originalInvoice?.numeroBL || 'NC'}</td></tr>
-              <tr><td>Facture d'origine :</td><td><strong>${creditNote.numeroFactureOrigine}</strong></td></tr>
+              <tr><td>Facture d'origine :</td><td><strong>${formatInvoiceNumber(creditNote.numeroFactureOrigine)}</strong></td></tr>
             </table>
           </div>
           <div>
@@ -1092,7 +1102,7 @@ export function generateCreditNotePdf(creditNote: CreditNote, originalInvoice?: 
         <div class="footer-section">
           <div style="width: 60%;">
             <div class="notes">
-              NB : Cette note d'avoir annule et compense à due concurrence la facture N° ${creditNote.numeroFactureOrigine}.<br />
+              NB : Cette note d'avoir annule et compense à due concurrence la facture N° ${formatInvoiceNumber(creditNote.numeroFactureOrigine)}.<br />
               Conformément à la réglementation fiscale en vigueur, ce document fait foi pour la déduction de la TVA correspondante.
             </div>
             <div class="amount-words">
@@ -1728,7 +1738,7 @@ export function generateBocsExportBlLetterheadPdf(
         <title>${options.nonNegotiable ? 'Connaissement Non Négociable' : 'Connaissement Original'} BOCS - ${blNumber}</title>
         <style>
           @page { size: A4 portrait; margin: 8mm; }
-          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Playfair+Display:ital,wght@1,600&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           * { box-sizing: border-box; }
           body {
             font-family: 'Plus Jakarta Sans', Arial, sans-serif;
@@ -2039,7 +2049,7 @@ export function generateBocsExportBlLetterheadPdf(
         <div class="routing-grid">
           <div class="routing-cell">
             <div class="bl-cell-title">OCEAN VESSEL &amp; VOYAGE</div>
-            <div class="bl-cell-content">${draft.navireNom || escale?.nomNavire || 'BOCS BREMEN'} V.${draft.numeroVoyage || escale?.numeroVoyage || '25586'}</div>
+            <div class="bl-cell-content">${draft.navireNom || escale?.nomNavire || '—'} V.${draft.numeroVoyage || escale?.numeroVoyage || '—'}</div>
           </div>
 
           <div class="routing-cell">
@@ -2225,7 +2235,7 @@ export function generateExportManifestPdf(escale: Escale, validatedDrafts: Draft
         <title>Manifeste Export - ${escale.nomNavire} Voy ${escale.numeroVoyage}</title>
         <style>
           @page { size: A4 landscape; margin: 8mm; }
-          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;800&display=swap');
+          @import url('${PRINT_FONTS_CSS}');
           * { box-sizing: border-box; }
           body {
             font-family: 'Plus Jakarta Sans', Arial, sans-serif;
@@ -2346,7 +2356,7 @@ export function generateExportManifestPdf(escale: Escale, validatedDrafts: Draft
           </div>
           <div style="text-align: right;">
             <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800; color: #005daa;">
-              MANIFESTE N° MAN-EXP-${escale.numeroVoyage || '25586'}
+              MANIFESTE N° MAN-EXP-${escale.numeroVoyage || '000'}
             </div>
             <div style="font-size: 7.5px; color: #475569; font-weight: 700;">Date d'édition : ${dateGeneration}</div>
           </div>

@@ -1,0 +1,98 @@
+/* ==========================================================================
+   BOCS MARITIME — CALQUE DE COMPATIBILITÉ (Legacy bridge)
+   --------------------------------------------------------------------------
+   SUPPORT TEMPORAIRE. Ce fichier n'est PAS un design system.
+
+   Raison d'être : les modules Import / Export / Facturation / Sûreté /
+   Vessels / Admin (~1,2 Mo de TSX) n'ont pas encore été migrés vers les
+   primitives `.bocs-*`. Ils utilisent massivement des classes Tailwind
+   génériques (`bg-white border`, `bg-slate-900/70`, `text-slate-400`) que
+   l'ancien index.css réécrivait à coups de `!important` et de sélecteurs
+   d'attributs.
+
+   On ne supprime pas ce calque avant d'avoir migré ces six modules : le
+   retirer maintenant : cela peuplerait l'application de texte blanc sur fond blanc.
+
+   TODO(bocs-design) — retirer ce fichier une fois les modules migrés sur
+   `.bocs-card` / `.bocs-btn` / `.bocs-badge`. Voir DESIGN.md.
+   ========================================================================== */
+
+/* Cartes génériques écrites en utilitaires Tailwind.
+   L'ancien code attribuait à toute `div.bg-white.border` une teinte bleue
+   translucide. On restitue ici une surface neutre et propre, et c'est tout :
+   la teinte bleue appliquée à TOUTES les cartes était la source principale
+   de l'aspect « tout est teinté » et de l'absence de hiérarchie. */
+.bocs-legacy-surface > div.bg-white[class*='border'],
+.legacy-bridge div.bg-white[class*='border'] {
+  background-color: var(--surface-base);
+  border-color: var(--border-default);
+}
+
+/* Voile d attention des modales : l'ancien calque repeignait tout overlay en
+   blanc opaque via `div[class*="fixed"] div.bg-white`. On garde l'opacité des
+   surfaces flottantes, qui est un besoin réel de lisibilité. */
+div[class*='fixed'] div.bg-white,
+div[class*='absolute'] div.bg-white,
+[role='dialog'] {
+  background-color: var(--surface-overlay);
+}
+
+/* Classes de boutons historiques, mappées sur les primitives. */
+.premium-btn-primary,
+.btn-primary,
+button.btn-primary-blue {
+  background-color: var(--c-blue-600);
+  color: var(--text-on-accent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  box-shadow: var(--elevation-2);
+  transition: background-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.premium-btn-primary:hover,
+.btn-primary:hover,
+button.btn-primary-blue:hover {
+  background-color: var(--c-blue-700);
+}
+
+.premium-btn-green,
+button.btn-primary-green {
+  background-color: var(--c-green-600);
+  color: var(--text-on-accent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  box-shadow: var(--elevation-2);
+}
+
+.premium-btn-green:hover,
+button.btn-primary-green:hover {
+  background-color: var(--c-green-700);
+}
+
+.premium-btn-secondary {
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  box-shadow: var(--elevation-1);
+}
+
+.premium-btn-secondary:hover {
+  background-color: var(--surface-canvas);
+  border-color: var(--c-slate-500);
+}
+
+/* Texte blanc posé sur un bouton coloré sombre : l'ancien calque forçait
+   `#F8FAFC`. On conserve la garantie via la pseudo-classe hover, plus
+   précise que l'attribut de classe. */
+button[class*='bg-slate-800']:hover,
+button[class*='bg-slate-900']:hover,
+button[class*='bg-zinc-900']:hover,
+button[class*='bg-[#002B49]']:hover {
+  background-color: var(--c-navy-800);
+  color: var(--text-on-inverse);
+}

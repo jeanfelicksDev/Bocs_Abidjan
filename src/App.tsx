@@ -1,34 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { ToastContainer, toastError } from './components/common/Toast';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useSharedList, useVessels, useEscales, useBls, useInvoices, revalidateLists } from './hooks/useData';
+import { currentRoute, routeToUrl, routeTitle, isSamePage, HomeView } from './navigation/routes';
+import { ConnectionBanner } from './components/common/ConnectionBanner';
+import { ToastContainer, toastError, toastWarning } from './components/common/Toast';
 import {
   INITIAL_USERS,
   INITIAL_ESCALES,
   INITIAL_BLS,
-  INITIAL_DRAFTS_EXPORT,
   INITIAL_INVOICES,
   INITIAL_PAYMENTS,
   INITIAL_FNE_PARAMS,
   INITIAL_AUDIT_LOGS,
   INITIAL_INVOICE_TYPE_CONFIGS,
   INITIAL_RUBRIQUE_CONFIGS,
-  INITIAL_VESSELS,
   INITIAL_TIMBRE_BRACKETS
 } from './data/initialData';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './pages/Dashboard';
-import { VesselTrackingModule } from './pages/VesselTrackingModule';
-import { ImportModule } from './pages/ImportModule';
-import { ExportModule } from './pages/ExportModule';
-import { FacturationModule } from './pages/FacturationModule';
-import { SurestarieModule } from './pages/SurestarieModule';
-import { AdminModule } from './pages/AdminModule';
 import { AuthModal } from './components/common/AuthModal';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProfileModal } from './components/auth/ProfileModal';
-import { isTabAllowed, usePermissionsSync } from './utils/permissions';
+import { isTabAllowed, usePermissionsSync, fetchPermissionsMatrix } from './utils/permissions';
 import {
   InvoiceTypeConfig,
   RubriqueConfig,
@@ -52,12 +46,30 @@ import {
   getTaxeAdditionnelleValeurLabel
 } from './utils/taxeAdditionnelle';
 import { applyTimbreFiscalToInvoice } from './utils/timbreFiscal';
+import { useDialogFocus } from './hooks/useDialogFocus';
 import { snapshotContenuDraft } from './utils/draftDiff';
 import {
-  getInvoiceTypePrefix,
-  getInvoiceTypeDiscriminant,
-  resolveUniqueInvoiceNumber
-} from './utils/invoiceMatching';
+  formatInvoiceNumber,
+  invoiceNumberForDuplicate,
+  invoiceNumberWithStatut,
+  isDefinitiveInvoiceNumber
+} from './utils/invoiceNumber';
+import { SESSION_EXPIRED_EVENT, logoutOnServer } from './utils/sessionGuard';
+
+// Modules métier chargés à la première ouverture : le démarrage ne paie que
+// l'accueil et le cockpit.
+const VesselTrackingModule = lazy(() => import('./pages/VesselTrackingModule').then((m) => ({ default: m.VesselTrackingModule })));
+const VesselsModule = lazy(() => import('./pages/VesselsModule').then((m) => ({ default: m.VesselsModule })));
+const ImportModule = lazy(() => import('./pages/ImportModule').then((m) => ({ default: m.ImportModule })));
+const ExportModule = lazy(() => import('./pages/ExportModule').then((m) => ({ default: m.ExportModule })));
+const FacturationModule = lazy(() => import('./pages/FacturationModule').then((m) => ({ default: m.FacturationModule })));
+const SurestarieModule = lazy(() => import('./pages/SurestarieModule').then((m) => ({ default: m.SurestarieModule })));
+const AdminModule = lazy(() => import('./pages/AdminModule').then((m) => ({ default: m.AdminModule })));
+const ParametrageModule = lazy(() => import('./pages/ParametrageModule').then((m) => ({ default: m.ParametrageModule })));
+
+const ModuleLoading = () => (
+  <p role="status" className="mt-16 text-center text-sm font-medium text-text-muted">Chargement du module…</p>
+);
 
 export function App() {
   // Global Application & Auth State
@@ -70,158 +82,127 @@ export function App() {
     return INITIAL_USERS[0];
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Au rechargement (F5), la session enregistrée est revérifiée auprès du serveur
+  // avant d'afficher quoi que ce soit : pas de passage par l'écran de connexion.
+  const [sessionChecking, setSessionChecking] = useState<boolean>(() => {
+    try { return !!localStorage.getItem('bocs_session_user'); } catch { return false; }
+  });
+  // Page demandée par l'adresse à l'ouverture (lien, favori, F5) : rejointe après connexion.
+  const requestedRouteRef = useRef(currentRoute());
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [showWelcome, setShowWelcome] = useState<boolean>(true);
+  const [profileTab, setProfileTab] = useState<'profile' | 'password' | 'security'>('profile');
+  // Onglet du paramétrage des factures demandé depuis la page Paramétrage.
+  const [invoiceConfigTab, setInvoiceConfigTab] = useState<'TYPES' | 'TAXE' | 'TIMBRE' | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<NavTab>(() => currentRoute().tab);
+  // La demande ne vaut que pour l'ouverture : en quittant l'écran, il reprend son onglet par défaut.
+  useEffect(() => {
+    if (activeTab !== 'facturation_config') setInvoiceConfigTab(undefined);
+  }, [activeTab]);
+  const [showWelcome, setShowWelcome] = useState<boolean>(() => currentRoute().home);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
-  const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(null);
+  const [selectedBlIdForBilling, setSelectedBlIdForBilling] = useState<number | null>(() => currentRoute().blId ?? null);
+  // Vue de l'espace Plan du jour : le plan, le registre des escales ou la création d'escale.
+  const [homeView, setHomeView] = useState<HomeView>(() => currentRoute().homeView ?? 'welcome');
+
+  // Une seule porte pour créer une escale, et une seule pour la recherche : de partout.
+  const goHome = (view: HomeView) => {
+    setActiveTab('dashboard');
+    setShowWelcome(true);
+    setHomeView(view);
+  };
+  const openCreateEscale = () => goHome('create-escale');
+  const openSearch = () => {
+    goHome('escales');
+    window.setTimeout(() => document.getElementById('welcome-search-input')?.focus(), 80);
+  };
+
+  // ── Adresse du navigateur ⇄ page affichée ────────────────────────────────
+  // Chaque navigation écrit son adresse (Précédent / Suivant, F5, favoris, liens) ;
+  // Précédent / Suivant relisent l'adresse et réaffichent la page correspondante.
+  useEffect(() => {
+    if (!isAuthenticated) return; // l'adresse demandée est conservée jusqu'à la connexion
+    const route = { home: showWelcome || activeTab === 'dashboard', tab: activeTab, blId: selectedBlIdForBilling ?? undefined, homeView };
+    const url = routeToUrl(route);
+    document.title = routeTitle(route);
+    const here = window.location.pathname + window.location.search;
+    if (url === here) return;
+    // Même page écrite autrement (ex. /export → /export/drafts) : on corrige sans ajouter d'étape.
+    if (routeToUrl(currentRoute()) === url) window.history.replaceState(null, '', url);
+    else {
+      window.history.pushState(null, '', url);
+      window.scrollTo(0, 0);
+    }
+  }, [isAuthenticated, showWelcome, activeTab, selectedBlIdForBilling, homeView]);
+
+  // Quitter l'espace Plan du jour remet sa vue par défaut (le plan).
+  useEffect(() => {
+    if (!showWelcome && activeTab !== 'dashboard') setHomeView('welcome');
+  }, [showWelcome, activeTab]);
+
+  useEffect(() => {
+    const onHistory = () => {
+      const route = currentRoute();
+      setShowWelcome(route.home);
+      setActiveTab(route.home ? 'dashboard' : route.tab);
+      setSelectedBlIdForBilling(route.blId ?? null);
+      setHomeView(route.homeView ?? 'welcome');
+    };
+    window.addEventListener('popstate', onHistory);
+    return () => window.removeEventListener('popstate', onHistory);
+  }, []);
+
+  // Un sous-onglet choisi dans un module devient la page courante (adresse, menu actif).
+  const handleSubPageChange = (tab: NavTab) => setActiveTab(prev => (isSamePage(prev, tab) ? prev : tab));
+
+  // Serveur injoignable : on le dit, plutôt que d'afficher des listes vides.
+  const { isError: escalesLoadError } = useEscales();
+  const { isError: blsLoadError } = useBls();
+  const { isError: invoicesLoadError } = useInvoices();
+  const serverUnreachable = isAuthenticated && [escalesLoadError, blsLoadError, invoicesLoadError]
+    .some(err => err && err.status !== 401 && err.status !== 403);
+  const retryLoading = () => {
+    void revalidateLists('/api/vessels', '/api/escales', '/api/bls', '/api/invoices', '/api/payments', '/api/drafts', '/api/credit-notes');
+  };
 
   // RBAC : force le re-rendu lorsque la matrice des droits est sauvegardée/réinitialisée
   usePermissionsSync();
+  useDialogFocus(); // focus des modales (role="dialog")
+
+  useEffect(() => {
+    fetchPermissionsMatrix();
+  }, []);
 
   // Persistence en Base LocalStorage avec déduplication automatique
-  const [escales, setEscales] = useState<Escale[]>(() => {
-    const saved = localStorage.getItem('bocs_escales');
-    if (saved) {
-      try {
-        const parsed: Escale[] = JSON.parse(saved);
-        if (parsed.length > 0) {
-          return parsed.reduce((acc: Escale[], current: Escale) => {
-            const exists = acc.find(e =>
-              e.id === current.id ||
-              (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() &&
-                e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
-            );
-            if (!exists) acc.push(current);
-            return acc;
-          }, []);
-        }
-      } catch (e) { console.error('Erreur chargement escales local', e); }
-    }
-    return [];
-  });
+  // Listes métier : cache partagé avec tous les modules (hooks/useData) — une
+  // modification faite ici est visible partout sans rafraîchir la page.
+  const [vessels, setVessels] = useSharedList('/api/vessels');
+  const { isLoading: vesselsLoading, isError: vesselsLoadError } = useVessels();
 
-  const [bls, setBls] = useState<BL[]>(() => {
-    const saved = localStorage.getItem('bocs_bls');
-    if (saved) {
-      try {
-        const parsed: BL[] = JSON.parse(saved);
-        if (parsed.length > 0) {
-          return parsed.reduce((acc: BL[], current: BL) => {
-            const exists = acc.find(b => b.id === current.id || (b.numeroBL === current.numeroBL && b.escaleId === current.escaleId));
-            if (!exists) acc.push(current);
-            return acc;
-          }, []);
-        }
-      } catch (e) { console.error('Erreur chargement bls local', e); }
-    }
-    return [];
-  });
+  const [escales, setEscales] = useSharedList('/api/escales');
 
-  const [drafts, setDrafts] = useState<DraftExport[]>(() => {
-    const saved = localStorage.getItem('bocs_drafts');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement drafts local', e); }
-    }
-    return INITIAL_DRAFTS_EXPORT;
-  });
+  const [bls, setBls] = useSharedList('/api/bls');
 
-  const normalizeInvoice = (inv: Invoice): Invoice => {
-    const soldeDuFcfa = Number(inv.soldeDuFcfa || 0);
-    const montantTtcFcfa = Number(inv.montantTtcFcfa || 0);
-    const isPaid = soldeDuFcfa === 0 || inv.statutPaiement === 'PAYE';
-    const isDefinitive = Boolean(inv.numeroFacture && inv.numeroFacture.startsWith('FA-'));
-    const isPartial = inv.statutPaiement === 'PARTIEL';
-    let statutFacture = inv.statutFacture || 'BROUILLON';
-    if (statutFacture !== 'ANNULEE' && statutFacture !== 'AVOIR' && (isPaid || isDefinitive || isPartial)) {
-      statutFacture = 'VALIDEE';
-    }
-    return {
-      ...inv,
-      id: Number(inv.id),
-      blId: inv.blId ? Number(inv.blId) : undefined,
-      clientId: inv.clientId ? Number(inv.clientId) : undefined,
-      tauxChangeUsd: Number(inv.tauxChangeUsd || 600),
-      montantHtFcfa: Number(inv.montantHtFcfa || 0),
-      tvaFcfa: Number(inv.tvaFcfa || 0),
-      montantTtcFcfa,
-      soldeDuFcfa,
-      // Taxe additionnelle exceptionnelle (assiette TTC) — historique figé à l'émission
-      montantTtcAvantTaxeFcfa: inv.montantTtcAvantTaxeFcfa !== undefined && inv.montantTtcAvantTaxeFcfa !== null
-        ? Number(inv.montantTtcAvantTaxeFcfa)
-        : undefined,
-      taxeAdditionnelleFcfa: Number(inv.taxeAdditionnelleFcfa || 0),
-      taxeAdditionnelleLibelle: inv.taxeAdditionnelleLibelle || undefined,
-      taxeAdditionnelleMode: inv.taxeAdditionnelleMode || undefined,
-      taxeAdditionnelleValeur: inv.taxeAdditionnelleValeur !== undefined && inv.taxeAdditionnelleValeur !== null
-        ? Number(inv.taxeAdditionnelleValeur)
-        : undefined,
-      invoiceTypeId: inv.invoiceTypeId ? String(inv.invoiceTypeId) : undefined,
-      statutFacture,
-      lignes: (inv.lignes || []).map(line => ({
-        ...line,
-        id: line.id ? Number(line.id) : undefined,
-        quantite: Number(line.quantite || 0),
-        prixUnitaireFcfa: Number(line.prixUnitaireFcfa || 0),
-        montantHtFcfa: Number(line.montantHtFcfa || 0),
-        tauxTva: Number(line.tauxTva || 18)
-      }))
-    };
-  };
+  // Drafts export : persistés en base Neon (100% cloud) — plus de stockage local seul.
+  const [drafts, setDrafts] = useSharedList('/api/drafts');
 
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('bocs_invoices');
-    if (saved) {
-      try {
-        const parsed: Invoice[] = JSON.parse(saved);
-        return parsed.map(normalizeInvoice);
-      } catch (e) { console.error('Erreur chargement invoices local', e); }
-    }
-    return INITIAL_INVOICES.map(normalizeInvoice);
-  });
 
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => {
-    const saved = localStorage.getItem('bocs_credit_notes');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement credit_notes local', e); }
-    }
-    return [];
-  });
 
-  const [payments, setPayments] = useState<Payment[]>(() => {
-    const saved = localStorage.getItem('bocs_payments');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement payments local', e); }
-    }
-    return INITIAL_PAYMENTS;
-  });
+  const [invoices, setInvoices] = useSharedList('/api/invoices');
+
+  const [creditNotes, setCreditNotes] = useSharedList('/api/credit-notes');
+
+  const [payments, setPayments] = useSharedList('/api/payments');
 
   const [fneParams, setFneParams] = useState<FneParam[]>(INITIAL_FNE_PARAMS);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('bocs_audit_logs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error('Erreur chargement audit_logs local', e); }
-    }
-    return INITIAL_AUDIT_LOGS;
-  });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [exchangeRateUsd, setExchangeRateUsd] = useState<number>(600.00);
   const [invoiceTypeConfigs, setInvoiceTypeConfigs] = useState<InvoiceTypeConfig[]>(() => {
     const saved = localStorage.getItem('bocs_invoice_types');
     if (saved) {
       try {
-        const parsed: InvoiceTypeConfig[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const missing = INITIAL_INVOICE_TYPE_CONFIGS.filter(
-            init => !parsed.some(p => p.id === init.id || p.name.toLowerCase().trim() === init.name.toLowerCase().trim())
-          );
-          if (missing.length > 0) {
-            const merged = [...parsed, ...missing];
-            localStorage.setItem('bocs_invoice_types', JSON.stringify(merged));
-            return merged;
-          }
-          return parsed;
-        }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) { console.error('Erreur chargement invoice_types local', e); }
     }
     return INITIAL_INVOICE_TYPE_CONFIGS;
@@ -231,32 +212,11 @@ export function App() {
     const saved = localStorage.getItem('bocs_rubriques');
     if (saved) {
       try {
-        const parsed: RubriqueConfig[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const missing = INITIAL_RUBRIQUE_CONFIGS.filter(
-            init => !parsed.some(p => p.id === init.id)
-          );
-          if (missing.length > 0) {
-            const merged = [...parsed, ...missing];
-            localStorage.setItem('bocs_rubriques', JSON.stringify(merged));
-            return merged;
-          }
-          return parsed;
-        }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) { console.error('Erreur chargement rubriques local', e); }
     }
     return INITIAL_RUBRIQUE_CONFIGS;
-  });
-
-  const [vessels, setVessels] = useState<Vessel[]>(() => {
-    const saved = localStorage.getItem('bocs_vessels');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) { console.error('Erreur chargement navires local', e); }
-    }
-    return INITIAL_VESSELS;
   });
 
   const [timbreBrackets, setTimbreBrackets] = useState<TimbreBracket[]>(() => {
@@ -278,10 +238,6 @@ export function App() {
 
   // Sauvegarde automatique en temps réel dans localStorage
   useEffect(() => {
-    localStorage.setItem('bocs_vessels', JSON.stringify(vessels));
-  }, [vessels]);
-
-  useEffect(() => {
     localStorage.setItem('bocs_timbre_brackets', JSON.stringify(timbreBrackets));
   }, [timbreBrackets]);
 
@@ -293,19 +249,9 @@ export function App() {
     localStorage.setItem('bocs_invoice_types', JSON.stringify(invoiceTypeConfigs));
   }, [invoiceTypeConfigs]);
 
-  const handleAddVessel = (vessel: Vessel) => {
-    setVessels(prev => {
-      const exists = prev.some(v => v.nom.trim().toLowerCase() === vessel.nom.trim().toLowerCase());
-      if (exists) return prev;
-      return [vessel, ...prev];
-    });
-    logAuditAction('CRÉATION_NAVIRE', 'VESSEL', vessel.nom);
-  };
-
-  const handleDeleteVessel = (vesselId: number) => {
-    setVessels(prev => prev.filter(v => v.id !== vesselId));
-    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', `ID: ${vesselId}`);
-  };
+  useEffect(() => {
+    localStorage.setItem('bocs_rubriques', JSON.stringify(rubriqueConfigs));
+  }, [rubriqueConfigs]);
 
   const handleUpdateTimbreBrackets = (brackets: TimbreBracket[]) => {
     setTimbreBrackets(brackets);
@@ -325,54 +271,21 @@ export function App() {
     );
   };
 
+  // Chargement des données une fois connecté : l'API exige une session (cookie) et
+  // répond 401 avant la connexion. Les listes partagées sont rechargées à chaque connexion.
   useEffect(() => {
-    localStorage.setItem('bocs_rubriques', JSON.stringify(rubriqueConfigs));
-  }, [rubriqueConfigs]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_escales', JSON.stringify(escales));
-  }, [escales]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_bls', JSON.stringify(bls));
-  }, [bls]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_drafts', JSON.stringify(drafts));
-  }, [drafts]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_invoices', JSON.stringify(invoices));
-  }, [invoices]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_credit_notes', JSON.stringify(creditNotes));
-  }, [creditNotes]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_payments', JSON.stringify(payments));
-  }, [payments]);
-
-  useEffect(() => {
-    localStorage.setItem('bocs_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
-
-  // Initialisation et chargement des données depuis Neon Postgres
-  useEffect(() => {
+    if (!isAuthenticated) return;
+    void revalidateLists('/api/vessels', '/api/escales', '/api/bls', '/api/invoices', '/api/payments', '/api/drafts', '/api/credit-notes');
     const initAndLoad = async () => {
       try {
         // 1. Initialise les tables si nécessaire
-        await fetch('/api/init-db');
+        // await fetch('/api/init-db');
 
         // 2. Charge les factures, avoirs, utilisateurs et données
-        const [invoicesRes, creditNotesRes, paymentsRes, auditRes, configsRes, escalesRes, blsRes, usersRes] = await Promise.all([
-          fetch('/api/invoices').catch(() => null),
-          fetch('/api/credit-notes').catch(() => null),
-          fetch('/api/payments').catch(() => null),
+        // Escales, BL, factures, règlements, drafts et avoirs sont chargés par le cache partagé (hooks/useData).
+        const [auditRes, configsRes, usersRes] = await Promise.all([
           fetch('/api/audit').catch(() => null),
           fetch('/api/configs').catch(() => null),
-          fetch('/api/escales').catch(() => null),
-          fetch('/api/bls').catch(() => null),
           fetch('/api/users').catch(() => null)
         ]);
 
@@ -391,59 +304,6 @@ export function App() {
                 }
               } catch (e) { }
             }
-          }
-        }
-
-        if (invoicesRes && invoicesRes.ok) {
-          const invData = await invoicesRes.json();
-          if (invData.success && invData.invoices) {
-            setInvoices(invData.invoices.map(normalizeInvoice));
-          }
-        }
-
-        if (creditNotesRes && creditNotesRes.ok) {
-          const cnData = await creditNotesRes.json();
-          if (cnData.success && cnData.creditNotes) {
-            setCreditNotes(cnData.creditNotes);
-          }
-        }
-
-        if (paymentsRes && paymentsRes.ok) {
-          const payData = await paymentsRes.json();
-          if (payData.success && payData.payments) {
-            setPayments(payData.payments);
-          }
-        }
-
-        if (escalesRes && escalesRes.ok) {
-          const escaleData = await escalesRes.json();
-          if (escaleData.success && escaleData.escales && escaleData.escales.length > 0) {
-            const uniqueEscales = escaleData.escales.reduce((acc: Escale[], current: Escale) => {
-              const exists = acc.find(e =>
-                e.id === current.id ||
-                (e.nomNavire?.trim().toLowerCase() === current.nomNavire?.trim().toLowerCase() &&
-                  e.numeroVoyage?.trim() === current.numeroVoyage?.trim())
-              );
-              if (!exists) acc.push(current);
-              return acc;
-            }, []);
-            setEscales(uniqueEscales);
-          } else if (escaleData.success && Array.isArray(escaleData.escales)) {
-            setEscales([]);
-          }
-        }
-
-        if (blsRes && blsRes.ok) {
-          const blData = await blsRes.json();
-          if (blData.success && blData.bls && blData.bls.length > 0) {
-            const uniqueBls = blData.bls.reduce((acc: BL[], current: BL) => {
-              const exists = acc.find(b => b.id === current.id || (b.numeroBL === current.numeroBL && b.escaleId === current.escaleId));
-              if (!exists) acc.push(current);
-              return acc;
-            }, []);
-            setBls(uniqueBls);
-          } else if (blData.success && Array.isArray(blData.bls)) {
-            setBls([]);
           }
         }
 
@@ -470,7 +330,7 @@ export function App() {
       }
     };
     initAndLoad();
-  }, []);
+  }, [isAuthenticated]);
 
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
@@ -490,21 +350,78 @@ export function App() {
       entite,
       details,
       dateAction: formattedDate,
-      ip: '160.155.20.14'
+      ip: ''
     };
     setAuditLogs(prev => [newLog, ...prev]);
     try {
-      await fetch('/api/audit', {
+      const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog)
       });
+      const data = await res.json();
+      if (data?.ip) {
+        setAuditLogs(prev => prev.map(l => l.id === newLog.id ? { ...l, ip: data.ip } : l));
+      }
     } catch (e) {
       console.error("Erreur lors de la sauvegarde du log d'audit sur Neon", e);
     }
   };
 
   // --- USER & AUTHENTICATION HANDLERS ---
+
+  // Après connexion (ou reprise de session) : la page demandée par l'adresse si le
+  // profil y a droit, sinon le Plan du jour.
+  const openRequestedPage = (user: User) => {
+    const requested = requestedRouteRef.current;
+    requestedRouteRef.current = { home: true, tab: 'dashboard' };
+    if (!requested.home && isTabAllowed(user, requested.tab)) {
+      setActiveTab(requested.tab);
+      setSelectedBlIdForBilling(requested.blId ?? null);
+      setShowWelcome(false);
+      return;
+    }
+    setActiveTab('dashboard');
+    setShowWelcome(true);
+    setHomeView(requested.home ? requested.homeView ?? 'welcome' : 'welcome');
+  };
+
+  // Reprise de la session au rechargement : le cookie serveur fait foi.
+  useEffect(() => {
+    if (!sessionChecking) return;
+    let cancelled = false;
+    const resume = (user: User) => {
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('bocs_session_user', JSON.stringify(user));
+      openRequestedPage(user);
+    };
+    const resumeLocalInDev = () => {
+      // Développement avec vite seul (pas d'API) : la session enregistrée suffit.
+      if (!import.meta.env.DEV) return;
+      try {
+        const saved = localStorage.getItem('bocs_session_user');
+        if (saved) resume(JSON.parse(saved));
+      } catch { /* session illisible : écran de connexion */ }
+    };
+    (async () => {
+      try {
+        const res = await fetch('/api/users?session');
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (res.ok && data?.success && data.user) resume(data.user);
+        else if (res.status === 401) localStorage.removeItem('bocs_session_user');
+        else resumeLocalInDev();
+      } catch {
+        if (!cancelled) resumeLocalInDev();
+      } finally {
+        if (!cancelled) setSessionChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // Une seule vérification, au chargement de l'application.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Login handler
   const handleLoginSuccess = (user: User) => {
@@ -513,11 +430,7 @@ export function App() {
     setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
     setCurrentUser(updatedUser);
     setIsAuthenticated(true);
-    // RBAC : si l'onglet courant n'est pas permis pour cet utilisateur, retour au cockpit
-    if (!isTabAllowed(user, activeTab)) {
-      setActiveTab('dashboard');
-    }
-    setShowWelcome(true); // Redirige vers la Plateforme Intégrée après connexion
+    openRequestedPage(user);
     setAuthModalOpen(false);
     localStorage.setItem('bocs_session_user', JSON.stringify(updatedUser));
     logAuditAction('CONNEXION_REUSSIE', 'Session', `Connexion de ${user.nomComplet} (${user.role})`);
@@ -529,7 +442,26 @@ export function App() {
     setIsAuthenticated(false);
     setShowWelcome(false); // Retour à l'écran de connexion
     localStorage.removeItem('bocs_session_user');
+    // La personne suivante démarre sur le Plan du jour, pas sur la dernière page ouverte.
+    window.history.replaceState(null, '', '/');
+    document.title = 'BOCS';
+    void logoutOnServer();
   };
+
+  // Session expirée côté serveur (cookie absent ou périmé) : retour à l'écran de connexion.
+  useEffect(() => {
+    const onExpired = () => {
+      if (!localStorage.getItem('bocs_session_user')) return;
+      localStorage.removeItem('bocs_session_user');
+      // Après reconnexion, on revient sur la page où l'on travaillait.
+      requestedRouteRef.current = currentRoute();
+      setIsAuthenticated(false);
+      setShowWelcome(false);
+      toastWarning('Votre session a expiré : reconnectez-vous.');
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
 
   // Open Auth Modal
   const handleOpenAuthModal = (mode: 'login' | 'register' | 'forgot' = 'login') => {
@@ -647,11 +579,7 @@ export function App() {
   const handleDeleteUser = async (userId: number) => {
     const target = allUsers.find(u => u.id === userId);
     setAllUsers(prev => prev.filter(u => u.id !== userId));
-    try {
-      await fetch(`/api/users?id=${userId}`, { method: 'DELETE' });
-    } catch (e) {
-      console.error('Erreur suppression utilisateur sur Neon:', e);
-    }
+    await deleteOnServer(`/api/users?id=${userId}`, "l'utilisateur", []);
     logAuditAction('SUPPRESSION_UTILISATEUR', 'User', `Suppression du compte #${userId} (${target?.nomComplet || 'Inconnu'})`);
   };
 
@@ -692,62 +620,150 @@ export function App() {
 
   // --- BUSINESS DOMAIN HANDLERS ---
 
+  const postJson = async (url: string, body: unknown) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || `Erreur serveur (${response.status})`);
+    }
+    return result;
+  };
+
+  /**
+   * Suppression côté serveur après retrait immédiat à l'écran. Puis rechargement des
+   * listes touchées (suppressions en cascade) : en cas d'échec, la ligne réapparaît
+   * avec un message, au lieu de rester masquée alors qu'elle existe encore en base.
+   */
+  const deleteOnServer = async (url: string, label: string, affected: Parameters<typeof revalidateLists>) => {
+    try {
+      const response = await fetch(url, { method: 'DELETE' });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) {
+        throw new Error(result?.error || `Erreur serveur (${response.status})`);
+      }
+    } catch (e) {
+      console.error(`Erreur lors de la suppression de ${label} en base`, e);
+      toastError(`Impossible de supprimer ${label} : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
+    } finally {
+      await revalidateLists(...affected);
+    }
+  };
+
+  // ── Navires : registre partagé en base (/api/vessels) ──
+  const sameVesselName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+  /** Enregistre un navire (création ou modification) puis recharge la liste ; en cas d'échec, l'écran revient à l'état de la base. */
+  const saveVessel = async (vessel: Vessel, action: string) => {
+    try {
+      await postJson('/api/vessels', vessel);
+    } catch (e) {
+      console.error(`Erreur lors de ${action} du navire`, e);
+      toastError(`Le navire ${vessel.nom} n'a pas été enregistré : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
+    } finally {
+      await revalidateLists('/api/vessels');
+    }
+  };
+
+  const handleAddVessel = (vessel: Vessel) => {
+    if (vessels.some(v => sameVesselName(v.nom, vessel.nom))) return;
+    setVessels(prev => [vessel, ...prev]);
+    logAuditAction('CRÉATION_NAVIRE', 'VESSEL', vessel.nom);
+    void saveVessel(vessel, 'la création');
+  };
+
+  const handleDeleteVessel = (vesselId: number) => {
+    const target = vessels.find(v => v.id === vesselId);
+    setVessels(prev => prev.filter(v => v.id !== vesselId));
+    logAuditAction('SUPPRESSION_NAVIRE', 'VESSEL', target ? `${target.nom} (ID: ${vesselId})` : `ID: ${vesselId}`);
+    void deleteOnServer(`/api/vessels?id=${vesselId}`, `le navire ${target?.nom ?? vesselId}`, ['/api/vessels']);
+  };
+
+  const handleUpdateVessel = (updated: Vessel) => {
+    setVessels(prev => prev.map(v => (v.id === updated.id ? updated : v)));
+    logAuditAction('MODIFICATION_NAVIRE', 'VESSEL', `${updated.nom} (ID: ${updated.id})`);
+    void saveVessel(updated, 'la modification');
+  };
+
+  // Reprise unique des navires saisis avant le passage en base (localStorage `bocs_vessels`) :
+  // ceux absents de la base (comparaison par nom) y sont envoyés, puis la clé locale est retirée.
+  const vesselsMigrated = useRef(false);
+  useEffect(() => {
+    if (vesselsLoading || vesselsLoadError || vesselsMigrated.current) return;
+    vesselsMigrated.current = true;
+    const saved = localStorage.getItem('bocs_vessels');
+    if (!saved) return;
+    let local: Vessel[] = [];
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) local = parsed.filter((v): v is Vessel => typeof v?.nom === 'string' && v.nom.trim() !== '');
+    } catch (e) { console.error('Navires locaux illisibles', e); }
+    const missing = local.filter((v, i) =>
+      !vessels.some(s => sameVesselName(s.nom, v.nom)) && local.findIndex(o => sameVesselName(o.nom, v.nom)) === i
+    );
+    if (missing.length === 0) {
+      localStorage.removeItem('bocs_vessels');
+      return;
+    }
+    // Sans id : les id locaux (1, 2…) pourraient désigner un autre navire en base.
+    void Promise.allSettled(missing.map(({ id: _localId, ...v }) => postJson('/api/vessels', v))).then(async results => {
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed === 0) localStorage.removeItem('bocs_vessels');
+      else toastError(`${failed} navire(s) local(aux) n'ont pas pu être enregistrés en base ; nouvel essai au prochain chargement.`);
+      await revalidateLists('/api/vessels');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vesselsLoading, vesselsLoadError]);
+
   // Add Escale
   const handleAddEscale = async (escale: Escale) => {
-    setEscales(prev => [
-      escale,
-      ...prev.filter(e => e.id !== escale.id && (e.numeroVoyage !== escale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== escale.nomNavire.trim().toLowerCase()))
-    ]);
     try {
-      await fetch('/api/escales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(escale)
-      });
+      const result = await postJson('/api/escales', escale);
+      const savedEscale = (result.escale || escale) as Escale;
+      setEscales(prev => [
+        savedEscale,
+        ...prev.filter(e => e.id !== savedEscale.id && (e.numeroVoyage !== savedEscale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== savedEscale.nomNavire.trim().toLowerCase()))
+      ]);
     } catch (e) {
       console.error("Erreur lors de la sauvegarde de l'escale", e);
+      toastError(`L'escale n'a pas été enregistrée : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
     }
   };
 
   // Update Escale
   const handleUpdateEscale = async (updatedEscale: Escale) => {
-    setEscales(prev => prev.map(e => e.id === updatedEscale.id ? updatedEscale : e));
     try {
-      await fetch('/api/escales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedEscale)
-      });
+      const result = await postJson('/api/escales', updatedEscale);
+      const savedEscale = (result.escale || updatedEscale) as Escale;
+      setEscales(prev => prev.map(e => e.id === updatedEscale.id ? savedEscale : e));
+      logAuditAction('MODIFICATION_ESCALE', 'Escale', `Mise à jour des informations de l'escale ${updatedEscale.nomNavire} (Voyage ${updatedEscale.numeroVoyage})`);
     } catch (e) {
       console.error("Erreur lors de la mise à jour de l'escale sur Neon", e);
+      toastError(`La modification n'a pas été enregistrée : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
     }
-    logAuditAction('MODIFICATION_ESCALE', 'Escale', `Mise à jour des informations de l'escale ${updatedEscale.nomNavire} (Voyage ${updatedEscale.numeroVoyage})`);
   };
 
   // Import XML Manifest
   const handleImportManifest = async (escale: Escale, newBls: BL[]) => {
-    setEscales(prev => [
-      escale,
-      ...prev.filter(e => e.id !== escale.id && (e.numeroVoyage !== escale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== escale.nomNavire.trim().toLowerCase()))
-    ]);
-    setBls(prev => {
-      const newBlNums = new Set(newBls.map(b => b.numeroBL));
-      const filtered = prev.filter(b => !newBlNums.has(b.numeroBL));
-      return [...newBls, ...filtered];
-    });
     try {
-      await fetch('/api/escales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(escale)
-      });
-      await fetch('/api/bls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bls: newBls })
+      const result = await postJson('/api/escales', escale);
+      const savedEscale = (result.escale || escale) as Escale;
+      const savedBls = newBls.map(bl => ({ ...bl, escaleId: savedEscale.id }));
+      await postJson('/api/bls', { bls: savedBls });
+      setEscales(prev => [
+        savedEscale,
+        ...prev.filter(e => e.id !== savedEscale.id && (e.numeroVoyage !== savedEscale.numeroVoyage || e.nomNavire.trim().toLowerCase() !== savedEscale.nomNavire.trim().toLowerCase()))
+      ]);
+      setBls(prev => {
+        const newBlNums = new Set(savedBls.map(b => b.numeroBL));
+        return [...savedBls, ...prev.filter(b => !newBlNums.has(b.numeroBL))];
       });
     } catch (e) {
       console.error("Erreur lors de la sauvegarde du manifeste importé", e);
+      toastError(`Le manifeste n'a pas été enregistré : ${e instanceof Error ? e.message : 'erreur inconnue'}`);
     }
   };
 
@@ -761,9 +777,15 @@ export function App() {
     // Identify all invoices/proformas linked to any of the deleted BLs
     const targetInvoices = invoices.filter(inv =>
       (inv.blId !== undefined && targetBlIds.includes(inv.blId)) ||
-      (inv.numeroBL !== undefined && targetBlNumbers.includes(inv.numeroBL))
+      (inv.numeroBL !== undefined && targetBlNumbers.includes(inv.numeroBL)) ||
+      (inv.escaleInfo && targetEscale && (inv.escaleInfo.includes(targetEscale.numeroVoyage) || inv.escaleInfo.includes(targetEscale.nomNavire)))
     );
     const targetInvoiceIds = targetInvoices.map(inv => inv.id);
+
+    if (currentUser.role !== 'ADMIN' && targetInvoices.length > 0) {
+      toastError("Seul l'administrateur est autorisé à supprimer une escale comportant des proformas ou factures éditées.");
+      return;
+    }
 
     // Filter state
     setEscales(prev => prev.filter(e => e.id !== escaleId));
@@ -780,43 +802,59 @@ export function App() {
       `Suppression de l'escale ${targetEscale?.nomNavire || escaleId}, ses ${targetBls.length} BLs et ses ${targetInvoices.length} facture(s)/proforma(s) rattachée(s)`
     );
 
+    await deleteOnServer(`/api/escales?id=${escaleId}`, "l'escale", ['/api/escales', '/api/bls', '/api/invoices', '/api/payments', '/api/credit-notes']);
+  };
+
+  // Persistance cloud d'un draft export (upsert Neon via /api/drafts)
+  const persistDraft = async (draft: DraftExport) => {
     try {
-      await fetch(`/api/escales?id=${escaleId}`, {
-        method: 'DELETE'
+      await fetch('/api/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft)
       });
     } catch (e) {
-      console.error("Erreur lors de la suppression de l'escale en base", e);
+      console.error("Erreur lors de la sauvegarde du draft sur Neon", e);
     }
   };
 
   // Add Export Draft
   const handleAddDraft = (draft: DraftExport) => {
-    setDrafts(prev => [draft, ...prev]);
+    setDrafts(prev => [draft, ...prev.filter(d => d.id !== draft.id)]);
+    void persistDraft(draft);
   };
 
   // Update Draft Status
   const handleUpdateDraftStatus = (draftId: number, status: any, motif?: string, blNumber?: string) => {
-    setDrafts(prev => prev.map(d => {
-      if (d.id === draftId) {
-        // Déverrouillage pour correction : on capture l'instantané du contenu AVANT
-        // toute modification client (base du diff coloré ajoutés/conservés).
-        const needsSnapshot = status === 'CORRECTION_AUTORISEE' && !d.contenuOriginal;
-        return {
-          ...d,
-          statut: status,
-          motifDemandeModification: motif || d.motifDemandeModification,
-          numeroBlGenere: blNumber || d.numeroBlGenere,
-          dateValidation: status === 'VALIDE' ? new Date().toISOString() : d.dateValidation,
-          ...(needsSnapshot ? { contenuOriginal: snapshotContenuDraft(d) } : {})
-        };
-      }
-      return d;
-    }));
+    const target = drafts.find(d => d.id === draftId);
+    if (!target) return;
+    // Déverrouillage pour correction : on capture l'instantané du contenu AVANT
+    // toute modification client (base du diff coloré ajoutés/conservés).
+    const needsSnapshot = status === 'CORRECTION_AUTORISEE' && !target.contenuOriginal;
+    const updatedDraft: DraftExport = {
+      ...target,
+      statut: status,
+      motifDemandeModification: motif || target.motifDemandeModification,
+      numeroBlGenere: blNumber || target.numeroBlGenere,
+      dateValidation: status === 'VALIDE' ? new Date().toISOString() : target.dateValidation,
+      ...(needsSnapshot ? { contenuOriginal: snapshotContenuDraft(target) } : {})
+    };
+    setDrafts(prev => prev.map(d => d.id === draftId ? updatedDraft : d));
+    void persistDraft(updatedDraft);
   };
 
   // Update Full Draft
   const handleUpdateDraft = (updatedDraft: DraftExport) => {
     setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+    void persistDraft(updatedDraft);
+  };
+
+  // Delete Export Draft (Admin only)
+  const handleDeleteDraft = async (draftId: number) => {
+    const target = drafts.find(d => d.id === draftId);
+    setDrafts(prev => prev.filter(d => d.id !== draftId));
+    await deleteOnServer(`/api/drafts?id=${draftId}`, 'le draft', ['/api/drafts']);
+    logAuditAction('SUPPRESSION_DRAFT', 'DraftExport', `Suppression du draft ${target?.numeroDraft || draftId} (${target?.clientNom || ''})`);
   };
 
   // Generate Invoice
@@ -897,97 +935,33 @@ export function App() {
     setAuditLogs([]);
 
     try {
-      await fetch('/api/clear-db');
+      await fetch('/api/clear-db?mode=purge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': 'bocs-admin-secure-2026'
+        },
+        body: JSON.stringify({ mode: 'purge' })
+      });
     } catch (e) {
       console.error('Erreur purge DB', e);
     }
   };
 
-  // Numérotation : [FA-]<PRÉFIXE><DISCRIMINANT><voyage>-BOCS###
-  // Le discriminant (IMP/EXP) départage les types partageant un préfixe —
-  // sans lui, « Détention Import » et « Détention Export » d'un même BL
-  // produisaient des références identiques (doublon fiscal).
-  const getNextInvoiceNumber = (
-    type: 'PROFORMA' | 'FACTURE',
-    voyageNumber: string,
-    existingInvoices: Invoice[],
-    invoiceTypeName?: string
-  ): string => {
-    const cleanVoyage = (voyageNumber || 'SANS_VOYAGE').trim().replace(/[^a-zA-Z0-9-]/g, '');
-    const typePrefix = invoiceTypeName ? getInvoiceTypePrefix(invoiceTypeName) : '';
-    const typeDiscriminant = invoiceTypeName ? getInvoiceTypeDiscriminant(invoiceTypeName) : '';
-    const faPrefix = type === 'FACTURE' ? 'FA-' : '';
-    // Format : [FA-]TEL25586-BOCS001
-    const searchPrefix = `${faPrefix}${typePrefix}${typeDiscriminant}${cleanVoyage}-BOCS`;
-
-    const matchedNumbers = existingInvoices
-      .map(inv => inv.numeroFacture || '')
-      .filter(num => num.startsWith(searchPrefix));
-
-    let maxCounter = 0;
-    matchedNumbers.forEach(num => {
-      const suffix = num.replace(searchPrefix, '');
-      const counterVal = parseInt(suffix, 10);
-      if (!isNaN(counterVal) && counterVal > maxCounter) {
-        maxCounter = counterVal;
-      }
-    });
-
-    const nextCounter = maxCounter + 1;
-    const nextCounterStr = String(nextCounter).padStart(3, '0');
-    return `${searchPrefix}${nextCounterStr}`;
-  };
-
-  // Add Payment
+  // Add Payment — le règlement n'attribue JAMAIS le numéro FA- ni la VALIDEE :
+  // seule handleValidateInvoice prononce la validation explicite (Comptabilité/Admin).
   const handleAddPayment = async (payment: Payment) => {
     let updatedInvoice: Invoice | null = null;
-    let newFinalNumber = '';
 
     const targetInvoice = invoices.find(inv => inv.id === payment.factureId);
     if (targetInvoice) {
       const newSolde = Math.max(0, targetInvoice.soldeDuFcfa - payment.montantFcfa);
       const newStatus = newSolde === 0 ? 'PAYE' : 'PARTIEL';
 
-      let typeFacture = targetInvoice.typeFacture;
-      let numeroFacture = targetInvoice.numeroFacture;
-
-      // Dès qu'un règlement est perçu, la facture devient définitive avec son numéro fiscal officiel
-      if (!numeroFacture.startsWith('FA-')) {
-        if (typeFacture === 'PROFORMA_IMPORT') typeFacture = 'DEFINITIVE_IMPORT';
-        if (typeFacture === 'PROFORMA_EXPORT') typeFacture = 'DEFINITIVE_EXPORT';
-
-        let voyageNumber = 'VOYAGE';
-        const targetBl = bls.find(b => b.id === targetInvoice.blId || b.numeroBL === targetInvoice.numeroBL);
-        const targetEscale = targetBl ? escales.find(e => e.id === targetBl.escaleId) : null;
-        if (targetEscale) {
-          voyageNumber = targetEscale.numeroVoyage;
-        } else if (targetInvoice.escaleInfo) {
-          const parts = targetInvoice.escaleInfo.split(/V\./i);
-          if (parts.length > 1) {
-            voyageNumber = parts[1].trim();
-          }
-        }
-        // Récupérer le nom du type de facture pour le préfixe
-        const invTypeName = invoiceTypeConfigs.find(t => t.id === targetInvoice.invoiceTypeId)?.name || '';
-        newFinalNumber = resolveUniqueInvoiceNumber(
-          getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName),
-          invoices,
-          targetInvoice.id
-        );
-        numeroFacture = newFinalNumber;
-      }
-
-      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
       updatedInvoice = {
         ...targetInvoice,
         soldeDuFcfa: newSolde,
         statutPaiement: newStatus,
-        statutFacture: targetInvoice.statutFacture === 'ANNULEE' ? 'ANNULEE' : 'VALIDEE',
-        typeFacture,
-        numeroFacture,
-        validatedBy: targetInvoice.validatedBy || currentUser.nomComplet,
-        validatedAt: targetInvoice.validatedAt || now
       };
     }
 
@@ -997,7 +971,7 @@ export function App() {
 
     const finalPayment = {
       ...payment,
-      numeroFacture: newFinalNumber || payment.numeroFacture
+      numeroFacture: payment.numeroFacture
     };
     setPayments(prev => [finalPayment, ...prev]);
 
@@ -1032,24 +1006,12 @@ export function App() {
     let numeroFacture = target.numeroFacture;
     let typeFacture = target.typeFacture;
 
-    if (!numeroFacture.startsWith('FA-') || target.statutFacture !== 'VALIDEE') {
-      let voyageNumber = 'VOYAGE';
-      const targetBl = bls.find(b => b.id === target.blId || b.numeroBL === target.numeroBL);
-      const targetEscale = targetBl ? escales.find(e => e.id === targetBl.escaleId) : null;
-      if (targetEscale) {
-        voyageNumber = targetEscale.numeroVoyage;
-      } else if (target.escaleInfo) {
-        const parts = target.escaleInfo.split(/V\./i);
-        if (parts.length > 1) {
-          voyageNumber = parts[1].trim();
-        }
-      }
-      const invTypeName = invoiceTypeConfigs.find(t => t.id === target.invoiceTypeId)?.name || '';
-      numeroFacture = resolveUniqueInvoiceNumber(
-        getNextInvoiceNumber('FACTURE', voyageNumber, invoices, invTypeName),
-        invoices,
-        target.id
-      );
+    if (!isDefinitiveInvoiceNumber(numeroFacture) || target.statutFacture !== 'VALIDEE') {
+      // PF… devient FA… : seul le statut change, le reste de la référence est conservé.
+      // Une ancienne référence est reconstruite au nouveau format.
+      numeroFacture = invoiceNumberWithStatut(target, 'FA', invoices, {
+        bls, escales, vessels, invoiceTypeConfigs
+      });
 
       if (typeFacture === 'PROFORMA_IMPORT') typeFacture = 'DEFINITIVE_IMPORT';
       if (typeFacture === 'PROFORMA_EXPORT') typeFacture = 'DEFINITIVE_EXPORT';
@@ -1126,22 +1088,10 @@ export function App() {
     const newId = Date.now();
     const dateToday = new Date().toISOString().split('T')[0];
 
-    let voyageNumber = 'VOYAGE';
-    const targetBl = bls.find(b => b.id === originalInvoice.blId || b.numeroBL === originalInvoice.numeroBL);
-    const targetEscale = targetBl ? escales.find(e => e.id === targetBl.escaleId) : null;
-    if (targetEscale) {
-      voyageNumber = targetEscale.numeroVoyage;
-    } else if (originalInvoice.escaleInfo) {
-      const parts = originalInvoice.escaleInfo.split(/V\./i);
-      if (parts.length > 1) {
-        voyageNumber = parts[1].trim();
-      }
-    }
-    const origTypeName = invoiceTypeConfigs.find(t => t.id === originalInvoice.invoiceTypeId)?.name || '';
-    const newInvoiceNumber = resolveUniqueInvoiceNumber(
-      getNextInvoiceNumber('PROFORMA', voyageNumber, invoices, origTypeName),
-      invoices
-    );
+    // Nouvelle proforma de la même facture : même référence, rang suivant (…-2).
+    const newInvoiceNumber = invoiceNumberForDuplicate(originalInvoice, invoices, {
+      bls, escales, vessels, invoiceTypeConfigs
+    });
 
     const newInvoice: Invoice = applyTaxeAdditionnelleToInvoice({
       ...originalInvoice,
@@ -1187,19 +1137,22 @@ export function App() {
     }
   };
 
-  // Suppression autorisée uniquement sur un Brouillon / Proforma (avec suppression en cascade des pièces rattachées)
+  // Suppression autorisée uniquement sur un Brouillon / Proforma non réglé (avec suppression en cascade des pièces rattachées)
   const handleDeleteInvoice = async (invoiceId: number) => {
     const target = invoices.find(i => i.id === invoiceId);
     if (!target) return;
 
-    const isProforma = !(target.numeroFacture || '').startsWith('FA-') &&
+    const hasPayment = target.soldeDuFcfa === 0 ||
+      target.statutPaiement === 'PAYE' ||
+      target.statutPaiement === 'PARTIEL';
+    const isProforma = !isDefinitiveInvoiceNumber(target.numeroFacture) &&
       target.statutFacture !== 'VALIDEE' &&
       target.statutFacture !== 'ANNULEE' &&
       target.statutFacture !== 'AVOIR' &&
-      target.statutPaiement !== 'PAYE';
+      !hasPayment;
 
     if (!isProforma) {
-      toastError(`Conformité fiscale : La facture ${target.numeroFacture} est inaltérable. Veuillez émettre un Avoir pour l'annuler.`);
+      toastError(`Conformité fiscale : La facture ${formatInvoiceNumber(target.numeroFacture)} est inaltérable. Veuillez émettre un Avoir pour l'annuler.`);
       return;
     }
 
@@ -1237,11 +1190,7 @@ export function App() {
       `Suppression de la proforma ${target.numeroFacture} (#${target.id}) et de toutes les pièces rattachées (lignes, paiements, avoirs)`
     );
 
-    try {
-      await fetch(`/api/invoices?id=${invoiceId}`, { method: 'DELETE' });
-    } catch (e) {
-      console.error("Erreur lors de la suppression de la proforma sur Neon", e);
-    }
+    await deleteOnServer(`/api/invoices?id=${invoiceId}`, 'la proforma', ['/api/invoices', '/api/payments', '/api/credit-notes', '/api/bls']);
   };
 
   // Configuration update handlers for Neon Postgres
@@ -1290,13 +1239,7 @@ export function App() {
     const updatedRubriques = rubriqueConfigs.filter(r => r.invoiceTypeId !== typeId);
     setInvoiceTypeConfigs(updatedTypes);
     setRubriqueConfigs(updatedRubriques);
-    try {
-      await fetch(`/api/configs?typeId=${typeId}`, {
-        method: 'DELETE'
-      });
-    } catch (e) {
-      console.error("Erreur lors de la suppression du type de facture sur Neon", e);
-    }
+    await deleteOnServer(`/api/configs?typeId=${typeId}`, 'le type de facture', []);
   };
 
   // Update FNE Param
@@ -1305,6 +1248,14 @@ export function App() {
   };
 
   // ─── Porte 1 : Authentification requise ───────────────────────────────
+  if (sessionChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--deck-ground)]">
+        <p role="status" className="text-sm font-medium text-text-muted">Reprise de votre session…</p>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <>
@@ -1318,24 +1269,56 @@ export function App() {
     );
   }
 
-  // ─── Porte 2 : Écran d'accueil / Plateforme intégrée (après connexion) ─
-  // Le nom de la personne connectée s'affiche dans l'en-tête (nom + rôle,
-  // sélecteur de compte, accès profil, déconnexion) ; les autres pages
-  // l'affichent via le Header unifié (avatar + nom + rôle).
+  // ─── Un seul en-tête, sur le Plan du jour comme dans les modules ─
+  const navigateFromHeader = (tab: NavTab) => {
+    if (tab === 'dashboard') { goHome('welcome'); return; }
+    if (!isTabAllowed(currentUser, tab)) {
+      toastError('Accès refusé : votre profil ne dispose pas de l\'habilitation requise pour ce module.');
+      return;
+    }
+    setShowWelcome(false);
+    setActiveTab(tab);
+  };
+  const appHeader = (
+    <Header
+      currentUser={currentUser}
+      isAuthenticated={isAuthenticated}
+      exchangeRateUsd={exchangeRateUsd}
+      onLogout={handleLogout}
+      onSearch={openSearch}
+      hasOpenReceivables={invoices.some(inv => (inv.soldeDuFcfa || 0) > 0)}
+      onOpenLogin={() => handleOpenAuthModal('login')}
+      onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
+      activeTab={showWelcome ? 'dashboard' : activeTab}
+      onTabChange={navigateFromHeader}
+      counts={{
+        escalesCount: escales.length,
+        blsCount: bls.length,
+        draftsCount: drafts.length,
+        facturesCount: invoices.length
+      }}
+    />
+  );
+
+  // ─── Porte 2 : Plan du jour (après connexion) ─
   if (showWelcome || activeTab === 'dashboard') {
     return (
       <>
+        {serverUnreachable && <ConnectionBanner onRetry={retryLoading} />}
+        {appHeader}
         <WelcomeScreen
+        view={homeView}
+        onViewChange={setHomeView}
         escales={escales}
         bls={bls}
-        drafts={drafts}
         invoices={invoices}
+        drafts={drafts}
         invoiceTypeConfigs={invoiceTypeConfigs}
         rubriqueConfigs={rubriqueConfigs}
         exchangeRateUsd={exchangeRateUsd}
         userRole={currentUser.role}
         currentUser={currentUser}
-        onOpenProfile={() => setShowProfileModal(true)}
+        onOpenProfile={() => { setProfileTab('profile'); setShowProfileModal(true); }}
         onLogout={handleLogout}
         onEnter={(targetTab, targetBlId) => {
           // RBAC : refus immédiat si l'habilitation requise est absente de la matrice des droits
@@ -1359,9 +1342,13 @@ export function App() {
         onUpdateInvoice={handleUpdateInvoice}
         onValidateInvoice={handleValidateInvoice}
         onDeleteInvoice={handleDeleteInvoice}
+        onDeleteEscale={handleDeleteEscaleIntegration}
         onAddPayment={handleAddPayment}
         onLogAudit={logAuditAction}
         timbreBrackets={timbreBrackets}
+        vessels={vessels}
+        onAddVessel={handleAddVessel}
+        onUpdateVessel={handleUpdateVessel}
       />
         {/* Notifications globales (toasts succès/erreur également sur la plateforme) */}
         <ToastContainer />
@@ -1373,41 +1360,26 @@ export function App() {
   const accessDenied = !isTabAllowed(currentUser, activeTab);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-sans text-on-surface antialiased">
+    <div className="min-h-screen bg-[#eaeff4] dark:bg-night-canvas flex flex-col font-sans text-slate-900 dark:text-night-ink antialiased">
 
-      {/* Unified Premium Header Navigation */}
-      <Header
-        currentUser={currentUser}
-        isAuthenticated={isAuthenticated}
-        exchangeRateUsd={exchangeRateUsd}
-        onUpdateExchangeRate={setExchangeRateUsd}
-        onLogout={handleLogout}
-        onOpenLogin={() => handleOpenAuthModal('login')}
-        onOpenProfile={() => setShowProfileModal(true)}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onReturnToWelcome={() => setShowWelcome(true)}
-        counts={{
-          escalesCount: escales.length,
-          blsCount: bls.length,
-          draftsCount: drafts.length,
-          facturesCount: invoices.length
-        }}
-      />
+      {serverUnreachable && <ConnectionBanner onRetry={retryLoading} />}
+
+      {appHeader}
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex flex-col overflow-hidden max-w-[1996px] mx-auto w-full">
 
         {/* Content Main Panel */}
         <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">
+          <Suspense fallback={<ModuleLoading />}>
 
           {/* RBAC : écran de refus lorsque l'habilitation requise est absente de la matrice */}
           {accessDenied && (
-            <div className="max-w-lg mx-auto mt-12 bg-white border border-rose-200 rounded-2xl p-8 text-center shadow-sm animate-fade-in">
-              <span className="material-symbols-outlined text-5xl text-rose-500 block mb-3">lock</span>
-              <h2 className="text-lg font-black text-zinc-900 mb-1">Accès refusé</h2>
-              <p className="text-xs text-zinc-600 font-medium leading-relaxed">
-                Votre profil <span className="font-black text-[#005DAA] font-mono">{currentUser.role}</span> ne dispose pas de
+            <div className="max-w-lg mx-auto mt-12 bg-white dark:bg-night-surface border border-rose-200 rounded-2xl p-8 text-center shadow-sm dark:shadow-black/30 animate-fade-in">
+              <span aria-hidden="true" className="material-symbols-outlined text-5xl text-rose-500 block mb-3">lock</span>
+              <h2 className="text-xl font-black text-zinc-900 dark:text-night-ink mb-1">Accès refusé</h2>
+              <p className="text-sm text-zinc-600 dark:text-night-ink font-medium leading-relaxed">
+                Votre profil <span className="font-black text-[#005DAA] dark:text-night-ink font-mono">{currentUser.role}</span> ne dispose pas de
                 l'habilitation requise pour ce module. Contactez l'administrateur ou ajustez la matrice des droits.
               </p>
             </div>
@@ -1415,35 +1387,46 @@ export function App() {
 
           {!accessDenied && activeTab === 'vessels' && (
             <VesselTrackingModule
-              escales={escales}
-              bls={bls}
-              invoices={invoices}
-              payments={payments}
-              vessels={vessels}
+
+
+
+
+
               onAddVessel={handleAddVessel}
               onDeleteVessel={handleDeleteVessel}
+              onUpdateVessel={handleUpdateVessel}
               userRole={currentUser.role}
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
               onDeleteEscale={handleDeleteEscaleIntegration}
               onNavigateTab={setActiveTab}
+              onRequestCreateEscale={openCreateEscale}
+            />
+          )}
+
+          {!accessDenied && activeTab === 'navires' && (
+            <VesselsModule
+              onAddVessel={handleAddVessel}
+              onUpdateVessel={handleUpdateVessel}
+              onDeleteVessel={handleDeleteVessel}
             />
           )}
 
           {!accessDenied && activeTab === 'import' && (
             <ImportModule
-              escales={escales}
-              bls={bls}
+              onAddVessel={handleAddVessel}
+              onUpdateVessel={handleUpdateVessel}
               onAddEscale={handleAddEscale}
               onImportManifest={handleImportManifest}
               onDeleteEscaleIntegration={handleDeleteEscaleIntegration}
+              onRequestCreateEscale={openCreateEscale}
               onGenerateInvoice={handleGenerateInvoice}
               onUpdateInvoice={handleUpdateInvoice}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
               rubriqueConfigs={rubriqueConfigs}
               invoiceTypeConfigs={invoiceTypeConfigs}
-              invoices={invoices}
+
               onUpdateBl={handleUpdateBl}
               onNavigateToBilling={(bl) => {
                 setSelectedBlIdForBilling(bl.id);
@@ -1459,12 +1442,16 @@ export function App() {
                   activeTab === 'export_list' ? 'ESPACE_CLIENT' :
                     activeTab === 'export_consolidation' ? 'CONSOLIDATION' : 'ESPACE_CLIENT'
               }
-              drafts={drafts}
-              escales={escales}
+
+
               currentUser={currentUser}
+              onSubTabChange={sub => handleSubPageChange(({
+                SAISIE_DRAFT: 'export_saisie', ESPACE_CLIENT: 'export_list', CONSOLIDATION: 'export_consolidation',
+              } as const)[sub])}
               onAddDraft={handleAddDraft}
               onUpdateDraft={handleUpdateDraft}
               onUpdateDraftStatus={handleUpdateDraftStatus}
+              onDeleteDraft={handleDeleteDraft}
               onGenerateInvoice={handleGenerateInvoice}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
@@ -1473,6 +1460,7 @@ export function App() {
 
           {!accessDenied && (activeTab === 'facturation' || activeTab === 'facturation_journal' || activeTab === 'facturation_tarifs' || activeTab === 'facturation_balance' || activeTab === 'facturation_config' || activeTab === 'facturation_avoirs') && (
             <FacturationModule
+              initialConfigSubTab={invoiceConfigTab}
               initialSubTab={
                 activeTab === 'facturation_journal' ? 'PROFORMA' :
                   activeTab === 'facturation_tarifs' ? 'TARIFS' :
@@ -1480,14 +1468,18 @@ export function App() {
                       activeTab === 'facturation_config' ? 'CONFIG' :
                         activeTab === 'facturation_avoirs' ? 'AVOIRS' : 'FACTURATION_BL'
               }
-              invoices={invoices}
-              creditNotes={creditNotes}
-              payments={payments}
-              bls={bls}
-              drafts={drafts}
-              escales={escales}
+
+
+
+
+
+
               selectedBlId={selectedBlIdForBilling}
               onSelectBl={setSelectedBlIdForBilling}
+              onSubTabChange={sub => handleSubPageChange(({
+                FACTURATION_BL: 'facturation', PROFORMA: 'facturation_journal', AVOIRS: 'facturation_avoirs',
+                TARIFS: 'facturation_tarifs', BALANCE_AGEE: 'facturation_balance', CONFIG: 'facturation_config',
+              } as const)[sub])}
               onNavigateToImport={() => setActiveTab('import')}
               onAddPayment={handleAddPayment}
               onValidateInvoice={handleValidateInvoice}
@@ -1498,6 +1490,7 @@ export function App() {
               exchangeRateUsd={exchangeRateUsd}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
+              currentUser={currentUser}
               invoiceTypeConfigs={invoiceTypeConfigs}
               onUpdateInvoiceTypeConfigs={handleUpdateInvoiceTypeConfigs}
               rubriqueConfigs={rubriqueConfigs}
@@ -1515,14 +1508,30 @@ export function App() {
 
           {!accessDenied && activeTab === 'surestarie' && (
             <SurestarieModule
-              bls={bls}
-              escales={escales}
-              invoices={invoices}
+
+
+
               invoiceTypeConfigs={invoiceTypeConfigs}
               userRole={currentUser.role}
               onGenerateInvoice={handleGenerateInvoice}
               onAddPayment={handleAddPayment}
               onLogAudit={logAuditAction}
+            />
+          )}
+
+          {!accessDenied && activeTab === 'parametrage' && (
+            <ParametrageModule
+              currentUser={currentUser}
+              exchangeRateUsd={exchangeRateUsd}
+              onUpdateExchangeRate={setExchangeRateUsd}
+              onNavigate={(tab, configTab) => {
+                setInvoiceConfigTab(configTab);
+                setActiveTab(tab);
+              }}
+              onOpenProfile={tab => {
+                setProfileTab(tab);
+                setShowProfileModal(true);
+              }}
             />
           )}
 
@@ -1550,7 +1559,6 @@ export function App() {
               onUpdateFneParam={handleUpdateFneParam}
               auditLogs={auditLogs}
               exchangeRateUsd={exchangeRateUsd}
-              onUpdateExchangeRate={setExchangeRateUsd}
               onLogAudit={logAuditAction}
               userRole={currentUser.role}
               currentUser={currentUser}
@@ -1558,6 +1566,7 @@ export function App() {
             />
           )}
 
+          </Suspense>
         </main>
 
       </div>
@@ -1565,6 +1574,7 @@ export function App() {
       {/* Profile Modal */}
       <ProfileModal
         isOpen={showProfileModal}
+        initialTab={profileTab}
         onClose={() => setShowProfileModal(false)}
         currentUser={currentUser}
         onUpdateProfile={handleUpdateProfile}
@@ -1582,28 +1592,6 @@ export function App() {
         onLoginSuccess={handleLoginSuccess}
         onAddUser={handleAddUser}
       />
-
-      {/* Floating Action Button : Retour immédiat à la plateforme intégrée de gestion et facturation maritime (seulement dans les sous-modules) */}
-      {!showWelcome && (
-        <button
-          type="button"
-          onClick={() => {
-            setShowWelcome(true);
-            setActiveTab('dashboard');
-          }}
-          className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/95 hover:bg-white text-[#002B49] hover:text-[#005DAA] shadow-xl border border-zinc-200 hover:border-[#005DAA]/50 backdrop-blur-md transition-all cursor-pointer active:scale-95 group font-bold text-xs"
-          title="Retour à la plateforme intégrée de gestion et facturation maritime"
-          aria-label="Retour à la plateforme intégrée de gestion et facturation maritime"
-        >
-          <span className="w-7 h-7 rounded-xl bg-[#F0F7FF] text-[#005DAA] flex items-center justify-center group-hover:bg-[#005DAA] group-hover:text-white transition-colors shadow-2xs shrink-0">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          </span>
-          <div className="text-left hidden md:block">
-            <div className="text-[9px] uppercase font-black text-[#00875A] tracking-wider leading-none">Accueil</div>
-            <div className="text-xs font-black text-[#002B49] group-hover:text-[#005DAA] leading-tight mt-0.5 whitespace-nowrap">Plateforme Intégrée</div>
-          </div>
-        </button>
-      )}
 
       {/* Global Toast Notifications */}
       <ToastContainer />

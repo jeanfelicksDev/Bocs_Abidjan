@@ -30,14 +30,14 @@ export const BocsLogo: React.FC<BocsLogoProps> = ({ className = 'h-10 w-auto' })
     >
       BOCS
     </text>
-    <polygon points="0,48 350,48 315,88 290,88 316.25,58 0,58" fill="#002B49" />
+    <polygon points="0,48 350,48 315,88 290,88 316.25,58 0,58" className="fill-[#002B49] dark:fill-night-ink" />
     <text
       x="282"
       y="81"
       fontFamily="'Plus Jakarta Sans', Arial, sans-serif"
       fontWeight="bold"
       fontSize="19"
-      fill="#002B49"
+      className="fill-[#002B49] dark:fill-night-ink"
       textAnchor="end"
     >
       ABIDJAN

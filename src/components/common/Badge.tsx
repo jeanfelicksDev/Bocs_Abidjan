@@ -7,13 +7,13 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'bl' }) => {
-  let colorClass = 'bg-gray-100 text-gray-800 border-gray-300';
+  let colorClass = 'bg-gray-100 dark:bg-night-raised text-gray-800 dark:text-night-ink border-gray-300 dark:border-night-line-strong';
   let label = status;
 
   if (type === 'draft' || status in { BROUILLON: 1, SOUMIS: 1, VALIDE: 1, DEMANDE_MODIF: 1, BL_GENERE: 1 }) {
     switch (status as DraftStatus) {
       case 'BROUILLON':
-        colorClass = 'bg-transparent text-slate-700 border-slate-300';
+        colorClass = 'bg-transparent text-slate-700 dark:text-night-ink border-slate-300 dark:border-night-line-strong';
         label = 'Brouillon';
         break;
       case 'SOUMIS':
@@ -90,7 +90,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'bl' })
   }
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colorClass}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold border ${colorClass}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-75"></span>
       {label}
     </span>

@@ -1,0 +1,37 @@
+# HTTPS de BOCS.
+#
+# Site interne ({$BOCS_DOMAIN}) : application complète, réservée aux adresses du
+# réseau de l'entreprise.
+#   BOCS_TLS = internal → certificat de l'autorité locale de Caddy (installer sa
+#     racine sur les postes : voir docs/installation-locale.md) ;
+#   BOCS_TLS = "/certs/bocs.crt /certs/bocs.key" → certificat de l'entreprise.
+#
+# Portail client sur Internet (facultatif) : voir deploy/portail/.
+{
+	# Pas de redirection automatique ni d'installation de certificat dans le système.
+	auto_https disable_redirects
+	skip_install_trust
+}
+
+{$BOCS_DOMAIN} {
+	tls {$BOCS_TLS}
+
+	# Le site interne n'est jamais servi à une adresse d'Internet, même si quelqu'un
+	# présente ce nom à l'adresse publique du portail.
+	@externe not remote_ip private_ranges
+	respond @externe "Accès réservé au réseau de l'entreprise." 403
+
+	# Seul le portail public marque ses requêtes : l'en-tête n'est jamais accepté d'ailleurs.
+	request_header -X-BOCS-Portail
+
+	encode zstd gzip
+	reverse_proxy app:3000
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+http://{$BOCS_DOMAIN} {
+	redir https://{host}{uri} permanent
+}
+
+# Portail client : chargé seulement si un fichier *.caddy est présent dans deploy/portail/.
+import /etc/caddy/portail/*.caddy

@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
+import { ThemeSwitcher } from './common/ThemeSwitcher';
 import { useEscapeClose, overlayClickClose } from '../hooks/useEscapeClose';
 import { BocsLogo } from './BocsLogo';
+import { CockpitPlan } from './cockpit/CockpitPlan';
 import {
   ArrowRight,
   Layers,
@@ -46,24 +48,27 @@ import {
   UserRound,
   Download,
   Bell,
+  Menu,
   Anchor,
   ArrowRight as ArrowRightIcon
 } from 'lucide-react';
-import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User, TimbreBracket } from '../types';
+import { Escale, BL, Container, ContainerType, DraftExport, Invoice, InvoiceTypeConfig, UserRole, User, TimbreBracket, Vessel } from '../types';
+import { VesselPicker, findVesselByName } from './vessels/VesselPicker';
 import { filterDraftsForUser } from '../utils/draftOwnership';
 import { parseGuceXml } from '../utils/xmlGuceParser';
-import { buildBocsBremenBls } from '../utils/manifestParser';
+
 import { toastSuccess, toastError } from './common/Toast';
 import { MultiPdfImportModal, EscaleCommitGroup } from './import/MultiPdfImportModal';
 import { ExtractedBlEditModal } from './import/ExtractedBlEditModal';
 import { BlEditModal } from './import/BlEditModal';
-import { BlBillingModal } from './billing/BlBillingModal';
-import { generateImportManifestPdf } from '../utils/pdfGenerator';
-import {
-  extractRawTextFromPdf,
-  parseManifestBlsFromPdfText,
-  ExtractedBlItem
-} from '../utils/pdfExtractor';
+// Facturation d'un BL : module lourd (facturation + PDF), chargé à l'ouverture.
+const BlBillingModal = lazy(() => import('./billing/BlBillingModal').then((m) => ({ default: m.BlBillingModal })));
+// Le générateur PDF est lourd : chargé au premier export, pas avec l'accueil.
+type PdfGen = typeof import('../utils/pdfGenerator');
+const generateImportManifestPdf = (...args: Parameters<PdfGen['generateImportManifestPdf']>) =>
+  import('../utils/pdfGenerator').then((m) => m.generateImportManifestPdf(...args));
+import { extractBlsFromPdf, ExtractedBlItem } from '../utils/pdfExtractor';
+import { defaultInvoiceTypeIds } from '../utils/defaultInvoiceTypes';
 import { RubriqueConfig, Payment } from '../types';
 import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permissions';
 
@@ -71,6 +76,9 @@ import { isTabAllowed, hasPermission, usePermissionsSync } from '../utils/permis
 interface WelcomeScreenProps {
   escales: Escale[];
   bls: BL[];
+  vessels?: Vessel[];
+  onAddVessel?: (vessel: Vessel) => void;
+  onUpdateVessel?: (vessel: Vessel) => void;
   drafts?: DraftExport[];
   invoices?: Invoice[];
   invoiceTypeConfigs?: InvoiceTypeConfig[];
@@ -93,12 +101,25 @@ interface WelcomeScreenProps {
   onLogAudit?: (action: string, entite: string, details: string) => void;
   /** Tranches de timbre fiscal d'État (assiette HT) — pour la facturation depuis l'accueil. */
   timbreBrackets?: TimbreBracket[];
+  onDeleteEscale?: (id: number) => void;
+  /** Vue affichée (plan, registre, création) : pilotée par l'adresse dans l'application. */
+  view?: ViewState;
+  onViewChange?: (view: ViewState) => void;
 }
 
 type ViewState = 'welcome' | 'escales' | 'create-escale';
 
+/** Nom du port sans son code entre parenthèses : « ABIDJAN (CIABJ) » → « ABIDJAN », « LE HAVRE » reste entier. */
+const portName = (port: string): string => port.replace(/\s*\(.*\)\s*$/, '').trim();
+
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
-  escales,
+  view,
+  onViewChange,
+  vessels = [],
+  onAddVessel,
+  onUpdateVessel,
+  onDeleteEscale,
+escales,
   bls,
   drafts = [],
   invoices = [],
@@ -158,7 +179,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     }
   };
 
-  const [viewState, setViewState] = useState<ViewState>('welcome');
+  // Vue courante : pilotée par l'application quand elle est fournie (adresse /escales/…).
+  const [localView, setLocalView] = useState<ViewState>('welcome');
+  const viewState = view ?? localView;
+  const setViewState = (next: ViewState) => (onViewChange ? onViewChange(next) : setLocalView(next));
+
   const [selectedEscaleId, setSelectedEscaleId] = useState<number | null>(null);
   const [selectedBlForBillingModal, setSelectedBlForBillingModal] = useState<BL | null>(null);
 
@@ -187,20 +212,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     if (plannedIds.length > 0) {
       totalAEditer = plannedIds.length;
     } else if (invoiceTypeConfigs && invoiceTypeConfigs.length > 0) {
-      const isContainer = Boolean(bl.conteneurs && bl.conteneurs.length > 0);
-      const applicable = invoiceTypeConfigs.filter(tc => {
-        const nameLow = tc.name.toLowerCase();
-        const isCaution = nameLow.includes('caution');
-        const isEchange = nameLow.includes('echange') || nameLow.includes('échange') || tc.id === '2';
-        const isTransfert = nameLow.includes('transfert');
-        if (isContainer) {
-          return isCaution || isEchange || isTransfert;
-        }
-        return isEchange;
-      });
-      totalAEditer = Math.max(applicable.length, 1);
+      totalAEditer = Math.max(defaultInvoiceTypeIds(bl, invoiceTypeConfigs).length, 1);
     } else {
-      totalAEditer = Boolean(bl.conteneurs && bl.conteneurs.length > 0) ? 3 : 1;
+      totalAEditer = 1;
     }
 
     totalAEditer = Math.max(totalAEditer, activeBlInvoices.length);
@@ -258,7 +272,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const totalFactureTtc = activeInvoices.reduce((acc, inv) => acc + (inv.montantTtcFcfa || 0), 0);
   const recoveryRate = totalFactureTtc > 0
     ? Math.min(100, Math.max(0, ((totalFactureTtc - totalSoldeDuFcfa) / totalFactureTtc) * 100))
-    : 100;
+    : null; // rien de facturé : pas de taux à afficher
 
   // Nombre de BLs import déjà facturés (indicateur « traités » de la KPI 2)
   const facturedBlsCount = bls.filter(b => b.statutImport === 'FACTURE').length;
@@ -304,14 +318,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     }
   };
 
-  // Recherche globale de l'en-tête : bascule vers le registre des escales (VIEW 2) dont le
-  // champ de filtrage dédié (#welcome-search-input) reçoit le focus après le rendu.
-  const handleHeaderSearchFocus = () => {
-    setViewState('escales');
-    setTimeout(() => {
-      document.getElementById('welcome-search-input')?.focus();
-    }, 50);
-  };
 
   // Multi-PDF modal state
   const [showMultiPdfModal, setShowMultiPdfModal] = useState(false);
@@ -339,23 +345,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     e.target.value = '';
   };
 
-  // Real-time Abidjan Clock
-  const [currentTime, setCurrentTime] = useState<string>('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('fr-FR', {
-        timeZone: 'UTC',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }) + ' GMT');
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Search in Escales explorer
   const [searchTerm, setSearchTerm] = useState('');
@@ -431,8 +420,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     let totalExtracted = 0;
     for (const file of pdfs) {
       try {
-        const { text: rawText, wasOcr } = await extractRawTextFromPdf(file);
-        const parsed = parseManifestBlsFromPdfText(rawText, file.name);
+        const { bls: parsed, rawText, wasOcr } = await extractBlsFromPdf(file);
 
         if (parsed.length > 0) {
           const formatted: ExtractedBlItem[] = parsed.map((bl, bIdx) => ({
@@ -447,17 +435,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             numeroVoyage: newEscaleForm.numeroVoyage || bl.numeroVoyage
           }));
 
-          // Pré-remplir le nom du navire et le voyage si encore vides
-          setNewEscaleForm(prev => ({
-            ...prev,
-            nomNavire: prev.nomNavire || parsed[0].nomNavire || '',
-            numeroVoyage: prev.numeroVoyage || parsed[0].numeroVoyage || ''
-          }));
+          // Pré-remplir le navire et le voyage si encore vides : un nom extrait connu du
+          // registre sélectionne ce navire (call sign compris) ; sinon il est proposé à la création.
+          setNewEscaleForm(prev => {
+            if (prev.nomNavire) return { ...prev, numeroVoyage: prev.numeroVoyage || parsed[0].numeroVoyage || '' };
+            const extracted = (parsed[0].nomNavire || '').trim();
+            const known = findVesselByName(vessels, extracted);
+            return {
+              ...prev,
+              nomNavire: known?.nom || extracted,
+              callsign: known?.callsign || prev.callsign,
+              numeroVoyage: prev.numeroVoyage || parsed[0].numeroVoyage || ''
+            };
+          });
 
           setNewEscaleBls(prev => [...prev, ...formatted]);
           totalExtracted += formatted.length;
         } else {
-          toastError(`Aucun connaissement lisible détecté dans ${file.name}.`);
+          toastError(`Aucun connaissement reconnu dans ${file.name} (format attendu : manifeste BOCS ou BL BIMCO).`);
         }
       } catch (err: any) {
         toastError(`Erreur lors de l'extraction de ${file.name} : ${err?.message || 'Document illisible'}`);
@@ -483,16 +478,23 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const handleSubmitNewEscaleWithBls = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEscaleForm.nomNavire.trim() || !newEscaleForm.numeroVoyage.trim()) {
-      toastError("Le nom du navire et le numéro de voyage sont obligatoires.");
+      toastError("Sélectionnez un navire et saisissez le numéro de voyage.");
+      return;
+    }
+
+    // L'escale porte un navire du registre : nom et call sign viennent de sa fiche.
+    const vessel = findVesselByName(vessels, newEscaleForm.nomNavire);
+    if (!vessel) {
+      toastError(`Le navire « ${newEscaleForm.nomNavire.trim()} » n'est pas enregistré : créez-le ou sélectionnez un navire du registre.`);
       return;
     }
 
     const newEscaleId = Date.now();
     const createdEscale: Escale = {
       id: newEscaleId,
-      nomNavire: newEscaleForm.nomNavire.trim(),
+      nomNavire: vessel.nom,
       numeroVoyage: newEscaleForm.numeroVoyage.trim(),
-      callsign: (newEscaleForm.callsign || '').trim(),
+      callsign: vessel.callsign || '',
       portChargement: newEscaleBls[0]?.portChargementCode || newEscaleForm.portChargement || 'ANVERS (BEANR)',
       portDechargement: newEscaleForm.portDechargement || 'ABIDJAN (CIABJ)',
       dateArrivee: newEscaleForm.dateArrivee || new Date().toISOString().split('T')[0],
@@ -566,11 +568,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       return;
     }
 
+    // Navire du registre : son call sign fait foi. Sinon (escale ancienne), les valeurs d'origine sont gardées.
+    const vessel = findVesselByName(vessels, escaleFormData.nomNavire);
     const updated: Escale = {
       ...editingEscale,
-      nomNavire: escaleFormData.nomNavire.trim(),
+      nomNavire: vessel?.nom || escaleFormData.nomNavire.trim(),
       numeroVoyage: escaleFormData.numeroVoyage.trim(),
-      callsign: (escaleFormData.callsign || '').trim(),
+      callsign: vessel ? vessel.callsign || '' : (escaleFormData.callsign || '').trim(),
       portChargement: escaleFormData.portChargement || editingEscale.portChargement,
       portDechargement: escaleFormData.portDechargement || editingEscale.portDechargement,
       dateArrivee: escaleFormData.dateArrivee || editingEscale.dateArrivee,
@@ -678,7 +682,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               }))
             }));
           } else {
-            extractedBls = buildBocsBremenBls(newEscaleId);
+            extractedBls = [];
           }
 
           onImportManifest(newEscale, extractedBls);
@@ -717,156 +721,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         onChange={handleDirectEscalePdfSelect}
       />
 
-      {/* ─── 0. BARRE DE STATUT PORTUAIRE (PAA / GUCE — Temps réel) ─── */}
-      <div className="w-full bg-[#071D33] text-white z-40 relative shrink-0">
-        <div className="max-w-[2465px] mx-auto px-6 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] sm:text-[11px] font-medium">
-            <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-              PAA / GUCE Côte d'Ivoire : API Opérationnelle
-            </span>
-            <span className="hidden md:inline text-zinc-300">
-              Canal de Vridi : Tirant d'eau autorisé à 13.50 m • Climat Portuaire Favorable
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5 text-[10px] sm:text-[11px]">
-            <span
-              className="inline-flex items-center gap-1.5 font-mono font-bold bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-100"
-              title="Horloge GMT — temps universel coordonné"
-            >
-              <Clock className="w-3 h-3 text-cyan-300" />
-              {currentTime || '00:00:00 GMT'}
-            </span>
-            <span className="hidden sm:inline text-zinc-400">Devise :</span>
-            <span className="hidden sm:inline-flex items-center font-black bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-100">
-              XOF (FCFA)
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── 1. TOP EXECUTIVE CLEAN HEADER ─── */}
-      <header className="w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md z-30 relative shrink-0 shadow-xs">
-        <div className="max-w-[2465px] mx-auto px-6 sm:px-8 py-3.5 flex items-center justify-between">
-
-          {/* Brand Identity */}
-          <div className="flex items-center gap-4">
-            <BocsLogo className="h-11 w-auto shrink-0" />
-            <div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl font-black tracking-wider text-zinc-900 font-sans">BOCS CI</span>
-              </div>
-              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-wide mt-0.5 leading-tight">
-                Bremen Overseas Chartering Shipping
-              </p>
-              <p className="text-[10px] text-zinc-400 font-semibold leading-tight">
-                Agence Consignataire &amp; Manutention Portuaire • Port d'Abidjan
-              </p>
-            </div>
-          </div>
-
-          {/* Right Authority & Actions */}
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Recherche globale (BL, Conteneur, Navire) — focalise l'input du registre */}
-            <div className="hidden md:flex items-center relative">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <input
-                id="welcome-header-search-input"
-                type="text"
-                placeholder="Recherche BL, Conteneur, Navire... (⌘K)"
-                onFocus={handleHeaderSearchFocus}
-                className="w-56 xl:w-72 h-10 pl-10 pr-14 text-xs font-semibold rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#005DAA] focus:bg-white transition-all"
-              />
-              <span className="absolute right-3 text-[9px] font-mono font-black text-zinc-400 bg-white border border-zinc-200 rounded-md px-1.5 py-0.5 pointer-events-none">⌘K</span>
-            </div>
-
-            {/* Notifications (cloche) */}
-            <button
-              type="button"
-              onClick={() => { if (canViewBalance) onEnter('facturation_balance'); }}
-              className="relative p-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-600 hover:text-[#005DAA] transition-all cursor-pointer active:scale-95 shrink-0"
-              title="Notifications & créances à surveiller"
-            >
-              <Bell className="w-4 h-4" />
-              {canViewBalance && totalSoldeDuFcfa > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#005DAA] ring-2 ring-white"></span>
-              )}
-            </button>
-
-            <div className="hidden lg:flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-2 font-mono text-[#005DAA] bg-[#F0F7FF] px-3.5 py-1.5 rounded-xl border border-[#005DAA]/25 font-black">
-                <Clock className="w-4 h-4 text-[#005DAA]" />
-                <span>{currentTime || '00:00:00 GMT'}</span>
-              </div>
-            </div>
-
-            {/* Personne connectée : nom + rôle, sélecteur de compte, profil, déconnexion */}
-            {connectedUser ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onOpenProfile}
-                  className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 pl-1.5 pr-3 py-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 shadow-2xs transition-all cursor-pointer group active:scale-95 text-zinc-900"
-                  title="Mon Profil — Paramètres & mot de passe"
-                >
-                  <div className="w-7 h-7 rounded-full bg-[#005DAA] text-white font-black text-xs flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
-                    {userInitials}
-                  </div>
-                  <div className="text-left hidden sm:block max-w-[150px]">
-                    <span className="text-xs font-extrabold text-zinc-900 block leading-none truncate group-hover:text-[#005DAA] transition-colors">{connectedUser.nomComplet}</span>
-                    <span className="text-[10px] text-[#005DAA] font-mono font-bold leading-none mt-1 block truncate">{getConnectedRoleLabel(connectedUser.role)}</span>
-                  </div>
-                </button>
-
-                {onLogout && (
-                  <button
-                    type="button"
-                    onClick={onLogout}
-                    className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-200 transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                    title={`Se déconnecter (${connectedUser.nomComplet})`}
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700" title="Aucun utilisateur connecté">
-                <div className="w-7 h-7 rounded-full bg-zinc-300 text-zinc-600 flex items-center justify-center shrink-0">
-                  <UserRound className="w-4 h-4" />
-                </div>
-                <div className="text-left hidden sm:block">
-                  <span className="text-xs font-extrabold block leading-none">Non connecté</span>
-                  <span className="text-[10px] font-mono font-bold leading-none mt-1 block">{getConnectedRoleLabel(undefined)}</span>
-                </div>
-              </div>
-            )}
-
-            {viewState === 'create-escale' ? (
-              <button
-                onClick={() => setViewState('escales')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-black text-zinc-800 transition-all cursor-pointer shadow-2xs active:scale-95 group"
-                title="Retour à la liste des escales"
-              >
-                <ArrowLeft className="w-4 h-4 text-[#005DAA] group-hover:-translate-x-1 transition-transform" />
-                <span>Retour aux Escales</span>
-              </button>
-            ) : viewState === 'escales' ? (
-              <button
-                onClick={() => {
-                  setViewState('welcome');
-                  setSelectedEscaleId(null);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-black text-zinc-800 transition-all cursor-pointer shadow-2xs active:scale-95 group"
-                title="Retour à la plateforme intégrée de gestion et facturation maritime"
-              >
-                <ArrowLeft className="w-4 h-4 text-[#005DAA] group-hover:-translate-x-1 transition-transform" />
-                <span>Retour Plateforme Intégrée</span>
-              </button>
-            ) : null}
-          </div>
-
-        </div>
-      </header>
 
       {/* ─── 2. MAIN EXECUTIVE WORKSPACE ─── */}
       <main className="w-full max-w-[2465px] mx-auto px-6 sm:px-8 pt-6 sm:pt-8 pb-12 flex-1 flex flex-col justify-start z-20 relative">
@@ -875,541 +729,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             VIEW 1: GRAND CLEAN EDITORIAL COCKPIT PORTAL
         ══════════════════════════════════════════════════════════════════ */}
         {viewState === 'welcome' && (
-          <div className="w-full animate-fade-in">
-
-            {/* ── SECTION A: GRAND HERO BANNER (Hub Portuaire Abidjan CIABJ) ── */}
-            <div className="rounded-3xl border border-zinc-200 bg-gradient-to-br from-[#F0F7FF] via-white to-[#ECFDF5] py-8 px-8 sm:px-10 shadow-xs relative overflow-hidden">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
-                <div className="space-y-4 max-w-3xl">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-[#005DAA]/30 text-xs font-black text-[#005DAA] shadow-2xs">
-                      <Anchor className="w-3.5 h-3.5" />
-                      Hub Portuaire Abidjan (CIABJ)
-                    </span>
-                    <span className="text-xs font-bold text-zinc-500">Réseau BOCS West Africa Line</span>
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl md:text-[28px] lg:text-[36px] xl:text-[42px] font-black tracking-tight leading-tight text-[#002B49]">
-                    Plateforme Intégrée de <span className="text-[#00875A] font-serif italic font-normal">Gestion &amp; Facturation Maritime</span>
-                  </h1>
-                  <p className="text-sm sm:text-base text-zinc-600 font-medium leading-relaxed max-w-3xl">
-                    Gestion des escales en rade &amp; à quai, suivi temps réel des BLs, consolidation automatisée du
-                    Manifeste douanier et facturation certifiée DGI / FNE.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleNouvelleEscale}
-                    title="Créer une nouvelle escale portuaire"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-black shadow-md transition-all cursor-pointer active:scale-95"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Nouvelle Escale</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExportManifeste}
-                    title="Générer le manifeste douanier consolidé (PDF)"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-800 text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95"
-                  >
-                    <Download className="w-4 h-4 text-[#005DAA]" />
-                    <span>Export Manifeste</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ── SECTION B: 4 KPI BENTO CARDS ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
-
-              {/* KPI 1 : Escales aux Quais (RBAC : habilitation Escales/Radar requise) */}
-              {canViewVessels && (
-                <div
-                  onClick={() => setViewState('escales')}
-                  title="Consulter le registre des escales"
-                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
-                        Escales aux Quais
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Port d'Abidjan &amp; Rade</p>
-                    </div>
-                    <div className="p-2.5 bg-[#F0F7FF] border border-[#005DAA]/20 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
-                      <Anchor className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-4xl font-black text-[#002B49] font-sans tracking-tight">{activeEscalesCount}</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#00875A] bg-[#ECFDF5] px-2 py-1 rounded-md border border-[#00875A]/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] animate-pulse shrink-0"></span>
-                      <Anchor className="w-3 h-3" />
-                      <span>En cours</span>
-                    </span>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-black text-zinc-800 truncate">
-                      {featuredEscale ? featuredEscale.nomNavire : 'Aucune escale active'}
-                    </span>
-                    <span className="text-[10px] font-bold text-[#005DAA] bg-[#F0F7FF] px-2 py-1 rounded-md border border-[#005DAA]/25 shrink-0">
-                      {featuredEscale?.quai || 'Rade Extérieure'}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* KPI 2 : BLs Import à Traiter (RBAC : habilitation Import GUCE requise) */}
-              {canViewImport && (
-                <div
-                  onClick={() => onEnter('import')}
-                  title="Ouvrir le module Import & Escale"
-                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
-                        BLs Import à Traiter
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Connaissements ouverts</p>
-                    </div>
-                    <div className="p-2.5 bg-[#ECFDF5] border border-[#00875A]/20 rounded-xl text-[#00875A] group-hover:scale-110 transition-transform">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-4xl font-black text-[#002B49] font-sans tracking-tight">{pendingImportBlsCount}</span>
-                    <span className="text-[10px] font-black text-[#00875A] bg-[#ECFDF5] px-2 py-1 rounded-md border border-[#00875A]/30">
-                      À Facturer
-                    </span>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-zinc-500">Flux hebdomadaire</span>
-                    <span className="text-[11px] font-black text-[#00875A]" title="Connaissements déjà facturés">
-                      +{facturedBlsCount} traités
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* KPI 3 : Drafts Export Soumis (RBAC : habilitation Export requise) */}
-              {canViewExport && (
-                <div
-                  onClick={() => onEnter('export')}
-                  title="Ouvrir l'Espace Export & Drafts"
-                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
-                        Drafts Export Soumis
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Réservations chargeurs</p>
-                    </div>
-                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-500 group-hover:scale-110 transition-transform">
-                      <Receipt className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-4xl font-black text-[#002B49] font-sans tracking-tight">{pendingDraftsCount}</span>
-                    <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-md border border-zinc-200">
-                      Attente validation
-                    </span>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-zinc-500">File de révision</span>
-                    {pendingDraftsCount === 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#00875A]">
-                        Toutes traitées <Check className="w-3.5 h-3.5" />
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-black text-amber-500">{pendingDraftsCount} en attente</span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* KPI 4 : Créances & Solde Dû (RBAC : habilitation Balance Client requise) */}
-              {canViewBalance && (
-                <div
-                  onClick={() => onEnter('facturation_balance')}
-                  title="Consulter la Balance Âgée & Suivi des Créances"
-                  className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col shadow-xs select-none hover:border-[#005DAA] hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-[#005DAA] transition-colors">
-                        Créances &amp; Solde Dû
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Règlements attendus</p>
-                    </div>
-                    <div className="p-2.5 bg-[#F0F7FF] border border-[#005DAA]/20 rounded-xl text-[#005DAA] group-hover:scale-110 transition-transform">
-                      <CreditCard className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-[26px] xl:text-4xl font-black text-[#002B49] font-sans tracking-tight leading-none">
-                      {totalSoldeDuFcfa.toLocaleString('fr-FR')}
-                    </span>
-                    <span className="text-xs font-black text-zinc-600">FCFA</span>
-                  </div>
-                  <div className="text-[10px] font-mono font-bold mt-1.5">
-                    <span className="text-zinc-400">≈ </span>
-                    <span className="text-[#005DAA]">{soldeUsd.toLocaleString('fr-FR')} USD</span>
-                    <span className="text-zinc-300"> | </span>
-                    <span className="text-zinc-500">{soldeEur.toLocaleString('fr-FR')} EUR</span>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-zinc-500">Taux de recouvrement</span>
-                    <span className="text-[11px] font-black text-[#00875A]">{recoveryRate.toFixed(1).replace('.', ',')}%</span>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* ── SECTION C: MODULES OPÉRATIONNELS & CONSIGNATION ── */}
-            <div className="mt-10">
-              <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-[#002B49] font-display tracking-tight">
-                    Modules Opérationnels &amp; Consignation
-                  </h2>
-                  <p className="text-xs sm:text-sm text-zinc-500 font-medium mt-1">
-                    Accès direct aux workflows maritimes, facturation fiscale et pilotage de flotte
-                  </p>
-                </div>
-                <span className="text-[11px] font-bold text-zinc-400">{visibleModulesCount} services connectés</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-
-              {/* Module 1: Manifestes & Escales (RBAC : habilitation Escales requise) */}
-              {canViewVessels && (
-                <div
-                  onClick={() => setViewState('escales')}
-                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-                >
-                  <div>
-                    <div className="mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                        <Layers3 className="w-5 h-5" />
-                      </div>
-                    </div>
-                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
-                      Import &amp; Escale
-                    </h3>
-                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
-                      Parsing automatisé des fichiers XML douaniers, détection des conteneurs SOC/COC, vrac et suivi rigoureux du registre.
-                    </p>
-                  </div>
-                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#005DAA]">
-                    <span>Consulter le Registre</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              )}
-
-              {/* Module 2: Drafts & BL Export (RBAC : habilitation Export requise) */}
-              {canViewExport && (
-                <div
-                  onClick={() => onEnter('export')}
-                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-                >
-                  <div>
-                    <div className="mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                        <Clock className="w-5 h-5" />
-                      </div>
-                    </div>
-                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
-                      Drafts &amp; BL Export
-                    </h3>
-                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
-                      Saisie des instructions de connaissement (Shipping Instructions), validation armateur et émission officielle des BLs.
-                    </p>
-                  </div>
-                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#005DAA]">
-                    <span>Espace Export</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              )}
-
-              {/* Module 3: Facturation Maritime (RBAC : habilitation Facturation requise) */}
-              {canViewFacturation && (
-                <div
-                  onClick={() => onEnter('facturation')}
-                  className="relative ocean-glass-card rounded-2xl p-5 pt-6 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border-2 border-[#00875A]/50 bg-gradient-to-b from-[#ECFDF5]/60 to-white"
-                >
-                  <span className="absolute -top-2.5 right-4 z-10 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00875A] text-white text-[9px] font-black uppercase tracking-wider shadow-sm">
-                    FNE Certifié
-                  </span>
-                  <div>
-                    <div className="mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[#ECFDF5] border border-[#00875A]/30 flex items-center justify-center text-[#00875A] group-hover:bg-[#00875A] group-hover:text-white transition-all shadow-xs">
-                        <Receipt className="w-5 h-5" />
-                      </div>
-                    </div>
-                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
-                      Facturation Maritime
-                    </h3>
-                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
-                      Calcul multi-rubriques (Aconage, Roro, Sûretés, Débours) et facturation certifiée DGI / FNE sans doublon.
-                    </p>
-                  </div>
-                  <div className="pt-4 mt-4 border-t border-emerald-100 flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 text-xs font-black text-[#00875A] flex-1 min-w-0">
-                      Facturation &amp; Reçus
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform shrink-0" />
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onEnter('facturation_config'); }}
-                      className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#00875A]/10 border border-slate-200 hover:border-[#00875A]/30 text-slate-500 hover:text-[#00875A] transition-all cursor-pointer shrink-0"
-                      title="Paramètres de facturation"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Module 4: Calcul des DMDT (RBAC : habilitation DMDT requise) */}
-              {canViewSurestarie && (
-                <div
-                  onClick={() => onEnter('surestarie')}
-                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#D94817] bg-white"
-                >
-                  <div>
-                    <div className="mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[#FFF4ED] border border-[#D94817]/20 flex items-center justify-center text-[#D94817] group-hover:bg-[#D94817] group-hover:text-white transition-all shadow-xs">
-                        <Calculator className="w-5 h-5" />
-                      </div>
-                    </div>
-                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
-                      Calcul des DMDT
-                    </h3>
-                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
-                      Calcul dégressif des surestaries &amp; détentions conteneurs, franchises import/export et émission proforma.
-                    </p>
-                  </div>
-                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#D94817]">
-                    <span>Calculateur DMDT</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              )}
-
-              {/* Module 5: Radar AIS & Quai (RBAC : habilitation Escales/Radar requise) */}
-              {canViewVessels && (
-                <div
-                  onClick={() => onEnter('vessels')}
-                  className="ocean-glass-card rounded-2xl p-5 flex flex-col justify-between transition-all cursor-pointer group hover:-translate-y-1 shadow-xs hover:shadow-md border border-zinc-200 hover:border-[#005DAA] bg-white"
-                >
-                  <div>
-                    <div className="mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[#F0F7FF] border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover:bg-[#005DAA] group-hover:text-white transition-all shadow-xs">
-                        <Compass className="w-5 h-5" />
-                      </div>
-                    </div>
-                    <h3 className="font-black text-base text-[#002B49] transition-colors mb-2 font-display">
-                      Radar &amp; Quai Vridi
-                    </h3>
-                    <p className="text-xs text-zinc-600 leading-relaxed font-normal">
-                      Positionnement des navires en rade, programmation des postes à quai et calendrier officiel des mouvements.
-                    </p>
-                  </div>
-                  <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-[#005DAA]">
-                    <span>Radar Flotte</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              )}
-
-              </div>
-            </div>
-
-            {/* ── SECTION D: MOUVEMENTS NAVIRES & BLs RÉCENTS + RADAR AIS LIVE ── */}
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 mt-10">
-
-              {/* Colonne gauche : Mouvements Navires & BLs Récents */}
-              <div className="bg-white border border-zinc-200 rounded-3xl p-6 sm:p-7 shadow-xs">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-black text-[#002B49] font-display tracking-tight">
-                      Mouvements Navires &amp; BLs Récents
-                    </h2>
-                    <p className="text-xs text-zinc-500 font-medium mt-1">
-                      Flux d'escales en cours de consignation et déclarations en douane
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setViewState('escales')}
-                    className="inline-flex items-center gap-1.5 text-xs font-black text-[#005DAA] hover:text-[#004580] transition-colors cursor-pointer"
-                  >
-                    Voir tout le registre
-                    <ArrowRightIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="text-[10px] uppercase tracking-wider text-zinc-400 font-black border-b border-zinc-100">
-                        <th className="pb-3 pr-4 font-black">Navire / Voyage</th>
-                        <th className="pb-3 pr-4 font-black">Poste / Quai</th>
-                        <th className="pb-3 pr-4 font-black hidden md:table-cell">Cargaison / EVP</th>
-                        <th className="pb-3 pr-4 font-black">Statut Escale</th>
-                        <th className="pb-3 font-black text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentMovements.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-8 text-center text-xs font-semibold text-zinc-400">
-                            Aucune escale en cours — le registre est vide.
-                          </td>
-                        </tr>
-                      ) : (
-                        recentMovements.map((esc) => {
-                          const escBls = bls.filter(b => b.escaleId === esc.id);
-                          const blFacture = escBls.length > 0 && escBls.every(b => b.statutImport === 'FACTURE');
-                          const evpCount = escBls.reduce((acc, b) => acc + (b.conteneurs?.length || 0), 0);
-                          return (
-                            <tr key={esc.id} className="border-b border-zinc-50 last:border-0 hover:bg-[#F0F7FF]/40 transition-colors">
-                              <td className="py-3.5 pr-4">
-                                <div className="text-xs font-black text-zinc-900">{esc.nomNavire}</div>
-                                <div className="text-[10px] font-mono text-zinc-400 mt-0.5">Voyage {esc.numeroVoyage}</div>
-                              </td>
-                              <td className="py-3.5 pr-4">
-                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-zinc-700">
-                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${esc.quai ? 'bg-[#00875A]' : 'bg-amber-400'}`}></span>
-                                  {esc.quai || 'Rade Extérieure'}
-                                </span>
-                              </td>
-                              <td className="py-3.5 pr-4 hidden md:table-cell">
-                                <span className="text-[11px] font-semibold text-zinc-600">
-                                  {evpCount > 0 ? `${evpCount} EVP` : (escBls[0]?.descriptionGoods?.slice(0, 24) || '—')}
-                                </span>
-                              </td>
-                              <td className="py-3.5 pr-4">
-                                <span className={`text-[10px] font-black px-2 py-1 rounded-md border ${esc.quai
-                                    ? 'text-[#00875A] bg-[#ECFDF5] border-[#00875A]/30'
-                                    : 'text-amber-600 bg-amber-50 border-amber-200'
-                                  }`}>
-                                  {esc.quai ? 'À Quai' : 'Attente Accostage'}
-                                </span>
-                              </td>
-                              <td className="py-3.5 text-right">
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); handleOpenEscaleDetail(esc.id); }}
-                                  className="text-[11px] font-black text-[#005DAA] hover:text-[#004580] hover:underline transition-colors cursor-pointer"
-                                >
-                                  {blFacture ? 'Facturer' : 'Détails BL'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Colonne droite : Radar AIS Live Abidjan (Canal de Vridi & Rade) */}
-              <div className="relative bg-[#071D33] rounded-3xl p-6 sm:p-7 text-white shadow-md overflow-hidden flex flex-col">
-                <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full border border-cyan-400/20 pointer-events-none"></div>
-                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full border border-cyan-400/30 pointer-events-none"></div>
-                <div className="absolute top-8 right-16 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none"></div>
-
-                <div className="relative z-10 flex flex-col h-full">
-                  <span className="inline-flex self-start items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-400/15 border border-cyan-400/30 text-[10px] font-black uppercase tracking-wider text-cyan-300">
-                    <Radio className="w-3 h-3" />
-                    AIS Live Abidjan
-                  </span>
-                  <h3 className="text-lg font-black mt-4 tracking-tight">Canal de Vridi &amp; Rade</h3>
-                  <p className="text-[11px] text-cyan-100/70 font-medium mt-1">
-                    Surveillance AIS des flux entrants BOCS. Entrée canal fluide.
-                  </p>
-
-                  <div className="space-y-2.5 mt-5 flex-1">
-                    {aisShips.length === 0 ? (
-                      <p className="text-[11px] text-cyan-100/60 font-semibold py-4">
-                        Aucun navire détecté — aucune escale active.
-                      </p>
-                    ) : (
-                      aisShips.map((esc, idx) => (
-                        <div key={esc.id} className={`rounded-xl px-4 py-3 border ${idx === 0 ? 'bg-white/[0.07] border-white/10' : 'bg-white/[0.03] border-white/5'}`}>
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="text-xs font-black truncate">{esc.nomNavire}</div>
-                              <div className="text-[10px] text-cyan-100/60 font-mono mt-0.5">
-                                {esc.quai ? 'Position : à quai' : 'Position : en rade'}
-                              </div>
-                            </div>
-                            <span className={`text-[9px] font-black px-2 py-1 rounded-md shrink-0 ${esc.quai
-                                ? 'bg-[#00875A]/25 text-emerald-300 border border-[#00875A]/40'
-                                : 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
-                              }`}>
-                              {esc.quai ? 'À Quai' : 'En Rade'}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="pt-4 mt-5 border-t border-white/10 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-cyan-100/70">
-                      Marée : <span className="font-black text-white">Haute (+1,4 m)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onEnter('vessels')}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-black text-cyan-300 hover:text-cyan-200 transition-colors cursor-pointer"
-                    >
-                      Plein écran
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── SECTION E: FOOTER LEGAL & COMPLIANCE ── */}
-            <footer className="mt-10 pt-6 border-t border-zinc-200 flex flex-wrap items-center justify-between text-[11px] font-semibold text-zinc-500 gap-4 select-none">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ECFDF5] border border-[#00875A]/25 text-[#006E48] font-bold">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#00875A]" />
-                  <span>Conformité Douanière GUCE &amp; DGI FNE (Côte d'Ivoire)</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 border border-zinc-200 text-zinc-700 font-bold">
-                  <Database className="w-3.5 h-3.5 text-[#005DAA]" />
-                  <span>PostgreSQL Neon Cloud Chiffré</span>
-                </span>
-                {hasPermission(permissionSubject, 'admin_rights_assign') && (
-                  <button
-                    type="button"
-                    onClick={() => onEnter('admin_rights')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all font-bold cursor-pointer hover:shadow-xs active:scale-95"
-                    title="Accéder directement à l'attribution des droits utilisateurs (Admin)"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Attribution des Profils RBAC</span>
-                  </button>
-                )}
-              </div>
-              <div className="text-zinc-500">
-                © 2026 BOCS CI Maritime Agency • Abidjan Port Operations. Tous droits réservés.
-              </div>
-            </footer>
-
-          </div>
+          <CockpitPlan
+            role={(connectedUser?.role || userRole) as UserRole}
+            firstName={connectedUser?.nomComplet?.split(' ')[0]}
+            escales={escales}
+            bls={bls}
+            drafts={filterDraftsForUser(drafts, currentUser, userRole)}
+            invoices={invoices}
+            exchangeRateUsd={exchangeRateUsd}
+            perms={{
+              vessels: canViewVessels, import: canViewImport, export: canViewExport,
+              facturation: canViewFacturation, balance: canViewBalance, surestarie: canViewSurestarie,
+              manageEscales: canManageEscales, importGuce: canImportGuce,
+            }}
+            getBlStats={getBlInvoiceStats}
+            onEnter={(tab, blId) => onEnter(tab, blId)}
+            onOpenRegistry={() => (canViewVessels ? setViewState('escales') : onEnter('import'))}
+            onCreateEscale={handleNouvelleEscale}
+          />
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -1417,16 +754,21 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         ══════════════════════════════════════════════════════════════════ */}
         {viewState === 'escales' && (
           <div className="w-full max-w-[2054px] space-y-8 animate-fade-in mx-auto">
+            <button
+              type="button"
+              onClick={() => { setViewState('welcome'); setSelectedEscaleId(null); }}
+              className="inline-flex items-center gap-2 text-sm font-bold text-zinc-600 hover:text-primary transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 text-primary" aria-hidden="true" />
+              Plan du jour
+            </button>
 
             {/* Header bar */}
-            <div className="ocean-glass-banner rounded-3xl p-8 sm:p-10 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
+            <div className="ocean-glass-banner rounded-lg p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
               <div>
-                <div className="inline-flex items-center gap-2 text-xs font-black text-[#00875A] uppercase tracking-widest mb-1.5">
-                  <Ship className="w-4 h-4" />
-                  <span>Registre Officiel des Navires & Manifestes</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-[#005DAA] font-display">
-                  Escales Portuaires & <span className="font-serif italic font-normal text-[#00875A]">Manifestes Douaniers</span>
+                <h2 className="text-2xl font-black text-primary font-display tracking-tight flex items-center gap-2.5">
+                  <Ship className="w-6 h-6 text-success shrink-0" aria-hidden="true" />
+                  Registre des escales &amp; manifestes
                 </h2>
                 <p className="text-sm text-zinc-600 font-medium mt-1">
                   Consultez les navires en cours, dépliez les BLs ou importez un nouveau manifeste XML GUCE ou PDF ALIS.
@@ -1443,7 +785,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     placeholder="Filtrer par navire, voyage..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-72 sm:w-80 h-12 pl-10 pr-3 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#005DAA]"
+                    className="w-72 sm:w-80 h-12 pl-10 pr-3 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-primary"
                   />
                 </div>
 
@@ -1451,10 +793,21 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <button
                     type="button"
                     onClick={handleOpenCreateEscale}
-                    className="h-12 px-6 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                    className="h-12 px-6 bg-primary hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
                   >
                     <PlusCircle className="w-4 h-4 text-white" />
                     <span className="text-white">Créer une Nouvelle Escale</span>
+                  </button>
+                )}
+
+                {canViewVessels && (
+                  <button
+                    type="button"
+                    onClick={() => onEnter('navires')}
+                    className="h-12 px-5 bg-white hover:bg-zinc-50 text-primary border border-primary/40 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Ship className="w-4 h-4" />
+                    <span>Gérer les Navires</span>
                   </button>
                 )}
 
@@ -1469,10 +822,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         handleOpenCreateEscale();
                       }
                     }}
-                    className="h-12 px-5 bg-white hover:bg-zinc-50 text-[#005DAA] border border-[#005DAA]/40 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                    className="h-12 px-5 bg-white hover:bg-zinc-50 text-primary border border-primary/40 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95"
                     title="Charger des manifestes PDF sur une escale existante"
                   >
-                    <Upload className="w-4 h-4 text-[#005DAA]" />
+                    <Upload className="w-4 h-4 text-primary" />
                     <span>Charger Manifeste PDF</span>
                   </button>
                 )}
@@ -1480,19 +833,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
 
             {/* Escales Table */}
-            <div className="ocean-glass-card rounded-3xl overflow-hidden shadow-sm border border-zinc-200 bg-white">
+            <div className="ocean-glass-card rounded-xl overflow-hidden shadow-sm border border-zinc-200 bg-white">
               <div className="overflow-x-auto">
                 <table className="welcome-table w-full text-left border-collapse text-xs sm:text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700 font-mono font-black uppercase tracking-wider text-xs">
-                      <th className="px-8 py-5">Navire</th>
-                      <th className="px-8 py-5">Voyage</th>
-                      <th className="px-8 py-5">Indicatif</th>
-                      <th className="px-8 py-5">Route Maritime</th>
-                      <th className="px-8 py-5">Arrivée (ETA)</th>
-                      <th className="px-8 py-5 text-center">Statut</th>
-                      <th className="px-8 py-5 text-center">BLs Associés</th>
-                      <th className="px-8 py-5 text-right">Manifeste PDF</th>
+                    <tr className="border-b border-zinc-200 bg-zinc-50 text-text-secondary">
+                      <th className="px-4 py-3.5 whitespace-nowrap">Navire</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Voyage</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Indicatif</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Route Maritime</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Arrivée (ETA)</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap text-center">Statut</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap text-center">BLs Associés</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap text-right">Manifeste PDF</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 text-zinc-800 font-medium">
@@ -1511,10 +864,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                           <React.Fragment key={esc.id}>
                             <tr
                               onClick={() => handleEscaleClick(esc.id)}
-                              className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${isExpanded ? 'bg-[#F0F7FF]/60 border-l-4 border-[#005DAA]' : ''
+                              className={`cursor-pointer group transition-colors hover:bg-zinc-50 border-b border-zinc-100 ${isExpanded ? 'bg-primaryLight/60' : ''
                                 }`}
                             >
-                              <td className="px-8 py-5 font-black text-zinc-950">
+                              <td className="px-4 py-3.5 whitespace-nowrap font-black text-zinc-950">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1522,41 +875,41 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                     handleOpenEditModal(esc);
                                   }}
                                   title="Cliquer pour modifier les informations du navire"
-                                  className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 hover:border-[#005DAA] text-left transition-all group/navire cursor-pointer active:scale-95 shadow-xs"
+                                  className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 hover:border-primary text-left transition-all group/navire cursor-pointer active:scale-95 shadow-xs"
                                 >
-                                  <div className="w-9 h-9 rounded-lg bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] group-hover/navire:bg-[#005DAA] group-hover/navire:text-white transition-colors">
+                                  <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover/navire:bg-primary group-hover/navire:text-white transition-colors">
                                     <Ship className="w-4 h-4" />
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-sm font-black text-zinc-950 group-hover/navire:text-[#005DAA] transition-colors flex items-center gap-1.5">
+                                    <span className="text-sm font-black text-zinc-950 group-hover/navire:text-primary transition-colors flex items-center gap-1.5">
                                       {esc.nomNavire}
-                                      <Edit3 className="w-3.5 h-3.5 text-[#005DAA]" />
+                                      <Edit3 className="w-3.5 h-3.5 text-primary" />
                                     </span>
                                     {esc.dateAccostage && (
-                                      <span className="text-[11px] text-[#00875A] font-mono font-black">
+                                      <span className="text-xs text-success font-mono font-black">
                                         Accosté : {esc.dateAccostage}
                                       </span>
                                     )}
                                   </div>
                                 </button>
                               </td>
-                              <td className="px-8 py-5 font-mono font-black text-[#005DAA]">{esc.numeroVoyage}</td>
-                              <td className="px-8 py-5 font-mono text-zinc-600 font-bold">{esc.callsign || 'N/A'}</td>
-                              <td className="px-8 py-5 text-zinc-700 font-bold">
-                                <span className="text-zinc-600">{esc.portChargement.split(' ')[0]}</span>
-                                <span className="mx-2 text-[#005DAA] font-black">→</span>
-                                <span className="font-black text-zinc-950">{esc.portDechargement.split(' ')[0]}</span>
+                              <td className="px-4 py-3.5 whitespace-nowrap font-mono font-black text-primary">{esc.numeroVoyage}</td>
+                              <td className="px-4 py-3.5 whitespace-nowrap font-mono text-zinc-600 font-bold">{esc.callsign || 'N/A'}</td>
+                              <td className="px-4 py-3.5 whitespace-nowrap text-text-secondary font-bold">
+                                <span className="text-zinc-600">{portName(esc.portChargement)}</span>
+                                <span className="mx-2 text-primary font-black">→</span>
+                                <span className="font-black text-zinc-950">{portName(esc.portDechargement)}</span>
                               </td>
-                              <td className="px-8 py-5 text-zinc-900 font-mono font-black">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-zinc-900 font-mono font-black">
                                 <div className="flex items-center gap-1.5">
-                                  <Calendar className="w-4 h-4 text-[#005DAA]" />
+                                  <Calendar className="w-4 h-4 text-primary" />
                                   <span>{esc.dateArrivee}</span>
                                 </div>
                               </td>
-                              <td className="px-8 py-5 text-center">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-center">
                                 {esc.statut === 'EN_COURS' ? (
                                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                     <span>En Cours</span>
                                   </span>
                                 ) : (
@@ -1565,17 +918,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                   </span>
                                 )}
                               </td>
-                              <td className="px-8 py-5 text-center">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-center">
                                 <div className="flex justify-center items-center gap-1.5 text-sm font-black text-zinc-900">
                                   <span>{escBls.length} BLs</span>
                                   {isExpanded ? (
-                                    <ChevronUp className="w-4 h-4 text-[#005DAA]" />
+                                    <ChevronUp className="w-4 h-4 text-primary" />
                                   ) : (
                                     <ChevronDown className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900" />
                                   )}
                                 </div>
                               </td>
-                              <td className="px-8 py-5 text-right">
+                              <td className="px-4 py-3.5 whitespace-nowrap text-right">
                                 <div className="flex items-center justify-end gap-2">
                                   {escBls.length === 0 ? (
                                     <>
@@ -1586,7 +939,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                           handleOpenUploadForEscale(esc.id);
                                         }}
                                         title={`Charger les fichiers PDF servant de manifeste pour l'escale ${esc.nomNavire} (Voyage ${esc.numeroVoyage})`}
-                                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 shrink-0"
+                                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary hover:bg-[#004580] text-white font-black text-xs shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 shrink-0"
                                       >
                                         <Upload className="w-4 h-4 text-white" />
                                         <span>Charger Manifeste (PDF)</span>
@@ -1612,9 +965,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                           generateImportManifestPdf(esc, escBls);
                                         }}
                                         title={`Générer et imprimer le Manifeste BOCS Abidjan officiel pour le navire ${esc.nomNavire}`}
-                                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-[#F0F7FF] text-[#005DAA] hover:text-[#004580] border border-[#005DAA]/30 hover:border-[#005DAA] font-black text-xs shadow-2xs transition-all cursor-pointer active:scale-95 shrink-0"
+                                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-primaryLight text-primary hover:text-[#004580] border border-primary/30 hover:border-primary font-black text-xs shadow-1 transition-all cursor-pointer active:scale-95 shrink-0"
                                       >
-                                        <FileText className="w-4 h-4 text-[#005DAA]" />
+                                        <FileText className="w-4 h-4 text-primary" />
                                         <span>Manifeste PDF</span>
                                       </button>
                                       <button
@@ -1624,10 +977,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                           handleOpenUploadForEscale(esc.id);
                                         }}
                                         title="Charger ou ajouter d'autres manifestes PDF à cette escale"
-                                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/30 font-black text-xs transition-all cursor-pointer active:scale-95 shrink-0"
+                                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primaryLight hover:bg-[#E1EFFF] text-primary border border-primary/30 font-black text-xs transition-all cursor-pointer active:scale-95 shrink-0"
                                       >
-                                        <Upload className="w-3.5 h-3.5 text-[#005DAA]" />
-                                        <span>+ Charger PDF</span>
+                                        <Upload className="w-3.5 h-3.5 text-primary" />
+                                        <span>Ajouter</span>
                                       </button>
                                     </>
                                   )}
@@ -1642,28 +995,28 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                   <div className="space-y-5 animate-fade-in">
 
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-200 pb-3.5">
-                                      <div className="flex flex-wrap items-center gap-3 text-base font-black text-zinc-950">
+                                      <div className="min-w-0 flex flex-wrap items-center gap-3 text-base font-black text-zinc-950">
                                         <div className="flex items-center gap-2">
-                                          <MapPin className="w-5 h-5 text-[#005DAA]" />
+                                          <MapPin className="w-5 h-5 text-primary" />
                                           <span>Route : {esc.portChargement} → {esc.portDechargement}</span>
                                         </div>
-                                        <span className="text-xs font-bold text-zinc-600 bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
-                                          <span>💡</span>
+                                        <span className="text-xs font-bold text-amber-900 bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-1">
+                                          <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">lightbulb</span>
                                           <span>Cliquez sur une ligne pour modifier le BL ou sur "Factures &amp; Règlements" pour accéder à sa facturation</span>
                                         </span>
                                       </div>
 
-                                      <div className="flex flex-wrap items-center gap-2.5">
+                                      <div className="flex flex-wrap sm:flex-nowrap sm:shrink-0 items-center gap-2.5">
                                         <button
                                           type="button"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleOpenUploadForEscale(esc.id);
                                           }}
-                                          className="px-4 py-2.5 bg-[#F0F7FF] hover:bg-[#E1EFFF] text-[#005DAA] border border-[#005DAA]/40 text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                                          className="px-4 py-2.5 bg-primaryLight hover:bg-[#E1EFFF] text-primary border border-primary/40 text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-1 active:scale-95 shrink-0"
                                           title="Charger ou ajouter des manifestes PDF pour cette escale"
                                         >
-                                          <Upload className="w-4 h-4 text-[#005DAA]" />
+                                          <Upload className="w-4 h-4 text-primary" />
                                           <span>Charger Manifestes (PDF)</span>
                                         </button>
 
@@ -1673,10 +1026,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                             e.stopPropagation();
                                             generateImportManifestPdf(esc, escBls);
                                           }}
-                                          className="px-4 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-300 hover:border-[#005DAA] text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                                          className="px-4 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-300 hover:border-primary text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-1 active:scale-95 shrink-0"
                                           title="Imprimer ou télécharger le Manifeste officiel de cette escale"
                                         >
-                                          <Printer className="w-4 h-4 text-[#005DAA]" />
+                                          <Printer className="w-4 h-4 text-primary" />
                                           <span>Générer Manifeste PDF</span>
                                         </button>
 
@@ -1685,7 +1038,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                             e.stopPropagation();
                                             onEnter('facturation');
                                           }}
-                                          className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                                          className="px-5 py-2.5 bg-primary hover:bg-[#004580] text-white text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
                                         >
                                           <CreditCard className="w-4 h-4" />
                                           <span>Facturer cette Escale</span>
@@ -1694,9 +1047,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                     </div>
 
                                     {escBls.length === 0 ? (
-                                      <div className="bg-white border-2 border-dashed border-[#005DAA]/30 rounded-2xl p-8 text-center space-y-4 shadow-xs hover:border-[#005DAA] transition-colors">
-                                        <div className="w-14 h-14 mx-auto rounded-2xl bg-[#F0F7FF] border border-[#005DAA]/25 flex items-center justify-center text-[#005DAA] shadow-xs">
-                                          <Upload className="w-7 h-7 text-[#005DAA]" />
+                                      <div className="bg-white border-2 border-dashed border-primary/30 rounded-lg p-8 text-center space-y-4 shadow-xs hover:border-primary transition-colors">
+                                        <div className="w-14 h-14 mx-auto rounded-lg bg-primaryLight border border-primary/25 flex items-center justify-center text-primary shadow-xs">
+                                          <Upload className="w-7 h-7 text-primary" />
                                         </div>
                                         <div className="max-w-md mx-auto space-y-1.5">
                                           <h4 className="text-base font-black text-zinc-900">
@@ -1713,7 +1066,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                               e.stopPropagation();
                                               handleOpenUploadForEscale(esc.id);
                                             }}
-                                            className="px-5 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md active:scale-95"
+                                            className="px-5 py-2.5 bg-primary hover:bg-[#004580] text-white text-xs sm:text-sm font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md active:scale-95"
                                           >
                                             <Upload className="w-4 h-4" />
                                             <span>Charger les Fichiers PDF du Manifeste</span>
@@ -1721,11 +1074,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-xs">
+                                      <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-xs">
                                         <div className="overflow-x-auto max-h-[570px] overflow-y-auto welcome-scrollbar">
                                           <table className="w-full text-left border-collapse text-xs sm:text-sm">
                                             <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200 z-10">
-                                              <tr className="h-[52px] text-zinc-700 font-mono font-black uppercase tracking-wider text-xs">
+                                              <tr className="h-[52px] text-text-secondary font-mono font-black uppercase tracking-wider text-xs">
                                                 <th className="px-5 py-3">N° BL</th>
                                                 <th className="px-5 py-3">Type Fret</th>
                                                 <th className="px-5 py-3">Expéditeur (Shipper)</th>
@@ -1749,15 +1102,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                     className="h-[57px] hover:bg-sky-50/50 transition-colors group cursor-pointer"
                                                     title="Cliquer pour corriger ce connaissement"
                                                   >
-                                                    <td className="px-5 py-3 font-mono font-black text-zinc-950 group-hover:text-[#005DAA] transition-colors whitespace-nowrap">
+                                                    <td className="px-5 py-3 font-mono font-black text-zinc-950 group-hover:text-primary transition-colors whitespace-nowrap">
                                                       <div className="flex items-center gap-1.5">
                                                         <span>{bl.numeroBL}</span>
-                                                        <Edit3 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#005DAA] transition-opacity shrink-0" />
+                                                        <Edit3 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
                                                       </div>
                                                     </td>
                                                     <td className="px-5 py-3 whitespace-nowrap">
                                                       {bl.conteneurs && bl.conteneurs.length > 0 ? (
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-black uppercase bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/20">
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-black uppercase bg-primaryLight text-primary border border-primary/20">
                                                           <Box className="w-3.5 h-3.5" />
                                                           <span>{bl.conteneurs.length} CTR</span>
                                                         </span>
@@ -1770,7 +1123,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                     <td className="px-5 py-3 text-zinc-600 max-w-[286px] truncate font-medium" title={bl.shipperNom}>
                                                       {bl.shipperNom}
                                                     </td>
-                                                    <td className="px-5 py-3 text-zinc-950 font-black max-w-[312px] truncate group-hover:text-[#005DAA] transition-colors" title={bl.consigneeNom}>
+                                                    <td className="px-5 py-3 text-zinc-950 font-black max-w-[312px] truncate group-hover:text-primary transition-colors" title={bl.consigneeNom}>
                                                       {bl.consigneeNom}
                                                     </td>
                                                     <td className="px-5 py-3 text-zinc-600 max-w-[364px] truncate text-xs font-medium" title={bl.descriptionGoods}>
@@ -1779,11 +1132,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                     <td className="px-5 py-3 font-mono text-zinc-600 text-right whitespace-nowrap font-bold">
                                                       {bl.nombreColis} {bl.typeEmballage?.split(' ')[0] || 'Colis'}
                                                     </td>
-                                                    <td className="px-5 py-3 font-mono font-black text-[#005DAA] text-right whitespace-nowrap">
+                                                    <td className="px-5 py-3 font-mono font-black text-primary text-right whitespace-nowrap">
                                                       {bl.poidsBrutKg?.toLocaleString('fr-FR')} Kg
                                                     </td>
                                                     <td
-                                                      className="px-5 py-3 text-center whitespace-nowrap cursor-pointer hover:bg-[#F0F7FF] transition-all group/facture relative"
+                                                      className="px-5 py-3 text-center whitespace-nowrap cursor-pointer hover:bg-primaryLight transition-all group/facture relative"
                                                       onClick={(e) => {
                                                         e.stopPropagation();
                                                         setSelectedBlForBillingModal(bl);
@@ -1793,40 +1146,40 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                       <div className="inline-flex flex-col items-center gap-1 group-hover/facture:scale-105 transition-transform">
                                                         {/* 1. Statut Édition */}
                                                         {stats.isAllEditees ? (
-                                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs group-hover/facture:bg-emerald-100 transition-colors">
-                                                            <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-1 group-hover/facture:bg-emerald-100 transition-colors">
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-xs">check_circle</span>
                                                             <span>{stats.nbEditees}/{stats.totalAEditer} Éditées (100%)</span>
                                                           </span>
                                                         ) : stats.nbEditees > 0 ? (
-                                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs group-hover/facture:bg-amber-100 transition-colors">
-                                                            <span className="material-symbols-outlined text-[13px]">pending</span>
+                                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 shadow-1 group-hover/facture:bg-amber-100 transition-colors">
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-xs">pending</span>
                                                             <span>{stats.nbEditees}/{stats.totalAEditer} Éditées</span>
                                                           </span>
                                                         ) : (
-                                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-600 border border-zinc-200 group-hover/facture:bg-[#F0F7FF] group-hover/facture:text-[#005DAA] group-hover/facture:border-[#005DAA]/40 transition-colors shadow-2xs">
-                                                            <span className="material-symbols-outlined text-[13px]">hourglass_empty</span>
+                                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-100 text-zinc-600 border border-zinc-200 group-hover/facture:bg-primaryLight group-hover/facture:text-primary group-hover/facture:border-primary/40 transition-colors shadow-1">
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-xs">hourglass_empty</span>
                                                             <span>0/{stats.totalAEditer} À éditer</span>
                                                           </span>
                                                         )}
 
                                                         {/* 2. Statut Règlement */}
                                                         {stats.isAllReglees ? (
-                                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 group-hover/facture:bg-emerald-200 transition-colors">
-                                                            <span className="material-symbols-outlined text-[12px]">verified</span>
+                                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 group-hover/facture:bg-emerald-200 transition-colors">
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-xs">verified</span>
                                                             <span>Toutes réglées ({stats.nbReglees}/{stats.nbEditees})</span>
                                                           </span>
                                                         ) : stats.isPartiallyReglees ? (
-                                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 group-hover/facture:bg-blue-100 transition-colors">
-                                                            <span className="material-symbols-outlined text-[12px]">swap_horiz</span>
+                                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 group-hover/facture:bg-blue-100 transition-colors">
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-xs">swap_horiz</span>
                                                             <span>Partiellement réglé ({stats.nbReglees}/{stats.nbEditees})</span>
                                                           </span>
                                                         ) : stats.nbEditees > 0 ? (
-                                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 group-hover/facture:bg-rose-100 transition-colors">
-                                                            <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 group-hover/facture:bg-rose-100 transition-colors">
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-xs">schedule</span>
                                                             <span>0/{stats.nbEditees} Réglé (Non payé)</span>
                                                           </span>
                                                         ) : (
-                                                          <span className="text-[10px] text-zinc-400 group-hover/facture:text-[#005DAA] font-medium italic transition-colors">
+                                                          <span className="text-xs text-zinc-400 group-hover/facture:text-primary font-medium italic transition-colors">
                                                             En attente édition
                                                           </span>
                                                         )}
@@ -1863,22 +1216,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <div className="w-full max-w-[2054px] space-y-8 animate-fade-in mx-auto">
 
             {/* Header bar */}
-            <div className="ocean-glass-banner rounded-3xl p-7 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
+            <div className="ocean-glass-banner rounded-xl p-7 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-zinc-200 bg-white">
               <div>
                 <button
                   type="button"
                   onClick={() => setViewState('escales')}
-                  className="inline-flex items-center gap-2 text-xs font-black text-zinc-600 hover:text-[#005DAA] transition-colors cursor-pointer mb-2"
+                  className="inline-flex items-center gap-2 text-xs font-black text-zinc-600 hover:text-primary transition-colors cursor-pointer mb-2"
                 >
-                  <ArrowLeft className="w-4 h-4 text-[#005DAA]" />
-                  <span>← Retour au Registre des Escales</span>
+                  <ArrowLeft className="w-4 h-4 text-primary" />
+                  <span>Retour au registre des escales</span>
                 </button>
-                <div className="inline-flex items-center gap-2 text-xs font-black text-[#00875A] uppercase tracking-widest mb-1.5 ml-3">
-                  <Ship className="w-4 h-4" />
-                  <span>Nouvelle Entrée Navire</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 font-display">
-                  Création d'Escale Portuaire & <span className="font-serif italic font-normal text-[#00875A]">Importation Manifestes PDF</span>
+                <h2 className="text-2xl font-black text-zinc-950 font-display tracking-tight flex items-center gap-2.5">
+                  <Ship className="w-6 h-6 text-success shrink-0" aria-hidden="true" />
+                  Nouvelle escale &amp; import des manifestes PDF
                 </h2>
                 <p className="text-sm text-zinc-600 font-medium mt-1">
                   Créez l'escale maritime pour votre navire à quai ou en rade, puis chargez les manifestes PDF dont les connaissements seront automatiquement rattachés.
@@ -1889,14 +1239,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewState('escales')}
-                  className="px-5 py-2.5 rounded-xl border border-zinc-300 text-zinc-700 hover:bg-zinc-100 font-bold text-xs transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-zinc-300 text-text-secondary hover:bg-zinc-100 font-bold text-xs transition-all cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
                   onClick={handleSubmitNewEscaleWithBls as any}
-                  className="px-6 py-2.5 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  className="px-6 py-2.5 bg-primary hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
                 >
                   <Check className="w-4 h-4" />
                   <span>{newEscaleBls.length > 0 ? `Valider l'Escale (+ ${newEscaleBls.length} BLs)` : "Valider l'Escale"}</span>
@@ -1908,9 +1258,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <form onSubmit={handleSubmitNewEscaleWithBls} className="space-y-6">
 
               {/* Card 1: Paramètres Officiels du Navire & de l'Escale */}
-              <div className="ocean-glass-card rounded-3xl p-7 border border-zinc-200 bg-white shadow-sm space-y-5">
+              <div className="ocean-glass-card rounded-xl p-7 border border-zinc-200 bg-white shadow-sm space-y-5">
                 <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
-                  <div className="w-10 h-10 rounded-xl bg-[#005DAA]/10 border border-[#005DAA]/25 text-[#005DAA] flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 text-primary flex items-center justify-center font-bold">
                     <Ship className="w-5 h-5" />
                   </div>
                   <div>
@@ -1920,82 +1270,70 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Nom du Navire *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="ex: BOCS BREMEN, WIKING..."
-                      value={newEscaleForm.nomNavire}
-                      onChange={(e) => setNewEscaleForm({ ...newEscaleForm, nomNavire: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
-                    />
-                  </div>
+                  <VesselPicker
+                    id="new-escale-vessel"
+                    className="sm:col-span-2 lg:col-span-3"
+                    vessels={vessels}
+                    value={newEscaleForm.nomNavire}
+                    onChange={(v) => setNewEscaleForm(prev => ({ ...prev, nomNavire: v?.nom || '', callsign: v?.callsign || '' }))}
+                    onCreateVessel={onAddVessel}
+                    onUpdateVessel={onUpdateVessel}
+                    required
+                  />
 
                   <div>
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Numéro de Voyage *</label>
+                    <label className="block text-xs font-black text-text-secondary mb-1">Numéro de Voyage *</label>
                     <input
                       type="text"
                       required
                       placeholder="ex: 25586, 2132N..."
                       value={newEscaleForm.numeroVoyage}
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, numeroVoyage: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-mono font-black text-[#005DAA] bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                      className="w-full h-11 px-3.5 text-sm font-mono font-black text-primary bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Indicatif Radio (Callsign)</label>
-                    <input
-                      type="text"
-                      placeholder="ex: CQRT, DJNY2..."
-                      value={newEscaleForm.callsign}
-                      onChange={(e) => setNewEscaleForm({ ...newEscaleForm, callsign: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Statut Initial</label>
+                    <label className="block text-xs font-black text-text-secondary mb-1">Statut Initial</label>
                     <select
                       value={newEscaleForm.statut}
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, statut: e.target.value as any })}
-                      className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA] cursor-pointer"
+                      className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary cursor-pointer"
                     >
-                      <option value="EN_COURS">🟢 EN COURS</option>
-                      <option value="CLOTUREE">⚪ CLÔTURÉE</option>
-                      <option value="ANNULEE">🔴 ANNULÉE</option>
+                      <option value="EN_COURS">EN COURS</option>
+                      <option value="CLOTUREE">CLÔTURÉE</option>
+                      <option value="ANNULEE">ANNULÉE</option>
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2 lg:col-span-2">
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Port de Déchargement</label>
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <label className="block text-xs font-black text-text-secondary mb-1">Port de Déchargement</label>
                     <input
                       type="text"
                       value={newEscaleForm.portDechargement}
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, portDechargement: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                      className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Date d'Arrivée (ETA) *</label>
+                    <label className="block text-xs font-black text-text-secondary mb-1">Date d'Arrivée (ETA) *</label>
                     <input
                       type="date"
                       required
                       value={newEscaleForm.dateArrivee}
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, dateArrivee: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                      className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-zinc-700 mb-1">Date de Départ (ETD)</label>
+                    <label className="block text-xs font-black text-text-secondary mb-1">Date de Départ (ETD)</label>
                     <input
                       type="date"
                       value={newEscaleForm.dateDepart}
                       onChange={(e) => setNewEscaleForm({ ...newEscaleForm, dateDepart: e.target.value })}
-                      className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                      className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
@@ -2004,7 +1342,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <div className="flex justify-end pt-3 border-t border-zinc-100 mt-2">
                   <button
                     type="submit"
-                    className="px-7 py-3 bg-[#005DAA] hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2.5 transition-all cursor-pointer active:scale-95"
+                    className="px-7 py-3 bg-primary hover:bg-[#004580] text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2.5 transition-all cursor-pointer active:scale-95"
                   >
                     <Check className="w-4 h-4 text-white" />
                     <span className="text-white">
@@ -2017,10 +1355,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               </div>
 
               {/* Card 2: Importation des Manifestes PDF (Bouton d'importation des PDF) */}
-              <div className="ocean-glass-card rounded-3xl p-7 border border-zinc-200 bg-white shadow-sm space-y-5">
+              <div className="ocean-glass-card rounded-xl p-7 border border-zinc-200 bg-white shadow-sm space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#005DAA]/10 border border-[#005DAA]/25 text-[#005DAA] flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 text-primary flex items-center justify-center font-bold">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
@@ -2063,16 +1401,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     }
                   }}
                   onClick={() => newEscaleFileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${isNewEscaleDragOver
-                      ? 'border-[#005DAA] bg-[#F0F7FF]/60 scale-[1.01]'
-                      : 'border-zinc-300 hover:border-[#005DAA] bg-zinc-50/60 hover:bg-[#F0F7FF]/20'
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${isNewEscaleDragOver
+                      ? 'border-primary bg-primaryLight/60 scale-[1.01]'
+                      : 'border-zinc-300 hover:border-primary bg-zinc-50/60 hover:bg-primaryLight/20'
                     }`}
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-[#005DAA]/10 text-[#005DAA] mx-auto flex items-center justify-center mb-3 shadow-xs">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary mx-auto flex items-center justify-center mb-3 shadow-xs">
                     <FileText className="w-6 h-6" />
                   </div>
                   <p className="text-sm font-bold text-zinc-900">
-                    Glissez-déposez vos manifestes PDF ici, ou <span className="text-[#005DAA] underline">cliquez pour sélectionner</span>
+                    Glissez-déposez vos manifestes PDF ici, ou <span className="text-primary underline">cliquez pour sélectionner</span>
                   </p>
                   <p className="text-xs text-zinc-500 mt-1">
                     Sélectionnez un ou plusieurs fichiers à la fois ou successivement (BOCS, ALIS, CMA CGM, Grimaldi, Maersk...)
@@ -2083,7 +1421,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 {newEscaleFiles.length > 0 && (
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase text-zinc-700 tracking-wider">
+                      <span className="text-xs font-black uppercase text-text-secondary tracking-wider">
                         Manifestes PDF chargés ({newEscaleFiles.length})
                       </span>
                       <button
@@ -2106,7 +1444,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         >
                           <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
                           <span className="font-mono">{f.name}</span>
-                          <span className="text-[10px] text-zinc-500 font-mono">({(f.size / 1024).toFixed(0)} Ko)</span>
+                          <span className="text-xs text-zinc-500 font-mono">({(f.size / 1024).toFixed(0)} Ko)</span>
                         </span>
                       ))}
                     </div>
@@ -2118,14 +1456,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <div className="space-y-3 pt-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                         <span className="text-xs font-black uppercase text-emerald-700 tracking-wider">
                           Connaissements Extraits ({newEscaleBls.length} BLs rattachés)
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[11px] text-zinc-500 font-bold bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
-                          <span>💡</span>
+                        <span className="text-xs text-amber-800 font-bold bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                          <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">lightbulb</span>
                           <span>Cliquez sur une ligne pour ouvrir et faire des corrections</span>
                         </span>
                         <span className="text-xs font-bold text-zinc-500 font-mono whitespace-nowrap">
@@ -2134,10 +1472,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       </div>
                     </div>
 
-                    <div className="border border-zinc-200 rounded-2xl overflow-hidden shadow-xs bg-white">
+                    <div className="border border-zinc-200 rounded-lg overflow-hidden shadow-xs bg-white">
                       <div className="overflow-x-auto max-h-[375px] overflow-y-auto welcome-scrollbar">
                         <table className="w-full text-left border-collapse text-xs">
-                          <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200 text-zinc-700 font-mono font-black uppercase tracking-wider z-10">
+                          <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200 text-text-secondary font-mono font-black uppercase tracking-wider z-10">
                             <tr className="h-11">
                               <th className="px-5 py-3">N° BL</th>
                               <th className="px-5 py-3">Type</th>
@@ -2156,19 +1494,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 className="h-12 hover:bg-sky-50/50 transition-colors cursor-pointer group"
                                 title="Cliquer pour ouvrir et corriger ce connaissement"
                               >
-                                <td className="px-5 py-2.5 font-mono font-black text-zinc-950 group-hover:text-[#005DAA] transition-colors whitespace-nowrap">
+                                <td className="px-5 py-2.5 font-mono font-black text-zinc-950 group-hover:text-primary transition-colors whitespace-nowrap">
                                   <div className="flex items-center gap-1.5">
                                     <span>{bl.numeroBL}</span>
-                                    <Edit3 className="w-3 h-3 opacity-0 group-hover:opacity-100 text-[#005DAA] transition-opacity shrink-0" />
+                                    <Edit3 className="w-3 h-3 opacity-0 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
                                   </div>
                                 </td>
                                 <td className="px-5 py-2.5 whitespace-nowrap">
                                   {bl.conteneurs && bl.conteneurs.length > 0 ? (
-                                    <span className="px-2.5 py-1 rounded text-[11px] font-black bg-[#F0F7FF] text-[#005DAA] border border-[#005DAA]/20">
+                                    <span className="px-2.5 py-1 rounded text-xs font-black bg-primaryLight text-primary border border-primary/20">
                                       {bl.conteneurs.length} CTR
                                     </span>
                                   ) : (
-                                    <span className="px-2.5 py-1 rounded text-[11px] font-bold bg-zinc-100 text-zinc-700">
+                                    <span className="px-2.5 py-1 rounded text-xs font-bold bg-zinc-100 text-text-secondary">
                                       {bl.typeMarchandise || 'VRAC'}
                                     </span>
                                   )}
@@ -2191,7 +1529,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                       type="button"
                                       onClick={() => setEditingNewEscaleBl(bl)}
                                       title="Ouvrir et corriger ce connaissement"
-                                      className="p-1.5 rounded-lg bg-zinc-100 hover:bg-sky-100/80 text-zinc-600 hover:text-[#005DAA] transition-all cursor-pointer shadow-2xs"
+                                      className="p-1.5 rounded-lg bg-zinc-100 hover:bg-sky-100/80 text-zinc-600 hover:text-primary transition-all cursor-pointer shadow-1"
                                     >
                                       <Edit3 className="w-3.5 h-3.5" />
                                     </button>
@@ -2199,7 +1537,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                       type="button"
                                       onClick={() => handleRemoveNewEscaleBl(bl.fileId)}
                                       title="Supprimer ce connaissement"
-                                      className="p-1.5 rounded-lg hover:bg-rose-50 text-zinc-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                      className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-700 hover:text-rose-600 transition-colors cursor-pointer"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -2221,7 +1559,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewState('escales')}
-                  className="px-6 py-3 rounded-2xl border border-zinc-300 text-zinc-700 hover:bg-zinc-100 font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                  className="px-6 py-3 rounded-lg border border-zinc-300 text-text-secondary hover:bg-zinc-100 font-bold text-xs sm:text-sm transition-all cursor-pointer"
                 >
                   Annuler et Retourner au Registre
                 </button>
@@ -2235,16 +1573,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       {/* ─── 3. MODAL ÉDITION NAVIRE & ESCALE (CLEAN LIGHT MODAL) ─── */}
       {editingEscale && (
-        <div
+        <div role="dialog" aria-modal="true"
           onClick={overlayClickClose(() => setEditingEscale(null))}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 bg-surface-canvas/95 border-b border-border-default animate-fade-in"
         >
-          <div className="welcome-dark-modal w-full max-w-xl bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-zinc-900">
+          <div className="welcome-dark-modal w-full max-w-xl bg-white border border-zinc-200 rounded-xl shadow-2 overflow-hidden flex flex-col text-zinc-900">
 
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-zinc-50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#005DAA]/10 border border-[#005DAA]/20 flex items-center justify-center text-[#005DAA] shadow-xs">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
                   <Ship className="w-5 h-5" />
                 </div>
                 <div>
@@ -2256,7 +1594,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   </p>
                 </div>
               </div>
-              <button
+              <button aria-label="Fermer"
                 type="button"
                 onClick={() => setEditingEscale(null)}
                 className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
@@ -2268,20 +1606,20 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             {/* Modal Form */}
             <form onSubmit={handleSaveEscale} className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
               {/* Section Manifeste & Connaissements PDF */}
-              <div className="p-4 rounded-2xl bg-[#F0F7FF] border border-[#005DAA]/25 space-y-3">
+              <div className="p-4 rounded-lg bg-primaryLight border border-primary/25 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[#005DAA]" />
-                    <span className="text-xs font-black uppercase tracking-wider text-[#005DAA]">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-black uppercase tracking-wider text-primary">
                       Manifeste &amp; Connaissements Associés
                     </span>
                   </div>
                   {bls.filter(b => b.escaleId === editingEscale.id).length === 0 ? (
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
                       0 BL rattaché
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
                       {bls.filter(b => b.escaleId === editingEscale.id).length} BL(s) rattaché(s)
                     </span>
                   )}
@@ -2299,7 +1637,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       setEditingEscale(null);
                       handleOpenUploadForEscale(escId);
                     }}
-                    className="px-4 py-2 bg-[#005DAA] hover:bg-[#004580] text-white text-xs font-black rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                    className="px-4 py-2 bg-primary hover:bg-[#004580] text-white text-xs font-black rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                   >
                     <Upload className="w-4 h-4" />
                     <span>Charger des Fichiers PDF servant de Manifeste</span>
@@ -2311,7 +1649,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         const escBls = bls.filter(b => b.escaleId === editingEscale.id);
                         generateImportManifestPdf(editingEscale, escBls);
                       }}
-                      className="px-3 py-2 bg-white hover:bg-zinc-100 text-[#005DAA] border border-[#005DAA]/30 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-2 bg-white hover:bg-zinc-100 text-primary border border-primary/30 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       <span>Imprimer Manifeste BOCS</span>
@@ -2322,21 +1660,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
-                    Nom du Navire *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={escaleFormData.nomNavire || ''}
-                    onChange={(e) => setEscaleFormData({ ...escaleFormData, nomNavire: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
-                  />
-                </div>
+                {/* Pas de `required` natif : une escale ancienne peut porter un navire absent du registre. */}
+                <VesselPicker
+                  id="edit-escale-vessel"
+                  className="sm:col-span-2"
+                  vessels={vessels}
+                  value={escaleFormData.nomNavire || ''}
+                  onChange={(v) => setEscaleFormData(prev => ({ ...prev, nomNavire: v?.nom || '', callsign: v?.callsign || '' }))}
+                  onCreateVessel={onAddVessel}
+                  onUpdateVessel={onUpdateVessel}
+                />
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Numéro de Voyage *
                   </label>
                   <input
@@ -2344,31 +1680,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     required
                     value={escaleFormData.numeroVoyage || ''}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, numeroVoyage: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-mono font-black text-[#005DAA] bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-mono font-black text-primary bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
-                    Indicatif Radio (Callsign)
-                  </label>
-                  <input
-                    type="text"
-                    value={escaleFormData.callsign || ''}
-                    onChange={(e) => setEscaleFormData({ ...escaleFormData, callsign: e.target.value })}
-                    placeholder="ex: 9V8974, CQRT..."
-                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
-                  />
-                </div>
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Statut de l'Escale
                   </label>
                   <select
                     value={escaleFormData.statut || 'EN_COURS'}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, statut: e.target.value as any })}
-                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   >
                     <option value="EN_COURS">EN COURS (Active)</option>
                     <option value="CLOTUREE">CLÔTURÉE</option>
@@ -2377,7 +1701,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Date d'Arrivée (ETA) *
                   </label>
                   <input
@@ -2385,36 +1709,36 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     required
                     value={escaleFormData.dateArrivee || ''}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, dateArrivee: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Date d'Accostage
                   </label>
                   <input
                     type="date"
                     value={escaleFormData.dateAccostage || ''}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, dateAccostage: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Date de Départ (ETD)
                   </label>
                   <input
                     type="date"
                     value={escaleFormData.dateDepart || ''}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, dateDepart: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-mono font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Poste à Quai (Berth)
                   </label>
                   <input
@@ -2422,19 +1746,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     value={escaleFormData.quai || ''}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, quai: e.target.value })}
                     placeholder="ex: Quai 14, PAA..."
-                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-zinc-700 mb-1">
+                  <label className="block text-xs font-black text-text-secondary mb-1">
                     Port de Déchargement (POD)
                   </label>
                   <input
                     type="text"
                     value={escaleFormData.portDechargement || ''}
                     onChange={(e) => setEscaleFormData({ ...escaleFormData, portDechargement: e.target.value })}
-                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-[#005DAA]"
+                    className="w-full h-11 px-3.5 text-sm font-bold text-zinc-900 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
 
@@ -2445,13 +1769,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingEscale(null)}
-                  className="px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-bold text-zinc-700 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-bold text-text-secondary transition-all cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-[#005DAA] hover:bg-[#004580] text-xs font-black text-white shadow-md flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+                  className="px-6 py-2.5 rounded-xl bg-primary hover:bg-[#004580] text-xs font-black text-white shadow-md flex items-center gap-2 transition-all cursor-pointer active:scale-95"
                 >
                   <Check className="w-4 h-4" />
                   <span>Enregistrer les modifications</span>
@@ -2461,38 +1785,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </div>
         </div>
       )}
-
-      {/* ─── 4. EXECUTIVE CLEAN LIGHT FOOTER ─── */}
-      <footer className="w-full border-t border-zinc-200 bg-white text-xs text-zinc-500 py-4 z-20 relative shrink-0 shadow-xs">
-        <div className="max-w-[2054px] mx-auto px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-            <span className="flex items-center gap-2 text-zinc-900 font-bold">
-              <ShieldCheck className="w-4 h-4 text-[#00875A]" />
-              <span>Conformité Douanière GUCE & DGI FNE (Côte d'Ivoire)</span>
-            </span>
-            <span className="hidden sm:flex items-center gap-1.5 text-zinc-600 font-medium">
-              <Database className="w-3.5 h-3.5 text-[#005DAA]" />
-              <span>PostgreSQL Neon Cloud Chiffré</span>
-            </span>
-            {hasPermission(permissionSubject, 'admin_rights_assign') && (
-              <button
-                type="button"
-                onClick={() => onEnter('admin_rights')}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all font-bold text-[11px] cursor-pointer hover:shadow-xs active:scale-95"
-                title="Accéder directement à l'attribution des droits utilisateurs (Admin)"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                <span>Attribution des Profils</span>
-              </button>
-            )}
-          </div>
-          <div className="text-center sm:text-right font-medium text-zinc-500">
-            © {new Date().getFullYear()} BOCS CI Maritime Agency — Abidjan Port Operations. Tous droits réservés.
-          </div>
-        </div>
-      </footer>
-
-      {/* Modale d'Importation Multi-PDFs & Connaissements Incrémentale */}
+{/* Modale d'Importation Multi-PDFs & Connaissements Incrémentale */}
       <MultiPdfImportModal
         isOpen={showMultiPdfModal}
         onClose={() => {
@@ -2530,25 +1823,29 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       />
 
       {/* Modale de Facturation Maritime & Règlements dédiée au BL */}
-      <BlBillingModal
-        bl={selectedBlForBillingModal}
-        isOpen={Boolean(selectedBlForBillingModal)}
-        onClose={() => setSelectedBlForBillingModal(null)}
-        escales={escales}
-        bls={bls}
-        drafts={drafts}
-        invoices={invoices}
-        rubriqueConfigs={rubriqueConfigs}
-        invoiceTypeConfigs={invoiceTypeConfigs}
-        onGenerateInvoice={onGenerateInvoice}
-        onUpdateInvoice={onUpdateInvoice}
-        onValidateInvoice={onValidateInvoice}
-        onDeleteInvoice={onDeleteInvoice}
-        onAddPayment={onAddPayment}
-        onLogAudit={onLogAudit}
-        onUpdateBl={onUpdateBl}
-        timbreBrackets={timbreBrackets}
-      />
+      {selectedBlForBillingModal && (
+        <Suspense fallback={null}>
+          <BlBillingModal
+            bl={selectedBlForBillingModal}
+            isOpen={Boolean(selectedBlForBillingModal)}
+            onClose={() => setSelectedBlForBillingModal(null)}
+            escales={escales}
+            bls={bls}
+            drafts={drafts}
+            invoices={invoices}
+            rubriqueConfigs={rubriqueConfigs}
+            invoiceTypeConfigs={invoiceTypeConfigs}
+            onGenerateInvoice={onGenerateInvoice}
+            onUpdateInvoice={onUpdateInvoice}
+            onValidateInvoice={onValidateInvoice}
+            onDeleteInvoice={onDeleteInvoice}
+            onAddPayment={onAddPayment}
+            onLogAudit={onLogAudit}
+            onUpdateBl={onUpdateBl}
+            timbreBrackets={timbreBrackets}
+          />
+        </Suspense>
+      )}
 
     </div>
   );

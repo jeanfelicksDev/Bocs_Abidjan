@@ -1,7 +1,13 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { App } from './App'
+import './styles/fonts'
 import './index.css'
+import { installSessionGuard } from './utils/sessionGuard'
+import { watchInstallability } from './utils/installApp'
+
+installSessionGuard()
+watchInstallability()
 
 interface Props {
   children: ReactNode;
