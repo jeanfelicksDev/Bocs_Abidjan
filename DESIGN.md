@@ -13,9 +13,17 @@ chargement, lu de nuit.
 - **Pas d'or, pas de violet décoratif** : le violet ne subsiste qu'en couleur de catégorie (rôle Admin, opérations Export) en thème clair ; en sombre il retombe sur le bleu.
 
 ## 2. Thèmes et préférence utilisateur
-- Trois choix : **Clair**, **Sombre**, **Système** (par défaut : suit le réglage du poste,
-  y compris quand il change en cours de session).
-- Le choix est mémorisé sur le poste (`localStorage.theme` ; absent = Système).
+- Trois thèmes, un bouton chacun :
+  - **Soleil — Eglin** (`eglin`) : fond crème, encre vert-noir, action vert forêt.
+  - **Écran — Bleu BOCS** (`bocs`) : clair, bleu du logo. C'est le thème de base (`:root`).
+  - **Lune — Sombre** (`night`) : la nuit d'Eglin, fond vert-noir, texte ivoire, action
+    émeraude ; l'or est réservé à la sélection de texte et à l'anneau de focus.
+- Le choix est mémorisé sur le poste (`localStorage.theme`). Sans choix, le réglage du
+  poste décide : sombre → `night`, sinon `bocs`. Les anciennes valeurs `dark` et `light`
+  sont relues comme `eglin` et `bocs`.
+- Classes sur `<html>` : `light` (bleu BOCS), `dark` (Eglin), `dark night` (sombre).
+  `.dark` active les variantes `dark:` et les jetons `night-*`, communs à Eglin et au
+  sombre ; `.night` n'en remplace que les valeurs (`tokens.css` §13).
 - Logique : `src/utils/theme.ts` (+ script en ligne dans `index.html` contre le flash au
   chargement). Interface : `src/components/common/ThemeSwitcher.tsx` — segmenté à trois
   boutons, ou `compact` (un bouton qui fait défiler) dans les barres chargées.
@@ -23,22 +31,25 @@ chargement, lu de nuit.
 ## 3. Palette
 Source de vérité : `src/styles/tokens.css`. Les composants consomment des rôles, jamais des hex.
 
-| Rôle | Clair | Sombre (`night-*`) |
-|---|---|---|
-| Fond de l'application | `#F6F8FB` / pont `#EAEFF4` | `#0B1622` |
-| Panneaux, cartes | `#FFFFFF` | `#111F2E` |
-| Survol, puces | `#EEF2F7` | `#182A3C` |
-| Règle / bordure | `#DDE5EE` | `#23384D` |
-| Texte principal | `#002B49` | `#E6EDF4` |
-| Texte secondaire | `#33465C` | `#A8B7C6` |
-| Texte discret | `#64778C` | `#8195A9` |
-| Action (fond bouton) | `#005DAA` | `#1569B5` |
-| Lien, icône active | `#004580` | `#7DB9F5` |
-| Validé / encaissé | `#00875A` | `#5CCF9B` |
-| En attente | `#B46A00` | `#EDBE62` |
-| Écart / retard | `#C02440` | `#F4949E` |
+| Rôle | Bleu BOCS | Eglin (`night-*`) | Sombre (`night-*` sous `.night`) |
+|---|---|---|---|
+| Fond de l'application | `#F6F8FB` / pont `#EAEFF4` | `#F6F5F0` | `#090D0B` |
+| Panneaux, cartes | `#FFFFFF` | `#FFFFFF` | `#111714` |
+| Survol, puces | `#EEF2F7` | `#ECEBE4` | `#19211D` |
+| Règle / bordure | `#DDE5EE` | `#E2E0D8` | `#222C27` |
+| Texte principal | `#002B49` | `#17201B` | `#EDEAE1` |
+| Texte secondaire | `#33465C` | `#3D4942` | `#B2BAB2` |
+| Texte discret | `#64778C` | `#5C6860` | `#86928A` |
+| Action (fond bouton) | `#005DAA` | `#0E3B2C` | `#1E7854` |
+| Lien, icône active | `#004580` | `#1F6A48` | `#7DD3A7` |
+| Validé / encaissé | `#00875A` | `#1F6A48` | `#74D3A3` |
+| En attente | `#B46A00` | `#82580F` | `#E8BE6A` |
+| Écart / retard | `#C02440` | `#9A3322` | `#F09A8F` |
 
-Tous les textes sont ≥ 4,5:1 sur leur surface. Le sombre dérive du bleu nuit `#002B49` du logo.
+Tous les textes sont ≥ 4,5:1 sur leur surface. En sombre, la profondeur vient des surfaces
+(fond < carte < survol) et d'un filet de lumière en tête de carte, pas d'ombres lourdes.
+Ce qu'un jeton ne sait pas dire en sombre (teintes pastel translucides, carte du port,
+aplats d'état pleins) vit dans `src/styles/night.css`.
 
 ## 4. Typographie
 - **Interface et montants** : `Albert Sans`.

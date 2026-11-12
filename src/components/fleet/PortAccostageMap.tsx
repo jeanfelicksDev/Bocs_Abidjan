@@ -64,7 +64,7 @@ export const PortAccostageMap: React.FC<PortAccostageMapProps> = ({ escales, onS
         style={{ transform: `scale(${zoomLevel})` }}
       >
         <svg
-          className="w-full h-full"
+          className="bocs-port-chart w-full h-full"
           viewBox="0 0 1200 650"
           preserveAspectRatio="xMidYMid slice"
           xmlns="http://www.w3.org/2000/svg"

@@ -1,0 +1,106 @@
+/* ==========================================================================
+   BOCS — THÈME SOMBRE (classes `.dark.night`, bouton lune)
+   --------------------------------------------------------------------------
+   Les couleurs vivent dans tokens.css §13 : la quasi-totalité de l'interface
+   suit par les jetons `night-*`. Ce fichier ne porte que ce qu'un jeton ne
+   sait pas dire : les aplats écrits pour un fond clair, et l'atmosphère.
+
+   Spécificité : `html.night .x` = (0,2,1), au-dessus des utilitaires `dark:`.
+   ========================================================================== */
+
+/* Atmosphère : le fond n'est pas un noir plat. Une lueur émeraude très basse
+   tombe du haut de la page et s'éteint avant le contenu. */
+html.night .min-h-screen.dark\:bg-night-canvas {
+  background-image: radial-gradient(110% 520px at 50% -80px, rgb(var(--night-accent) / 0.11), transparent 70%);
+  background-repeat: no-repeat;
+}
+
+/* Aplats d'état pleins. Ils portent du texte blanc ; or, la nuit, les jetons
+   `positive` et `caution` sont des encres claires. L'aplat reprend une teinte
+   profonde : blanc 5,4:1 sur l'émeraude, 5,6:1 sur l'ambre. */
+html.night .dark\:bg-night-positive {
+  background-color: rgb(var(--night-accent));
+}
+html.night .dark\:hover\:bg-night-positive:hover {
+  background-color: rgb(var(--night-accent-strong));
+}
+html.night :is(.dark\:bg-night-caution, .dark\:hover\:bg-night-caution:hover) {
+  background-color: rgb(138 96 16);
+}
+
+/* --------------------------------------------------------------------------
+   Teintes pastel translucides. Sur fond crème elles restent des voiles
+   discrets ; sur fond noir elles deviennent des plaques grises illisibles.
+   Spécificité (0,2,0) et import avant `@tailwind utilities` : une variante
+   `dark:` explicite sur le même élément garde la priorité.
+   -------------------------------------------------------------------------- */
+.night :is(.bg-zinc-50\/80, .bg-zinc-50\/60, .bg-slate-50\/80, .bg-slate-50\/30) {
+  background-color: rgb(var(--night-sunken) / 0.7);
+}
+.night :is(.bg-slate-100\/60, .bg-zinc-200\/70,
+  .hover\:bg-zinc-200\/60:hover, .hover\:bg-zinc-200\/80:hover) {
+  background-color: rgb(var(--night-raised));
+}
+.night .focus\:bg-white:focus {
+  background-color: rgb(var(--night-surface));
+}
+
+.night :is(.bg-amber-50\/40, .bg-amber-50\/30) {
+  background-color: rgb(var(--night-caution-soft) / 0.55);
+}
+.night :is(.bg-amber-200, .hover\:bg-amber-200:hover) {
+  background-color: rgb(var(--night-caution-line));
+}
+
+.night :is(.bg-rose-50\/30, .bg-rose-50\/25, .bg-rose-100\/50) {
+  background-color: rgb(var(--night-critical-soft) / 0.55);
+}
+.night :is(.bg-rose-200, .hover\:bg-rose-200:hover) {
+  background-color: rgb(var(--night-critical-line));
+}
+
+.night :is(.bg-purple-50\/40, .bg-indigo-50\/30) {
+  background-color: rgb(var(--night-accent-soft) / 0.45);
+}
+.night :is(.bg-cyan-100, .hover\:bg-sky-50:hover, .hover\:bg-sky-50\/50:hover,
+  .hover\:bg-sky-100\/80:hover) {
+  background-color: rgb(var(--night-accent-soft));
+}
+
+.night .bg-emerald-100\/80 {
+  background-color: rgb(var(--night-positive-soft));
+}
+.night .hover\:bg-emerald-200:hover {
+  background-color: rgb(var(--night-positive-line));
+}
+
+/* Encres très sombres posées sur ces pastels : elles s'éclaircissent avec eux. */
+.night :is(.text-purple-950, .text-violet-800, .text-violet-900,
+  .text-blue-950, .text-cyan-950) {
+  color: rgb(var(--night-link));
+}
+.night .text-emerald-950 { color: rgb(var(--night-positive)); }
+.night .text-amber-950 { color: rgb(var(--night-caution)); }
+.night :is(.border-cyan-300, .border-purple-300) { border-color: rgb(var(--night-accent-line)); }
+
+/* Boutons en dégradé vif : leur texte reste sombre, la nuit comme le jour
+   (le filet de sécurité l'éclaircirait avec le reste des encres). */
+html.night .bg-gradient-to-r.text-slate-950 { color: #06100c; }
+
+/* Carte du port : une illustration de plein jour (~130 couleurs fixes). La
+   nuit, on en inverse la luminance en gardant les teintes — l'eau reste
+   bleue, la terre verte, les feux de chenal rouge et vert — comme une carte
+   marine en mode nuit. Les commandes posées dessus ne sont pas filtrées. */
+html.night .bocs-port-chart {
+  filter: invert(1) hue-rotate(180deg) saturate(0.8) brightness(0.9);
+}
+html.night .bg-\[\#ddeef8\] {
+  background-color: rgb(var(--night-sunken));
+}
+
+/* Ombres colorées pastel : un halo clair autour d'un bouton n'a pas sa place
+   dans le noir. */
+html.night :is(.shadow-blue-200, .shadow-slate-200) {
+  --tw-shadow-color: rgb(0 0 0 / 0.5);
+  --tw-shadow: var(--tw-shadow-colored);
+}

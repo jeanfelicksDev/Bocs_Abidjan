@@ -156,7 +156,7 @@ export const ParametrageModule: React.FC<ParametrageModuleProps> = ({
           <div className="p-4 bg-surface-canvas dark:bg-night-surface border border-border-default dark:border-night-line rounded-md shadow-1 space-y-3">
             <div>
               <span className="block text-sm font-black text-text-primary dark:text-night-ink">Thème</span>
-              <span className="block text-xs text-text-muted dark:text-night-ink-2 mt-0.5">Clair, sombre, ou selon le réglage de Windows.</span>
+              <span className="block text-xs text-text-muted dark:text-night-ink-2 mt-0.5">Eglin (crème), bleu BOCS ou sombre.</span>
             </div>
             <ThemeSwitcher />
           </div>

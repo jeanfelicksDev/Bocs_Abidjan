@@ -3,27 +3,27 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { ThemePreference, useThemePreference } from '../../utils/theme';
 
 const OPTIONS: { value: ThemePreference; label: string; Icon: typeof Sun }[] = [
-  { value: 'light', label: 'Thème clair', Icon: Sun },
-  { value: 'system', label: 'Suivre le système', Icon: Monitor },
-  { value: 'dark', label: 'Thème sombre', Icon: Moon },
+  { value: 'eglin', label: 'Thème Eglin (crème)', Icon: Sun },
+  { value: 'bocs', label: 'Thème bleu BOCS', Icon: Monitor },
+  { value: 'night', label: 'Thème sombre', Icon: Moon },
 ];
 
-const NEXT: Record<ThemePreference, ThemePreference> = { light: 'dark', dark: 'system', system: 'light' };
+const NEXT: Record<ThemePreference, ThemePreference> = { eglin: 'bocs', bocs: 'night', night: 'eglin' };
 
 interface ThemeSwitcherProps {
   className?: string;
-  /** Un seul bouton qui fait défiler Clair → Sombre → Système (barres chargées). */
+  /** Un seul bouton qui fait défiler Eglin → Bleu BOCS → Sombre (barres chargées). */
   compact?: boolean;
 }
 
-/** Sélecteur Clair / Système / Sombre. Un seul composant pour tout l'écran. */
+/** Sélecteur Eglin (soleil) / Bleu BOCS (écran) / Sombre (lune). Un seul composant pour tout l'écran. */
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ className = '', compact = false }) => {
   const [pref, setPref] = useThemePreference();
 
   if (compact) {
     const current = OPTIONS.find((o) => o.value === pref)!;
     const next = OPTIONS.find((o) => o.value === NEXT[pref])!;
-    const label = `${current.label} — cliquer pour : ${next.label.toLowerCase()}`;
+    const label = `${current.label} — cliquer pour : ${next.label}`;
     return (
       <button
         type="button"

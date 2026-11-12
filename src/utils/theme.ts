@@ -1,60 +1,69 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Préférence de thème de l'utilisateur.
- * - `system` : suit le réglage clair/sombre du poste, y compris quand il change.
- * - `light` / `dark` : choix forcé, mémorisé sur le poste.
+ * Thème d'affichage choisi par l'utilisateur, mémorisé sur le poste.
+ * - `eglin` (soleil) : crème et vert forêt.
+ * - `bocs`  (écran)  : clair bleu BOCS.
+ * - `night` (lune)   : sombre, vert-noir et ivoire.
+ *
+ * Sans choix mémorisé, le réglage du poste décide : sombre → `night`, sinon `bocs`.
+ * Les anciennes valeurs `dark` et `light` désignaient Eglin et le bleu BOCS :
+ * elles sont relues comme telles, un choix déjà fait ne change pas. Seul un poste
+ * réglé en sombre et sans choix mémorisé passe d'Eglin au thème sombre.
  *
  * Le script en ligne de `index.html` applique la même règle avant le premier
  * rendu pour éviter le flash de thème ; les deux doivent rester alignés.
  */
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemePreference = 'eglin' | 'bocs' | 'night';
 
 const STORAGE_KEY = 'theme';
 const EVENT = 'bocs:theme';
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 
 export function getThemePreference(): ThemePreference {
-  const v = localStorage.getItem(STORAGE_KEY);
-  return v === 'light' || v === 'dark' ? v : 'system';
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === 'eglin' || stored === 'bocs' || stored === 'night') return stored;
+  if (stored === 'dark') return 'eglin';
+  if (stored === 'light') return 'bocs';
+  return media().matches ? 'night' : 'bocs';
 }
 
-function applyTheme(pref: ThemePreference) {
-  const dark = pref === 'dark' || (pref === 'system' && media().matches);
-  document.documentElement.classList.toggle('dark', dark);
-  document.documentElement.classList.toggle('light', !dark);
+function applyTheme(theme: ThemePreference): void {
+  const classes = document.documentElement.classList;
+  // `.dark` active les variantes `dark:` et les jetons `night-*`, communs à Eglin
+  // et au sombre ; `.night` n'en remplace que les valeurs (tokens.css §13).
+  classes.toggle('dark', theme !== 'bocs');
+  classes.toggle('night', theme === 'night');
+  classes.toggle('light', theme === 'bocs');
 }
 
-export function setThemePreference(pref: ThemePreference) {
-  if (pref === 'system') localStorage.removeItem(STORAGE_KEY);
-  else localStorage.setItem(STORAGE_KEY, pref);
-  applyTheme(pref);
+export function setThemePreference(theme: ThemePreference): void {
+  localStorage.setItem(STORAGE_KEY, theme);
+  applyTheme(theme);
   window.dispatchEvent(new CustomEvent(EVENT));
 }
 
-/** Préférence courante, synchronisée entre tous les sélecteurs et avec le système. */
-export function useThemePreference(): [ThemePreference, (p: ThemePreference) => void] {
-  const [pref, setPref] = useState<ThemePreference>(getThemePreference);
+/** Thème courant, synchronisé entre tous les sélecteurs, les onglets et le poste. */
+export function useThemePreference(): [ThemePreference, (theme: ThemePreference) => void] {
+  const [theme, setTheme] = useState<ThemePreference>(getThemePreference);
 
   useEffect(() => {
+    // Un autre sélecteur, un autre onglet ou le réglage du poste a pu changer le thème.
     const sync = () => {
-      const p = getThemePreference();
-      applyTheme(p); // un autre onglet a pu changer la préférence
-      setPref(p);
-    };
-    const onSystemChange = () => {
-      if (getThemePreference() === 'system') applyTheme('system');
+      const current = getThemePreference();
+      applyTheme(current);
+      setTheme(current);
     };
     const mq = media();
     window.addEventListener(EVENT, sync);
     window.addEventListener('storage', sync);
-    mq.addEventListener('change', onSystemChange);
+    mq.addEventListener('change', sync);
     return () => {
       window.removeEventListener(EVENT, sync);
       window.removeEventListener('storage', sync);
-      mq.removeEventListener('change', onSystemChange);
+      mq.removeEventListener('change', sync);
     };
   }, []);
 
-  return [pref, setThemePreference];
+  return [theme, setThemePreference];
 }

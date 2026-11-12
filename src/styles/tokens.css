@@ -233,6 +233,9 @@
   /* Texte posé sur un aplat vert forêt (bandeaux, en-têtes sombres). */
   --night-on-accent:     214 226 218; /* #D6E2DA */
   --night-on-accent-2:   169 191 178; /* #A9BFB2 */
+  /* L'aplat inverse (passerelle, bandeaux) et son filet : le vert forêt d'action. */
+  --night-inverse:        14  59  44; /* #0E3B2C */
+  --night-inverse-line:   24  75  56; /* #184B38 */
 }
 
 /* ---------------------------------------------------------------------
@@ -279,7 +282,7 @@
   --surface-base: rgb(var(--night-surface));
   --surface-raised: rgb(var(--night-surface));
   --surface-overlay: rgb(var(--night-surface));
-  --surface-inverse: rgb(var(--night-accent));
+  --surface-inverse: rgb(var(--night-inverse));
   --surface-accent-soft: rgb(var(--night-accent-soft));
   --surface-positive-soft: rgb(var(--night-positive-soft));
   --surface-caution-soft: rgb(var(--night-caution-soft));
@@ -298,7 +301,7 @@
   --border-default: rgb(var(--night-line));
   --border-strong: rgb(var(--night-line-strong));
   --border-accent: rgb(var(--night-link));
-  --border-inverse: rgb(var(--night-accent-strong));
+  --border-inverse: rgb(var(--night-inverse-line));
 
   /* Ombres Eglin : courtes, teintées de l'encre vert-noir. */
   --elevation-1: 0 1px 2px rgba(23, 32, 27, 0.04), 0 4px 16px -8px rgba(23, 32, 27, 0.08);
@@ -320,9 +323,64 @@
   --state-late-bg: rgb(var(--night-critical-soft)); --state-late-line: rgb(var(--night-critical)); --state-late-ink: rgb(var(--night-critical));
 }
 
+/* ---------------------------------------------------------------------
+   13. THÈME SOMBRE — la nuit d'Eglin (classes `.dark.night`, bouton lune).
+       Même famille que le thème crème, luminance inversée : fond vert-noir,
+       texte ivoire, action émeraude, or réservé à la sélection et au focus.
+       Seules les valeurs des jetons `--night-*` changent : les ~4 000
+       classes `dark:` et les rôles du bloc `.dark` suivent sans retouche.
+       La profondeur vient des surfaces (canvas < surface < raised) et d'un
+       filet de lumière en tête de carte ; l'ombre portée reste discrète.
+       Contrastes mesurés sur --night-surface.
+   --------------------------------------------------------------------- */
+.dark.night {
+  color-scheme: dark;
+
+  --night-canvas:          9  13  11; /* #090D0B fond de l'application */
+  --night-sunken:          6   9   8; /* #060908 puits, champs de saisie */
+  --night-surface:        17  23  20; /* #111714 panneaux, cartes */
+  --night-raised:         25  33  29; /* #19211D survol, puces, en-têtes de tableau */
+  --night-line:           34  44  39; /* #222C27 règle */
+  --night-line-strong:    53  67  60; /* #35433C contour de contrôle */
+  --night-ink:           237 234 225; /* #EDEAE1 ivoire, texte principal  15.0:1 */
+  --night-ink-2:         178 186 178; /* #B2BAB2 texte secondaire          9.1:1 */
+  --night-ink-3:         134 146 138; /* #86928A texte discret             5.6:1 */
+  --night-accent:         30 120  84; /* #1E7854 émeraude d'action, texte blanc 5.4:1 */
+  --night-accent-strong:  35 133  93; /* #23855D survol d'action, texte blanc   4.6:1 */
+  --night-accent-soft:    17  37  28; /* #11251C fond teinté vert */
+  --night-accent-line:    37  76  59; /* #254C3B filet teinté vert */
+  --night-link:          125 211 167; /* #7DD3A7 lien, icône active       10.1:1 */
+  --night-positive:      116 211 163; /* #74D3A3 validé, encaissé         10.0:1 */
+  --night-positive-soft:  14  40  29;
+  --night-positive-line:  31  88  65;
+  --night-caution:       232 190 106; /* #E8BE6A en attente               10.3:1 */
+  --night-caution-soft:   45  35  15;
+  --night-caution-line:   94  74  28;
+  --night-critical:      240 154 143; /* #F09A8F écart, retard             8.4:1 */
+  --night-critical-soft:  54  24  20;
+  --night-critical-line: 107  46  38;
+
+  --night-gold:          226 182  84; /* #E2B654 sélection, anneau de focus 9.5:1 */
+  --night-on-accent:     226 240 232; /* #E2F0E8 */
+  --night-on-accent-2:   176 205 189; /* #B0CDBD */
+  /* L'aplat inverse devient une profondeur verte : il ne crie pas dans le noir. */
+  --night-inverse:        13  40  30; /* #0D281E ivoire 12.9:1 */
+  --night-inverse-line:   37  76  59; /* #254C3B */
+
+  --text-on-inverse: rgb(var(--night-ink));
+  --surface-overlay: rgb(var(--night-raised));
+  --focus-ring-color: rgb(var(--night-gold));
+
+  --elevation-1: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.45);
+  --elevation-2: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 2px 4px rgb(0 0 0 / 0.35), 0 10px 24px -8px rgb(0 0 0 / 0.55);
+  --elevation-3: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 4px 8px rgb(0 0 0 / 0.35), 0 18px 40px -10px rgb(0 0 0 / 0.65);
+  --elevation-4: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 16px rgb(0 0 0 / 0.40), 0 32px 64px -16px rgb(0 0 0 / 0.75);
+}
+
 :root:not(.dark) { color-scheme: light; }
 
 /* Sélection et barres de défilement : surfaces du navigateur, au thème aussi. */
 ::selection { background: rgb(0 93 170 / 0.22); color: inherit; }
 .dark ::selection { background: rgb(var(--night-gold) / 0.35); color: rgb(var(--night-ink)); }
 .dark { scrollbar-color: rgb(var(--night-ink) / 0.18) transparent; }
+.dark.night { scrollbar-color: rgb(var(--night-line-strong)) transparent; }

@@ -250,8 +250,7 @@
 .dark input:not([type='checkbox']):not([type='radio']):not([type='range']),
 .dark select,
 .dark textarea {
-  color: var(--ds-text);
-  color-scheme: light;
+  color: var(--ds-text); /* `color-scheme` s'hérite de la racine : clair en Eglin, sombre la nuit */
 }
 
 .dark input::placeholder,
@@ -287,18 +286,20 @@
   background-color: rgb(var(--night-accent-strong));
 }
 
-/* Ombres et voiles pensés pour le noir : adoucis sur fond crème. */
-html.dark .dark\:shadow-black\/30, html.dark .dark\:shadow-black\/50,
-html.dark .dark\:shadow-black\/60, html.dark .dark\:shadow-black\/70 {
+/* Ombres et voiles pensés pour le noir : adoucis sur fond crème. Le thème
+   sombre (`.night`) les garde tels quels ; `:where()` n'ajoute aucune spécificité. */
+html.dark:where(:not(.night)) .dark\:shadow-black\/30, html.dark:where(:not(.night)) .dark\:shadow-black\/50,
+html.dark:where(:not(.night)) .dark\:shadow-black\/60, html.dark:where(:not(.night)) .dark\:shadow-black\/70 {
   --tw-shadow-color: rgb(23 32 27 / 0.10);
   --tw-shadow: var(--tw-shadow-colored);
 }
-html.dark .dark\:bg-black\/70 { background-color: rgb(23 32 27 / 0.45); }
+html.dark:where(:not(.night)) .dark\:bg-black\/70 { background-color: rgb(23 32 27 / 0.45); }
 
-/* Champs Eglin : blancs, contour marqué, case à cocher verte. */
-html.dark input.dark\:bg-night-sunken:not([type='checkbox']):not([type='radio']),
-html.dark select.dark\:bg-night-sunken,
-html.dark textarea.dark\:bg-night-sunken {
+/* Champs Eglin : blancs, contour marqué, case à cocher verte. La nuit, le
+   champ reste un puits (`dark:bg-night-sunken`), plus sombre que sa carte. */
+html.dark:where(:not(.night)) input.dark\:bg-night-sunken:not([type='checkbox']):not([type='radio']),
+html.dark:where(:not(.night)) select.dark\:bg-night-sunken,
+html.dark:where(:not(.night)) textarea.dark\:bg-night-sunken {
   background-color: rgb(var(--night-surface));
   border-color: rgb(var(--night-line-strong));
 }
@@ -311,13 +312,13 @@ html.dark input[type='checkbox'], html.dark input[type='radio'] {
    ramène au clair, sauf sur les éléments qui posent leur propre fond. */
 html.dark :is(.bg-\[\#061528\]\/90, .bg-\[\#051120\]\/80, .bg-\[\#030914\],
   .bg-\[\#051424\], .bg-\[\#0F172A\], .bg-zinc-800, .bg-zinc-800\/90, .bg-zinc-900, .bg-zinc-950) {
-  background-color: rgb(var(--night-accent));
-  border-color: rgb(var(--night-accent-strong));
+  background-color: rgb(var(--night-inverse));
+  border-color: rgb(var(--night-inverse-line));
   color: rgb(var(--night-on-accent)) !important;
 }
 html.dark .bg-\[\#040e1b\] {
   background-color: rgb(10 44 33);
-  border-color: rgb(var(--night-accent-strong));
+  border-color: rgb(var(--night-inverse-line));
 }
 html.dark .hover\:bg-\[\#1E293B\]:hover, html.dark .hover\:bg-zinc-800:hover {
   background-color: rgb(var(--night-accent-strong));
